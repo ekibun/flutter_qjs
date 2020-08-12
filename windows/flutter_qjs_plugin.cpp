@@ -3,14 +3,12 @@
 // This must be included before many other Windows headers.
 #include <windows.h>
 
-// For getPlatformVersion; remove unless needed for your plugin implementation.
-#include <VersionHelpers.h>
-
 #include <flutter/method_channel.h>
 #include <flutter/plugin_registrar_windows.h>
 #include <flutter/standard_method_codec.h>
+#include <flutter/method_result_functions.h>
 
-#include "js_engine.hpp"
+#include "../cxx/js_engine.hpp"
 
 namespace
 {
@@ -32,6 +30,37 @@ namespace
   };
 
   std::shared_ptr<flutter::MethodChannel<flutter::EncodableValue>> channel;
+  std::future<qjs::JSFutureReturn> invokeChannelMethod(std::string name, std::string args)
+  {
+    auto promise = new std::promise<qjs::JSFutureReturn>();
+    channel->InvokeMethod(
+        name,
+        std::make_unique<flutter::EncodableValue>(args),
+        std::make_unique<flutter::MethodResultFunctions<flutter::EncodableValue>>(
+            (flutter::ResultHandlerSuccess<flutter::EncodableValue>)[promise](
+                const flutter::EncodableValue *result) {
+              promise->set_value((qjs::JSFutureReturn)[rep = std::get<std::string>(*result)](qjs::JSContext * ctx) {
+                qjs::JSValue *ret = new qjs::JSValue{JS_NewString(ctx, rep.c_str())};
+                return qjs::JSOSFutureArgv{1, ret};
+              });
+            },
+            (flutter::ResultHandlerError<flutter::EncodableValue>)[promise](
+                const std::string &error_code,
+                const std::string &error_message,
+                const flutter::EncodableValue *error_details) {
+              promise->set_value((qjs::JSFutureReturn)[error_message](qjs::JSContext * ctx) {
+                qjs::JSValue *ret = new qjs::JSValue{JS_NewString(ctx, error_message.c_str())};
+                return qjs::JSOSFutureArgv{-1, ret};
+              });
+            },
+            (flutter::ResultHandlerNotImplemented<flutter::EncodableValue>)[promise]() {
+              promise->set_value((qjs::JSFutureReturn)[](qjs::JSContext * ctx) {
+                qjs::JSValue *ret = new qjs::JSValue{JS_NewString(ctx, "NotImplemented")};
+                return qjs::JSOSFutureArgv{-1, ret};
+              });
+            }));
+    return promise->get_future();
+  }
 
   // static
   void FlutterQjsPlugin::RegisterWithRegistrar(
@@ -81,7 +110,7 @@ namespace
     // for the relevant Flutter APIs.
     if (method_call.method_name().compare("initEngine") == 0)
     {
-      engine = new qjs::Engine(channel);
+      engine = new qjs::Engine((qjs::DartChannel)invokeChannelMethod);
       flutter::EncodableValue response((long)engine);
       result->Success(&response);
     }

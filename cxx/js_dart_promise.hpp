@@ -3,10 +3,10 @@
  * @Author: ekibun
  * @Date: 2020-08-07 13:55:52
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-12 14:24:42
+ * @LastEditTime: 2020-08-12 23:30:57
  */
 #pragma once
-#include "quickjs/quickjspp.hpp"
+#include "quickjspp.hpp"
 #include "quickjs/list.h"
 #include <future>
 #include <string.h>
