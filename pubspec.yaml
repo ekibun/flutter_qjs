@@ -34,6 +34,9 @@ flutter:
     # -------------------
       windows:
         pluginClass: FlutterQjsPlugin
+      android:
+        pluginClass: FlutterQjsPlugin
+        package: soko.ekibun.flutter_qjs
     # -------------------
 
   # To add assets to your plugin package, add an assets section, like this:

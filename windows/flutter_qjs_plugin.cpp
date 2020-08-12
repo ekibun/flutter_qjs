@@ -87,7 +87,7 @@ namespace
     }
     else if (method_call.method_name().compare("evaluate") == 0)
     {
-      flutter::EncodableMap args = *((flutter::EncodableMap *)method_call.arguments());
+      flutter::EncodableMap args = *std::get_if<flutter::EncodableMap>(method_call.arguments());
       std::string script = std::get<std::string>(ValueOrNull(args, "script"));
       std::string name = std::get<std::string>(ValueOrNull(args, "name"));
       auto presult = result.release();
