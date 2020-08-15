@@ -1,0 +1,35 @@
+cmake_minimum_required(VERSION 3.10)
+set(PROJECT_NAME "flutter_qjs")
+project(${PROJECT_NAME} LANGUAGES CXX)
+
+set(PLUGIN_NAME "${PROJECT_NAME}_plugin")
+
+add_library(${PLUGIN_NAME} SHARED
+  "${PLUGIN_NAME}.cc"
+)
+
+set(QUICK_JS_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../cxx/quickjspp")
+# quickjs
+file (STRINGS "${QUICK_JS_LIB_DIR}/quickjs/VERSION" QUICKJS_VERSION)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DCONFIG_VERSION=\\\"${QUICKJS_VERSION}\\\"")
+target_sources(${PLUGIN_NAME} PUBLIC
+    "${QUICK_JS_LIB_DIR}/quickjs/cutils.c"
+    "${QUICK_JS_LIB_DIR}/quickjs/libregexp.c"
+    "${QUICK_JS_LIB_DIR}/quickjs/libunicode.c"
+    "${QUICK_JS_LIB_DIR}/quickjs/quickjs.c"
+)
+
+apply_standard_settings(${PLUGIN_NAME})
+set_target_properties(${PLUGIN_NAME} PROPERTIES
+  CXX_VISIBILITY_PRESET hidden)
+target_compile_definitions(${PLUGIN_NAME} PRIVATE FLUTTER_PLUGIN_IMPL)
+target_include_directories(${PLUGIN_NAME} INTERFACE
+  "${CMAKE_CURRENT_SOURCE_DIR}/include")
+target_link_libraries(${PLUGIN_NAME} PRIVATE flutter)
+target_link_libraries(${PLUGIN_NAME} PRIVATE PkgConfig::GTK)
+
+# List of absolute paths to libraries that should be bundled with the plugin
+set(flutter_qjs_bundled_libraries
+  ""
+  PARENT_SCOPE
+)
