@@ -8,7 +8,7 @@
 #include <flutter/standard_method_codec.h>
 #include <flutter/method_result_functions.h>
 
-#include "../cxx/js_engine.hpp"
+#include "dart_js_wrapper.hpp"
 
 namespace
 {
@@ -30,17 +30,17 @@ namespace
   };
 
   std::shared_ptr<flutter::MethodChannel<flutter::EncodableValue>> channel;
-  std::future<qjs::JSFutureReturn> invokeChannelMethod(std::string name, std::string args)
+  std::promise<qjs::JSFutureReturn> *invokeChannelMethod(std::string name, qjs::Value args)
   {
     auto promise = new std::promise<qjs::JSFutureReturn>();
     channel->InvokeMethod(
         name,
-        std::make_unique<flutter::EncodableValue>(args),
+        std::make_unique<flutter::EncodableValue>(qjs::jsToDart(args, std::unordered_map<qjs::Value, flutter::EncodableValue>())),
         std::make_unique<flutter::MethodResultFunctions<flutter::EncodableValue>>(
             (flutter::ResultHandlerSuccess<flutter::EncodableValue>)[promise](
                 const flutter::EncodableValue *result) {
-              promise->set_value((qjs::JSFutureReturn)[rep = std::get<std::string>(*result)](qjs::JSContext * ctx) {
-                qjs::JSValue *ret = new qjs::JSValue{JS_NewString(ctx, rep.c_str())};
+              promise->set_value((qjs::JSFutureReturn)[result = result ? *result : flutter::EncodableValue()](qjs::JSContext * ctx) {
+                qjs::JSValue *ret = new qjs::JSValue{qjs::dartToJs(ctx, result, std::unordered_map<flutter::EncodableValue, qjs::JSValue>())};
                 return qjs::JSOSFutureArgv{1, ret};
               });
             },
@@ -59,7 +59,7 @@ namespace
                 return qjs::JSOSFutureArgv{-1, ret};
               });
             }));
-    return promise->get_future();
+    return promise;
   }
 
   // static
@@ -111,7 +111,7 @@ namespace
     if (method_call.method_name().compare("initEngine") == 0)
     {
       engine = new qjs::Engine((qjs::DartChannel)invokeChannelMethod);
-      flutter::EncodableValue response((long)engine);
+      flutter::EncodableValue response = (int64_t)engine;
       result->Success(&response);
     }
     else if (method_call.method_name().compare("evaluate") == 0)
@@ -121,9 +121,39 @@ namespace
       std::string name = std::get<std::string>(ValueOrNull(args, "name"));
       auto presult = result.release();
       engine->commit(qjs::EngineTask{
-          script, name,
+          [script, name](qjs::Context &ctx) {
+            return ctx.eval(script, name.c_str(), JS_EVAL_TYPE_GLOBAL);
+          },
           [presult](std::string resolve) {
-            flutter::EncodableValue response(resolve);
+            flutter::EncodableValue response = resolve;
+            presult->Success(&response);
+          },
+          [presult](std::string reject) {
+            presult->Error("FlutterJSException", reject);
+          }});
+    }
+    else if (method_call.method_name().compare("call") == 0)
+    {
+      flutter::EncodableMap args = *std::get_if<flutter::EncodableMap>(method_call.arguments());
+      qjs::JSValue *function = (qjs::JSValue *)std::get<int64_t>(ValueOrNull(args, "function"));
+      flutter::EncodableList arguments = std::get<flutter::EncodableList>(ValueOrNull(args, "arguments"));
+      auto presult = result.release();
+      engine->commit(qjs::EngineTask{
+          [function, arguments](qjs::Context &ctx) {
+            size_t argscount = arguments.size();
+            qjs::JSValue *callargs = new qjs::JSValue[argscount];
+            for (size_t i = 0; i < argscount; i++)
+            {
+              callargs[i] = qjs::dartToJs(ctx.ctx, arguments[i], std::unordered_map<flutter::EncodableValue, qjs::JSValue>());
+            }
+            qjs::JSValue ret = JS_Call(ctx.ctx, *function, qjs::JSValue{qjs::JSValueUnion{0}, qjs::JS_TAG_UNDEFINED}, (int)argscount, callargs);
+            qjs::JS_FreeValue(ctx.ctx, *function);
+            if (qjs::JS_IsException(ret))
+              throw qjs::exception{};
+            return qjs::Value{ctx.ctx, ret};
+          },
+          [presult](std::string resolve) {
+            flutter::EncodableValue response = resolve;
             presult->Success(&response);
           },
           [presult](std::string reject) {

@@ -98,7 +98,8 @@
     "numeric": "cpp",
     "cfenv": "cpp",
     "cinttypes": "cpp",
-    "typeindex": "cpp"
+    "typeindex": "cpp",
+    "__functional_03": "cpp"
   },
   "java.configuration.updateBuildConfiguration": "interactive"
 }

@@ -3,16 +3,17 @@
  * @Author: ekibun
  * @Date: 2020-08-07 13:55:52
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-13 13:47:16
+ * @LastEditTime: 2020-08-15 14:45:00
  */
 #pragma once
 #include "quickjspp/quickjspp.hpp"
-#include "quickjspp/quickjs/list.h"
 #include <future>
 #include <string.h>
 
 namespace qjs
 {
+#include "quickjspp/quickjs/list.h"
+
   static JSClassID js_dart_promise_class_id;
 
   typedef struct
@@ -22,11 +23,12 @@ namespace qjs
   } JSOSFutureArgv;
 
   using JSFutureReturn = std::function<JSOSFutureArgv(JSContext *)>;
-  using DartChannel = std::function<std::future<JSFutureReturn>(std::string, std::string)>;
+  using DartChannel = std::function<std::promise<JSFutureReturn> *(std::string, Value)>;
 
   typedef struct
   {
     struct list_head link;
+    std::promise<JSFutureReturn> *promise;
     std::shared_future<JSFutureReturn> future;
     JSValue resolve;
     JSValue reject;
@@ -35,10 +37,10 @@ namespace qjs
   typedef struct JSThreadState
   {
     struct list_head os_future; /* list of JSOSFuture.link */
-    std::function<std::future<JSFutureReturn>(std::string, std::string)> channel;
+    DartChannel channel;
   } JSThreadState;
 
-  static JSValue js_add_future(Value resolve, Value reject, std::shared_future<JSFutureReturn> future)
+  static JSValue js_add_future(Value resolve, Value reject, std::promise<JSFutureReturn> *promise)
   {
     JSRuntime *rt = JS_GetRuntime(resolve.ctx);
     JSThreadState *ts = (JSThreadState *)JS_GetRuntimeOpaque(rt);
@@ -61,7 +63,8 @@ namespace qjs
       JS_FreeValue(resolve.ctx, obj);
       return JS_EXCEPTION;
     }
-    th->future = future;
+    th->promise = promise;
+    th->future = promise->get_future();
     th->resolve = JS_DupValue(resolve.ctx, jsResolve);
     th->reject = JS_DupValue(reject.ctx, jsReject);
     list_add_tail(&th->link, &ts->os_future);
@@ -69,7 +72,7 @@ namespace qjs
     return obj;
   }
 
-  JSValue js_dart_future(Value resolve, Value reject, std::string name, std::string args)
+  JSValue js_dart_future(Value resolve, Value reject, std::string name, Value args)
   {
     JSRuntime *rt = JS_GetRuntime(resolve.ctx);
     JSThreadState *ts = (JSThreadState *)JS_GetRuntimeOpaque(rt);
@@ -116,6 +119,7 @@ namespace qjs
     {
       JSOSFuture *th = list_entry(el, JSOSFuture, link);
       th->future.get();
+      delete th->promise;
       unlink_future(rt, th);
       free_future(rt, th);
     }
@@ -159,7 +163,6 @@ namespace qjs
         {
           JSOSFutureArgv argv = th->future.get()(ctx);
           JSValue resolve, reject;
-          int64_t delay;
           /* the timer expired */
           resolve = th->resolve;
           th->resolve = JS_UNDEFINED;

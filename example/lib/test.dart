@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-07-18 23:28:55
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-08 17:38:48
+ * @LastEditTime: 2020-08-15 14:01:09
  */ 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -48,6 +48,8 @@ class _TestPageState extends State<TestPage> {
                         case "http":
                           Response response = await Dio().get(arg[0]);
                           return response.data;
+                        case "hello":
+                          return await arg[0](["hello: "]);
                         default:
                       }
                     };

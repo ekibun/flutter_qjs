@@ -1,6 +1,6 @@
 # flutter_qjs
 
-A new flutter plugin project.
+A quickjs engine for flutter.
 
 ## Getting Started
 

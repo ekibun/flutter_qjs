@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 10:30:59
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-13 13:47:28
+ * @LastEditTime: 2020-08-15 13:13:43
  */
 #pragma once
 
@@ -21,8 +21,7 @@ namespace qjs
 {
   struct EngineTask
   {
-    std::string command;
-    std::string name;
+    std::function<Value(Context&)> invoke;
     std::function<void(std::string)> resolve;
     std::function<void(std::string)> reject;
   };
@@ -72,10 +71,26 @@ namespace qjs
             R"xxx(
               import * as __DartImpl from "__DartImpl";
               globalThis.dart = (method, ...args) => new Promise((res, rej) => 
-                __DartImpl.__invoke((v) => res(JSON.parse(v)), rej, method, JSON.stringify(args)));
+                __DartImpl.__invoke(res, rej, method, args));
             )xxx",
             "<dart>", JS_EVAL_TYPE_MODULE);
         std::vector<EngineTaskResolver> unresolvedTask;
+        Value promiseWrapper = ctx.eval(
+            R"xxx(
+              (value) => {
+                const __ret = Promise.resolve(value)
+                  .then(v => {
+                    __ret.__value = v;
+                    __ret.__resolved = true;
+                  }).catch(e => {
+                    __ret.__error = e;
+                    __ret.__rejected = true;
+                  });
+                return __ret;
+              }
+            )xxx",
+            "<PromiseWrapper>", JS_EVAL_TYPE_GLOBAL);
+
         // 循环
         while (!this->stoped)
         {
@@ -93,25 +108,11 @@ namespace qjs
           if (task.resolve)
             try
             {
-              ctx.global()["__evalstr"] = JS_NewString(ctx.ctx, task.command.c_str());
-              Value ret = ctx.eval(
-                  R"xxx(
-                    (() => { 
-                      const __ret = Promise.resolve(eval(__evalstr))
-                        .then(v => {
-                          __ret.__value = v;
-                          __ret.__resolved = true;
-                        }).catch(e => {
-                          __ret.__error = e;
-                          __ret.__rejected = true;
-                        });
-                      return __ret;
-                    })()
-                  )xxx",
-                  task.name.c_str());
+              Value val = task.invoke(ctx);
+              Value ret = Value{ctx.ctx, JS_Call(ctx.ctx, promiseWrapper.v, ctx.global().v, 1, &(val.v))};
               unresolvedTask.emplace_back(EngineTaskResolver{ret, std::move(task.resolve), std::move(task.reject)});
             }
-            catch (exception e)
+            catch (exception)
             {
               task.reject(getStackTrack(ctx.getException()));
             }
@@ -152,16 +153,16 @@ namespace qjs
           {
             idle = js_dart_poll(ctx.ctx);
           }
-          catch (exception e)
+          catch (exception)
           {
             handleException(ctx.getException());
           }
           // 空闲时reject所有task
           if (idle && !JS_IsJobPending(rt.rt) && !unresolvedTask.empty())
           {
-            for (EngineTaskResolver &task : unresolvedTask)
+            for (EngineTaskResolver &_task : unresolvedTask)
             {
-              task.reject("Promise cannot resolve");
+              _task.reject("Promise cannot resolve");
             }
             unresolvedTask.clear();
           }

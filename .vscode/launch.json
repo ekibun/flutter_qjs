@@ -5,8 +5,19 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "(Windows) 启动",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "program": "example/build/windows/runner/Debug/flutter_qjs_example.exe",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false
+    },
+    {
       "name": "Flutter",
-      "program": "lib/main.dart",
+      "program": "example/lib/main.dart",
       "request": "launch",
       "type": "dart"
     }
