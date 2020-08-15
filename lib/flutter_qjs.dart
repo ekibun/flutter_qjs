@@ -3,27 +3,31 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:29:09
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-15 13:58:11
+ * @LastEditTime: 2020-08-15 16:21:56
  */
 import 'dart:async';
-
 import 'package:flutter/services.dart';
 
-class FlutterJs {
-  static const MethodChannel _channel = const MethodChannel('soko.ekibun.flutter_qjs');
+typedef JsMethodHandler = Future<dynamic> Function(String method, List args);
 
-  static Future<dynamic> Function(String method, List args) methodHandler;
-
-  static Future<int> initEngine() async {
-    final int engineId = await _channel.invokeMethod("initEngine");
+class _FlutterJs {
+  factory _FlutterJs() => _getInstance();
+  static _FlutterJs get instance => _getInstance();
+  static _FlutterJs _instance;
+  MethodChannel _channel = const MethodChannel('soko.ekibun.flutter_qjs');
+  Map<dynamic, JsMethodHandler> methodHandlers = Map<dynamic, JsMethodHandler>();
+  _FlutterJs._internal() {
     _channel.setMethodCallHandler((call) async {
-      if (methodHandler == null) return call.noSuchMethod(null);
-      return await methodHandler(call.method, _wrapFunctionArguments(call.arguments));
+      print(call.arguments);
+      var engine = call.arguments["engine"];
+      var args = call.arguments["args"];
+      print(methodHandlers.entries);
+      print(methodHandlers[engine]);
+      if (methodHandlers[engine] == null) return call.noSuchMethod(null);
+      return await methodHandlers[engine](call.method, _wrapFunctionArguments(args));
     });
-    return engineId;
   }
-
-  static dynamic _wrapFunctionArguments(dynamic val) {
+  dynamic _wrapFunctionArguments(dynamic val) {
     if (val is List) {
       for (var i = 0; i < val.length; ++i) {
         val[i] = _wrapFunctionArguments(val[i]);
@@ -35,20 +39,47 @@ class FlutterJs {
           var arguments = {"function": functionId, "arguments": args};
           return await _channel.invokeMethod("call", arguments);
         };
-      }else for(var key in val.keys) {
-        val[key] = _wrapFunctionArguments(val[key]);
-      }
+      } else
+        for (var key in val.keys) {
+          val[key] = _wrapFunctionArguments(val[key]);
+        }
     }
     return val;
   }
 
-  static Future<String> evaluate(String command, String name) async {
-    var arguments = {"script": command, "name": command};
-    final String jsResult = await _channel.invokeMethod("evaluate", arguments);
-    return jsResult ?? "null";
+  static _FlutterJs _getInstance() {
+    if (_instance == null) {
+      _instance = new _FlutterJs._internal();
+    }
+    return _instance;
+  }
+}
+
+class FlutterJs {
+  dynamic _engine;
+
+  ensureEngine() async {
+    if(_engine == null){
+      _engine = await _FlutterJs.instance._channel.invokeMethod("createEngine");
+    }
   }
 
-  static Future<void> close() async {
-    return await _channel.invokeMethod("close");
+  setMethodHandler(JsMethodHandler handler) async {
+    await ensureEngine();
+    _FlutterJs.instance.methodHandlers[_engine] = handler;
+  }
+
+  destroy() async {
+    if (_engine != null){
+      await _FlutterJs.instance._channel.invokeMethod("close", {"engine": _engine});
+      _engine = null;
+    }
+  }
+
+  Future<dynamic> evaluate(String command, String name) async {
+    ensureEngine();
+    var arguments = {"engine": _engine, "script": command, "name": command};
+    return _FlutterJs.instance._wrapFunctionArguments(
+        await _FlutterJs.instance._channel.invokeMethod("evaluate", arguments));
   }
 }

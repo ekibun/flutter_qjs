@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-14 21:45:02
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-15 14:08:04
+ * @LastEditTime: 2020-08-15 15:42:55
  */
 #include "../cxx/js_engine.hpp"
 #include <flutter/standard_method_codec.h>
@@ -47,7 +47,7 @@ namespace qjs
     return JS_UNDEFINED;
   }
 
-  JSValue dartToJs(JSContext *ctx, flutter::EncodableValue val, std::unordered_map<flutter::EncodableValue, JSValue> cache)
+  JSValue dartToJs(JSContext *ctx, flutter::EncodableValue val, std::unordered_map<flutter::EncodableValue, JSValue> cache = std::unordered_map<flutter::EncodableValue, JSValue>())
   {
     if (val.IsNull())
       return JS_UNDEFINED;
@@ -111,7 +111,7 @@ namespace qjs
     return JS_UNDEFINED;
   }
 
-  flutter::EncodableValue jsToDart(Value val, std::unordered_map<Value, flutter::EncodableValue> cache)
+  flutter::EncodableValue jsToDart(Value val, std::unordered_map<Value, flutter::EncodableValue> cache = std::unordered_map<Value, flutter::EncodableValue>())
   {
     if (cache.find(val) != cache.end())
       return cache[val];

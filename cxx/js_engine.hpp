@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 10:30:59
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-15 13:13:43
+ * @LastEditTime: 2020-08-15 16:31:14
  */
 #pragma once
 
@@ -22,15 +22,15 @@ namespace qjs
   struct EngineTask
   {
     std::function<Value(Context&)> invoke;
-    std::function<void(std::string)> resolve;
-    std::function<void(std::string)> reject;
+    std::function<void(Value)> resolve;
+    std::function<void(Value)> reject;
   };
 
   struct EngineTaskResolver
   {
     Value result;
-    std::function<void(std::string)> resolve;
-    std::function<void(std::string)> reject;
+    std::function<void(Value)> resolve;
+    std::function<void(Value)> reject;
   };
 
   std::string getStackTrack(Value exc)
@@ -58,9 +58,11 @@ namespace qjs
     }
 
   public:
-    inline Engine(DartChannel channel) : stoped{false}
+    inline Engine(std::function<std::promise<JSFutureReturn> *(std::string, Value, Engine *)> channel) : stoped{false}
     {
-      thread = std::thread([this, channel] { // 工作线程函数
+      thread = std::thread([this, channel = [this, channel](std::string method, Value args){
+        return channel(method, args, this);
+      }] {
         // 创建运行环境
         Runtime rt;
         js_init_handlers(rt.rt, channel);
@@ -114,7 +116,7 @@ namespace qjs
             }
             catch (exception)
             {
-              task.reject(getStackTrack(ctx.getException()));
+              task.reject(ctx.getException());
             }
           // 执行microtask
           JSContext *pctx;
@@ -134,12 +136,12 @@ namespace qjs
             bool finished = false;
             if (it->result["__resolved"])
             {
-              it->resolve((std::string)it->result["__value"]);
+              it->resolve(it->result["__value"]);
               finished = true;
             };
             if (it->result["__rejected"])
             {
-              it->reject(getStackTrack(it->result["__error"]));
+              it->reject(it->result["__error"]);
               finished = true;
             };
             if (finished)
@@ -162,7 +164,7 @@ namespace qjs
           {
             for (EngineTaskResolver &_task : unresolvedTask)
             {
-              _task.reject("Promise cannot resolve");
+              _task.reject(ctx.newValue("Promise cannot resolve"));
             }
             unresolvedTask.clear();
           }

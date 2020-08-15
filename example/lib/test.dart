@@ -3,8 +3,8 @@
  * @Author: ekibun
  * @Date: 2020-07-18 23:28:55
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-15 14:01:09
- */ 
+ * @LastEditTime: 2020-08-15 16:39:07
+ */
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_qjs/flutter_qjs.dart';
@@ -17,9 +17,8 @@ class TestPage extends StatefulWidget {
 }
 
 class _TestPageState extends State<TestPage> {
-
   String code, resp;
-  int engine;
+  FlutterJs engine;
 
   @override
   Widget build(BuildContext context) {
@@ -36,43 +35,47 @@ class _TestPageState extends State<TestPage> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  FlatButton(child: Text("初始化引擎"), onPressed: () async {
-                    if ((engine?? 0) != 0) return;
-                    engine = await FlutterJs.initEngine();
-                    // dart 函数回调
-                    FlutterJs.methodHandler = (String method, List arg) async {
-                      switch (method) {
-                        case "delay":
-                          await Future.delayed(Duration(milliseconds: arg[0]));
+                  FlatButton(
+                      child: Text("初始化引擎"),
+                      onPressed: () async {
+                        if (engine != null) return;
+                        engine = FlutterJs();
+                        engine.setMethodHandler((String method, List arg) async {
+                          switch (method) {
+                            case "delay":
+                              await Future.delayed(Duration(milliseconds: arg[0]));
+                              return;
+                            case "http":
+                              Response response = await Dio()
+                                  .get(arg[0], options: Options(responseType: ResponseType.bytes));
+                              return response.data;
+                            case "hello":
+                              return await arg[0](["hello: "]);
+                            default:
+                          }
+                        });
+                      }),
+                  FlatButton(
+                      child: Text("运行"),
+                      onPressed: () async {
+                        if (engine == null) {
+                          print("请先初始化引擎");
                           return;
-                        case "http":
-                          Response response = await Dio().get(arg[0]);
-                          return response.data;
-                        case "hello":
-                          return await arg[0](["hello: "]);
-                        default:
-                      }
-                    };
-                  }),
-                  FlatButton(child: Text("运行"), onPressed: () async {
-                    if ((engine?? 0) == 0) {
-                      print("请先初始化引擎");
-                      return;
-                    }
-                    try {
-                      resp = await FlutterJs.evaluate(code ?? '', "<eval>");
-                    } catch(e) {
-                      resp = e.toString();
-                    }
-                    setState(() {
-                      code = code;
-                    });
-                  }),
-                  FlatButton(child: Text("释放引擎"), onPressed: () async {
-                    if ((engine?? 0) == 0) return;
-                    await FlutterJs.close();
-                    engine = 0;
-                  }),
+                        }
+                        try {
+                          resp = "${await engine.evaluate(code ?? '', "<eval>")}";
+                        } catch (e) {
+                          resp = e.toString();
+                        }
+                        setState(() {});
+                      }),
+                  FlatButton(
+                      child: Text("释放引擎"),
+                      onPressed: () async {
+                        if (engine != null) return;
+                        await engine.destroy();
+                        engine = null;
+                      }),
                 ],
               ),
             ),
