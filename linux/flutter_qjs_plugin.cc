@@ -3,7 +3,7 @@
 #include <flutter_linux/flutter_linux.h>
 #include <gtk/gtk.h>
 #include <sys/utsname.h>
-#include "../cxx/js_engine.hpp"
+#include "dart_js_wrapper.hpp"
 
 #define FLUTTER_QJS_PLUGIN(obj)                                     \
   (G_TYPE_CHECK_INSTANCE_CAST((obj), flutter_qjs_plugin_get_type(), \
@@ -33,6 +33,7 @@ static void flutter_qjs_plugin_handle_method_call(
     g_autoptr(FlValue) result = fl_value_new_string(version);
     response = FL_METHOD_RESPONSE(fl_method_success_response_new(result));
   }
+
   else
   {
     response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
