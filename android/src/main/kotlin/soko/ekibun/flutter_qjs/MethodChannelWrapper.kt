@@ -7,7 +7,7 @@ import io.flutter.plugin.common.MethodChannel
 
 @Keep
 class MethodChannelWrapper(private val handler: Handler, private val channel: MethodChannel) {
-    fun invokeMethod(method: String, arguments: String, promise: Long) {
+    fun invokeMethod(method: String, arguments: Any?, promise: Long) {
         handler.post {
             channel.invokeMethod(method, arguments, object : MethodChannel.Result {
                 override fun notImplemented() {
@@ -19,7 +19,7 @@ class MethodChannelWrapper(private val handler: Handler, private val channel: Me
                 }
 
                 override fun success(data: Any?) {
-                    JniBridge.instance.resolve(promise, data.toString())
+                    JniBridge.instance.resolve(promise, data)
                 }
 
             })

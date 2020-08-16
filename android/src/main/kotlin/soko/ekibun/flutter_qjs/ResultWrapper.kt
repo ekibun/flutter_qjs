@@ -9,7 +9,7 @@ import io.flutter.plugin.common.MethodChannel.Result
 class ResultWrapper(private val handler: Handler, private val result: Result) {
 
   @Keep
-  fun success(dat: String) {
+  fun success(dat: Any?) {
     handler.post { result.success(dat) }
   }
 

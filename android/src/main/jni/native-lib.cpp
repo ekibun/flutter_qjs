@@ -3,13 +3,9 @@
  * @Author: ekibun
  * @Date: 2020-08-09 18:16:11
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-12 23:37:28
+ * @LastEditTime: 2020-08-16 19:00:06
  */
-#include <jni.h>
-#include <string>
-#include "../../../../cxx/js_engine.hpp"
-
-qjs::Engine *engine = nullptr;
+#include "java_js_wrapper.hpp"
 
 JNIEnv *getEnv(JavaVM *gJvm)
 {
@@ -26,48 +22,41 @@ JNIEnv *getEnv(JavaVM *gJvm)
   return env;
 }
 
-void jniResultResolve(JavaVM *jvm, jobject result, std::string data)
+void jniResultResolve(JNIEnv *env, jobject result, jobject data)
 {
-  JNIEnv *env = getEnv(jvm);
   jclass jclazz = env->GetObjectClass(result);
-  jmethodID jmethod = env->GetMethodID(jclazz, "success", "(Ljava/lang/String;)V");
-  jstring jdata = env->NewStringUTF(data.c_str());
-  env->CallVoidMethod(result, jmethod, jdata);
-  env->DeleteLocalRef(jdata);
+  jmethodID jmethod = env->GetMethodID(jclazz, "success", "(Ljava/lang/Object;)V");
+  env->CallVoidMethod(result, jmethod, data);
+  env->DeleteLocalRef(data);
   env->DeleteGlobalRef(result);
-  jvm->DetachCurrentThread();
 }
 
-void jniResultReject(JavaVM *jvm, jobject result, std::string reason)
+void jniResultReject(JNIEnv *env, jobject result, std::string reason)
 {
-  JNIEnv *env = getEnv(jvm);
   jclass jclazz = env->GetObjectClass(result);
   jmethodID jmethod = env->GetMethodID(jclazz, "error", "(Ljava/lang/String;)V");
   jstring jreason = env->NewStringUTF(reason.c_str());
   env->CallVoidMethod(result, jmethod, jreason);
   env->DeleteLocalRef(jreason);
   env->DeleteGlobalRef(result);
-  jvm->DetachCurrentThread();
 }
 
-void jniChannelInvoke(JavaVM *jvm, jobject channel, std::promise<qjs::JSFutureReturn> *promise, std::string method, std::string argv)
+void jniChannelInvoke(JNIEnv *env, jobject channel, std::promise<qjs::JSFutureReturn> *promise, std::string method, qjs::Value args, qjs::Engine *engine)
 {
-  JNIEnv *env = nullptr;
-  jvm->GetEnv((void **)&env, JNI_VERSION_1_2);
-  jvm->AttachCurrentThread(&env, NULL);
   jclass jclazz = env->GetObjectClass(channel);
-  jmethodID jmethod = env->GetMethodID(jclazz, "invokeMethod", "(Ljava/lang/String;Ljava/lang/String;J)V");
+  jmethodID jmethod = env->GetMethodID(jclazz, "invokeMethod", "(Ljava/lang/String;Ljava/lang/Object;J)V");
   jstring jstrmethod = env->NewStringUTF(method.c_str());
-  jstring jstrargv = env->NewStringUTF(argv.c_str());
-  
-  env->CallVoidMethod(channel, jmethod, jstrmethod, jstrargv, (jlong)promise);
+  std::map<jobject, jobject> retMap;
+  retMap[env->NewStringUTF("engine")] = jniWrapPrimity<jlong>(env, (int64_t) engine);
+  retMap[env->NewStringUTF("args")] = qjs::jsToJava(env, args);
+  jobject jsargs = jniWrapMap(env, retMap);
+  env->CallVoidMethod(channel, jmethod, jstrmethod, jsargs, (jlong)promise);
   env->DeleteLocalRef(jstrmethod);
-  env->DeleteLocalRef(jstrargv);
-  jvm->DetachCurrentThread();
+  env->DeleteLocalRef(jsargs);
 }
 
-extern "C" JNIEXPORT jint JNICALL
-Java_soko_ekibun_flutter_1qjs_JniBridge_initEngine(
+extern "C" JNIEXPORT jlong JNICALL
+Java_soko_ekibun_flutter_1qjs_JniBridge_createEngine(
     JNIEnv *env,
     jobject thiz,
     jobject channel)
@@ -75,10 +64,12 @@ Java_soko_ekibun_flutter_1qjs_JniBridge_initEngine(
   JavaVM *jvm = nullptr;
   env->GetJavaVM(&jvm);
   jobject gchannel = env->NewGlobalRef(channel);
-  engine = new qjs::Engine([jvm, gchannel](std::string name, std::string args) {
+  qjs::Engine *engine = new qjs::Engine([jvm, gchannel](std::string name, qjs::Value args, qjs::Engine *engine) {
     auto promise = new std::promise<qjs::JSFutureReturn>();
-    jniChannelInvoke(jvm, gchannel, promise, name, args);
-    return promise->get_future();
+    JNIEnv *env = getEnv(jvm);
+    jniChannelInvoke(env, gchannel, promise, name, args, engine);
+    jvm->DetachCurrentThread();
+    return promise;
   });
   return (jlong)engine;
 }
@@ -87,6 +78,7 @@ extern "C" JNIEXPORT void JNICALL
 Java_soko_ekibun_flutter_1qjs_JniBridge_evaluate(
     JNIEnv *env,
     jobject thiz,
+    jlong engine,
     jstring script,
     jstring name,
     jobject result)
@@ -94,33 +86,86 @@ Java_soko_ekibun_flutter_1qjs_JniBridge_evaluate(
   JavaVM *jvm = nullptr;
   env->GetJavaVM(&jvm);
   jobject gresult = env->NewGlobalRef(result);
-  engine->commit(qjs::EngineTask{
-      env->GetStringUTFChars(script, 0),
-      env->GetStringUTFChars(name, 0),
-      [jvm, gresult](std::string resolve) {
-        jniResultResolve(jvm, gresult, resolve);
+  ((qjs::Engine *)engine)->commit(qjs::EngineTask{
+      [script = std::string(env->GetStringUTFChars(script, 0)),
+       name = std::string(env->GetStringUTFChars(name, 0))](qjs::Context &ctx) {
+        return ctx.eval(script, name.c_str(), JS_EVAL_TYPE_GLOBAL);
       },
-      [jvm, gresult](std::string reject) {
-        jniResultReject(jvm, gresult, reject);
+      [jvm, gresult](qjs::Value resolve) {
+        JNIEnv *env = getEnv(jvm);
+        jniResultResolve(env, gresult, qjs::jsToJava(env, resolve));
+        jvm->DetachCurrentThread();
+      },
+      [jvm, gresult](qjs::Value reject) {
+        JNIEnv *env = getEnv(jvm);
+        jniResultReject(env, gresult, qjs::getStackTrack(reject));
+        jvm->DetachCurrentThread();
       }});
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_soko_ekibun_flutter_1qjs_JniBridge_close(
     JNIEnv *env,
-    jobject /* this */)
+    jobject thiz,
+    jlong engine)
 {
-  delete engine;
+  delete (qjs::Engine *)engine;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_soko_ekibun_flutter_1qjs_JniBridge_call(
+    JNIEnv *env,
+    jobject thiz,
+    jlong engine,
+    jlong function,
+    jobject args,
+    jobject result)
+{
+  JavaVM *jvm = nullptr;
+  env->GetJavaVM(&jvm);
+  jobject gresult = env->NewGlobalRef(result);
+  jobject gargs = env->NewGlobalRef(args);
+  ((qjs::Engine *)engine)->commit(qjs::EngineTask{
+      [jvm, function = (qjs::JSValue *)function, gargs](qjs::Context &ctx) {
+        JNIEnv *env = getEnv(jvm);
+        jobjectArray array = jniToArray(env, gargs);
+        jsize argscount = env->GetArrayLength(array);
+        qjs::JSValue *callargs = new qjs::JSValue[argscount];
+        for (jsize i = 0; i < argscount; i++)
+        {
+          callargs[i] = qjs::javaToJs(ctx.ctx, env, env->GetObjectArrayElement(array, i));
+        }
+        jvm->DetachCurrentThread();
+        qjs::JSValue ret = JS_Call(ctx.ctx, *function, ctx.global(), (int)argscount, callargs);
+        qjs::JS_FreeValue(ctx.ctx, *function);
+        if (qjs::JS_IsException(ret))
+          throw qjs::exception{};
+        return qjs::Value{ctx.ctx, ret};
+      },
+      [jvm, gresult](qjs::Value resolve) {
+        JNIEnv *env = getEnv(jvm);
+        jniResultResolve(env, gresult, qjs::jsToJava(env, resolve));
+        jvm->DetachCurrentThread();
+      },
+      [jvm, gresult](qjs::Value reject) {
+        JNIEnv *env = getEnv(jvm);
+        jniResultReject(env, gresult, qjs::getStackTrack(reject));
+        jvm->DetachCurrentThread();
+      }});
 }
 
 extern "C" JNIEXPORT void JNICALL
 Java_soko_ekibun_flutter_1qjs_JniBridge_resolve(
     JNIEnv *env,
     jobject clazz,
-    jlong promise, jstring data)
+    jlong promise, jobject data)
 {
-  ((std::promise<qjs::JSFutureReturn> *)promise)->set_value((qjs::JSFutureReturn)[data = std::string(env->GetStringUTFChars(data, 0))](qjs::JSContext * ctx) {
-    qjs::JSValue *ret = new qjs::JSValue{JS_NewString(ctx, data.c_str())};
+  JavaVM *jvm = nullptr;
+  env->GetJavaVM(&jvm);
+  jobject gdata = env->NewGlobalRef(data);
+  ((std::promise<qjs::JSFutureReturn> *)promise)->set_value((qjs::JSFutureReturn)[jvm, gdata](qjs::JSContext * ctx) {
+    JNIEnv *env = getEnv(jvm);
+    qjs::JSValue *ret = new qjs::JSValue{qjs::javaToJs(ctx, env, gdata)};
     return qjs::JSOSFutureArgv{1, ret};
   });
 }

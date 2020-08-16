@@ -1,5 +1,5 @@
-#ifndef FLUTTER_PLUGIN_FLUTTER_JS_PLUGIN_H_
-#define FLUTTER_PLUGIN_FLUTTER_JS_PLUGIN_H_
+#ifndef FLUTTER_PLUGIN_FLUTTER_QJS_PLUGIN_H_
+#define FLUTTER_PLUGIN_FLUTTER_QJS_PLUGIN_H_
 
 #include <flutter_plugin_registrar.h>
 
@@ -20,4 +20,4 @@ FLUTTER_PLUGIN_EXPORT void FlutterQjsPluginRegisterWithRegistrar(
 }  // extern "C"
 #endif
 
-#endif  // FLUTTER_PLUGIN_FLUTTER_JS_PLUGIN_H_
+#endif  // FLUTTER_PLUGIN_FLUTTER_QJS_PLUGIN_H_
