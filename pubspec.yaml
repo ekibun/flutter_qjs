@@ -34,6 +34,8 @@ flutter:
     # -------------------
       windows:
         pluginClass: FlutterQjsPlugin
+      linux:
+        pluginClass: FlutterQjsPlugin
       android:
         pluginClass: FlutterQjsPlugin
         package: soko.ekibun.flutter_qjs
