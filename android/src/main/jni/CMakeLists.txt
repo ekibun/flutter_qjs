@@ -5,7 +5,7 @@
 
 cmake_minimum_required(VERSION 3.4.1)
 set(JNI_LIB_NAME libjsengine)
-set(QUICK_JS_LIB_DIR ../../../../cxx)
+set(QUICK_JS_LIB_DIR ../../../../cxx/quickjspp)
 
 
 # Creates and names a library, sets it as either STATIC

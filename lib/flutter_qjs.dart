@@ -3,9 +3,10 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:29:09
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-15 16:21:56
+ * @LastEditTime: 2020-08-16 19:10:47
  */
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/services.dart';
 
 typedef JsMethodHandler = Future<dynamic> Function(String method, List args);
@@ -24,24 +25,28 @@ class _FlutterJs {
       print(methodHandlers.entries);
       print(methodHandlers[engine]);
       if (methodHandlers[engine] == null) return call.noSuchMethod(null);
-      return await methodHandlers[engine](call.method, _wrapFunctionArguments(args));
+      return await methodHandlers[engine](call.method, _wrapFunctionArguments(args, engine));
     });
   }
-  dynamic _wrapFunctionArguments(dynamic val) {
-    if (val is List) {
+  dynamic _wrapFunctionArguments(dynamic val, dynamic engine) {
+    if (val is List && !(val is List<int>)) {
       for (var i = 0; i < val.length; ++i) {
-        val[i] = _wrapFunctionArguments(val[i]);
+        val[i] = _wrapFunctionArguments(val[i], engine);
       }
     } else if (val is Map) {
-      if (val["__js_function__"] != 0) {
+      // wrap boolean in Android see https://github.com/flutter/flutter/issues/45066
+      if (Platform.isAndroid && val["__js_boolean__"] != null) {
+        return val["__js_boolean__"] != 0;
+      }
+      if (val["__js_function__"] != null) {
         var functionId = val["__js_function__"];
         return (List<dynamic> args) async {
-          var arguments = {"function": functionId, "arguments": args};
-          return await _channel.invokeMethod("call", arguments);
+          var arguments = {"engine": engine, "function": functionId, "arguments": args};
+          return _wrapFunctionArguments(await _channel.invokeMethod("call", arguments), engine);
         };
       } else
         for (var key in val.keys) {
-          val[key] = _wrapFunctionArguments(val[key]);
+          val[key] = _wrapFunctionArguments(val[key], engine);
         }
     }
     return val;
@@ -59,7 +64,7 @@ class FlutterJs {
   dynamic _engine;
 
   ensureEngine() async {
-    if(_engine == null){
+    if (_engine == null) {
       _engine = await _FlutterJs.instance._channel.invokeMethod("createEngine");
     }
   }
@@ -70,7 +75,7 @@ class FlutterJs {
   }
 
   destroy() async {
-    if (_engine != null){
+    if (_engine != null) {
       await _FlutterJs.instance._channel.invokeMethod("close", {"engine": _engine});
       _engine = null;
     }
@@ -80,6 +85,6 @@ class FlutterJs {
     ensureEngine();
     var arguments = {"engine": _engine, "script": command, "name": command};
     return _FlutterJs.instance._wrapFunctionArguments(
-        await _FlutterJs.instance._channel.invokeMethod("evaluate", arguments));
+        await _FlutterJs.instance._channel.invokeMethod("evaluate", arguments), _engine);
   }
 }

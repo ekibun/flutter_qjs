@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-14 21:45:02
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-15 15:42:55
+ * @LastEditTime: 2020-08-16 19:52:35
  */
 #include "../cxx/js_engine.hpp"
 #include <flutter/standard_method_codec.h>
@@ -32,8 +32,12 @@ namespace std
 
 namespace qjs
 {
-  JSValue dartToJsAtom(JSContext *ctx, flutter::EncodableValue val)
+  JSValue dartToJs(JSContext *ctx, flutter::EncodableValue val, std::unordered_map<flutter::EncodableValue, JSValue> cache = std::unordered_map<flutter::EncodableValue, JSValue>())
   {
+    if (val.IsNull())
+      return JS_UNDEFINED;
+    if (cache.find(val) != cache.end())
+      return cache[val];
     if (std::holds_alternative<bool>(val))
       return JS_NewBool(ctx, std::get<bool>(val));
     if (std::holds_alternative<int32_t>(val))
@@ -44,20 +48,6 @@ namespace qjs
       return JS_NewFloat64(ctx, std::get<double>(val));
     if (std::holds_alternative<std::string>(val))
       return JS_NewString(ctx, std::get<std::string>(val).c_str());
-    return JS_UNDEFINED;
-  }
-
-  JSValue dartToJs(JSContext *ctx, flutter::EncodableValue val, std::unordered_map<flutter::EncodableValue, JSValue> cache = std::unordered_map<flutter::EncodableValue, JSValue>())
-  {
-    if (val.IsNull())
-      return JS_UNDEFINED;
-    if (cache.find(val) != cache.end())
-      return cache[val];
-    {
-      JSValue atomValue = dartToJsAtom(ctx, val);
-      if (!JS_IsUndefined(atomValue))
-        return atomValue;
-    }
     if (std::holds_alternative<std::vector<uint8_t>>(val))
     {
       auto buf = std::get<std::vector<uint8_t>>(val);
@@ -117,8 +107,17 @@ namespace qjs
       return cache[val];
     if (JS_IsBool(val.v))
       return (bool)val;
-    if (JS_IsNumber(val.v))
-      return (double)val;
+    {
+      int tag = JS_VALUE_GET_TAG(val.v);
+      if (tag == JS_TAG_INT)
+      {
+        return (int64_t)val;
+      }
+      else if (JS_TAG_IS_FLOAT64(tag))
+      {
+        return (double)val;
+      }
+    }
     if (JS_IsString(val.v))
       return (std::string)val;
     { // ArrayBuffer
@@ -135,7 +134,7 @@ namespace qjs
       if (JS_IsFunction(val.ctx, val.v))
       {
         flutter::EncodableMap retMap;
-        retMap[std::string("__js_function__")] = (int64_t) new JSValue { JS_DupValue(val.ctx, val.v) };
+        retMap[std::string("__js_function__")] = (int64_t) new JSValue{JS_DupValue(val.ctx, val.v)};
         ret = retMap;
       }
       else if (JS_IsArray(val.ctx, val.v) > 0)

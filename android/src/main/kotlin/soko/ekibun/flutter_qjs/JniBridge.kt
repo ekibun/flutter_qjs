@@ -10,11 +10,13 @@ class JniBridge {
         val instance by lazy { JniBridge() }
     }
 
-    external fun initEngine(channel: MethodChannelWrapper): Int
+    external fun createEngine(channel: MethodChannelWrapper): Long
 
-    external fun evaluate(script: String, name: String, result: ResultWrapper)
+    external fun evaluate(engine: Long, script: String, name: String, result: ResultWrapper)
 
-    external fun close()
+    external fun close(engine: Long)
+
+    external fun call(engine: Long, function: Long, args: List<Any>, result: ResultWrapper)
 
     external fun reject(promise: Long, reason: String)
 

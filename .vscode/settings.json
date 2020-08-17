@@ -100,7 +100,7 @@
     "cinttypes": "cpp",
     "typeindex": "cpp",
     "__functional_03": "cpp",
-    "random": "cpp"
+    "compare": "cpp"
   },
   "java.configuration.updateBuildConfiguration": "interactive"
 }

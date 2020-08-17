@@ -16,7 +16,6 @@ class FlutterQjsPlugin: FlutterPlugin, MethodCallHandler {
   /// when the Flutter Engine is detached from the Activity
   private lateinit var channelwrapper : MethodChannelWrapper
   private lateinit var channel : MethodChannel
-  private var engine : JniBridge? = null
   private lateinit var applicationContext: android.content.Context
   private val handler by lazy { Handler() }
 
@@ -28,20 +27,24 @@ class FlutterQjsPlugin: FlutterPlugin, MethodCallHandler {
   }
 
   override fun onMethodCall(call: MethodCall, result: Result) {
-    if (call.method == "initEngine") {
-      // engine = JsEngine(channel)
-      engine = JniBridge()
-      engine?.initEngine(channelwrapper)
-      result.success(1)
+    if (call.method == "createEngine") {
+      val engine: Long = JniBridge.instance.createEngine(channelwrapper)
+      println(engine)
+      result.success(engine)
     } else if (call.method == "evaluate") {
+      val engine: Long = call.argument<Long>("engine")!!
       val script: String = call.argument<String>("script")!!
       val name: String = call.argument<String>("name")!!
-      engine?.evaluate(script, name, ResultWrapper(handler, result))
-      // engine?.evaluate(script, result)
+      JniBridge.instance.evaluate(engine, script, name, ResultWrapper(handler, result))
+    } else if (call.method == "call") {
+      println(call.arguments<Map<*, *>>());
+      val engine: Long = call.argument<Long>("engine")!!
+      val function: Long = call.argument<Long>("function")!!
+      val args: List<Any> = call.argument<List<Any>>("arguments")!!
+      JniBridge.instance.call(engine, function, args, ResultWrapper(handler, result))
     } else if (call.method == "close") {
-      // engine?.release()
-      engine?.close()
-      engine = null
+      val engine: Long = call.argument<Long>("engine")!!
+      JniBridge.instance.close(engine)
       result.success(null)
     } else {
       result.notImplemented()
