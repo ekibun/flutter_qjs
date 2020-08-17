@@ -1,3 +1,10 @@
+/*
+ * @Description: 
+ * @Author: ekibun
+ * @Date: 2020-08-17 21:37:11
+ * @LastEditors: ekibun
+ * @LastEditTime: 2020-08-18 00:57:10
+ */
 #include "include/flutter_qjs/flutter_qjs_plugin.h"
 
 #include <flutter_linux/flutter_linux.h>
@@ -16,30 +23,80 @@ struct _FlutterQjsPlugin
 
 G_DEFINE_TYPE(FlutterQjsPlugin, flutter_qjs_plugin, g_object_get_type())
 
+g_autoptr(FlMethodChannel) channel = nullptr;
+
+std::promise<qjs::JSFutureReturn> *invokeChannelMethod(std::string name, qjs::Value args, qjs::Engine *engine)
+{
+  auto promise = new std::promise<qjs::JSFutureReturn>();
+  return promise;
+}
+
 // Called when a method call is received from Flutter.
 static void flutter_qjs_plugin_handle_method_call(
     FlutterQjsPlugin *self,
     FlMethodCall *method_call)
 {
-  g_autoptr(FlMethodResponse) response = nullptr;
-
   const gchar *method = fl_method_call_get_name(method_call);
 
-  if (strcmp(method, "getPlatformVersion") == 0)
+  if (strcmp(method, "createEngine") == 0)
   {
-    struct utsname uname_data = {};
-    uname(&uname_data);
-    g_autofree gchar *version = g_strdup_printf("Linux %s", uname_data.version);
-    g_autoptr(FlValue) result = fl_value_new_string(version);
-    response = FL_METHOD_RESPONSE(fl_method_success_response_new(result));
+    qjs::Engine *engine = new qjs::Engine(invokeChannelMethod);
+    g_warning("engine %ld", engine);
+    g_autoptr(FlMethodResponse) response = FL_METHOD_RESPONSE(fl_method_success_response_new(fl_value_new_int((int64_t)engine)));
+    fl_method_call_respond(method_call, response, nullptr);
+    // g_autoptr(GError) error = nullptr;
+    // if (!fl_method_call_respond(method_call, response, &error))
+    //   g_warning("Failed to send method call response: %s", error->message);
   }
-
+  else if (strcmp(method, "evaluate") == 0)
+  {
+    FlValue *args = fl_method_call_get_args(method_call);
+    qjs::Engine *engine = nullptr;
+    std::string script, name;
+    for (int i = 0; i < 3; ++i)
+    {
+      FlValue *key = fl_value_get_map_key(args, i);
+      const gchar *keychar = fl_value_to_string(key);
+      if (strcmp(keychar, "engine") == 0)
+      {
+        engine = (qjs::Engine *)fl_value_get_int(fl_value_get_map_value(args, i));
+      }
+      if (strcmp(keychar, "script") == 0)
+      {
+        script = fl_value_get_string(fl_value_get_map_value(args, i));
+      }
+      if (strcmp(keychar, "name") == 0)
+      {
+        name = fl_value_get_string(fl_value_get_map_value(args, i));
+      }
+    }
+    auto pmethod_call = g_object_ref(method_call);
+    g_warning("engine %ld; script: %s; name: %s", (int64_t)engine, script.c_str(), name.c_str());
+    engine->commit(qjs::EngineTask{
+        [script, name](qjs::Context &ctx) {
+          return ctx.eval(script, name.c_str(), JS_EVAL_TYPE_GLOBAL);
+        },
+        [pmethod_call](qjs::Value resolve) {
+          g_warning("%s", fl_value_to_string(qjs::jsToDart(resolve)));
+          g_autoptr(FlMethodResponse) response = FL_METHOD_RESPONSE(fl_method_success_response_new(qjs::jsToDart(resolve)));
+          fl_method_call_respond((FlMethodCall *)pmethod_call, response, nullptr);
+          g_object_unref(pmethod_call);
+        },
+        [pmethod_call](qjs::Value reject) {
+          fl_method_call_respond_error((FlMethodCall *)pmethod_call, "FlutterJSException", qjs::getStackTrack(reject).c_str(), nullptr, nullptr);
+          g_object_unref(pmethod_call);
+        }});
+    // g_autoptr(FlMethodResponse) response = FL_METHOD_RESPONSE(fl_method_success_response_new(args));
+    // fl_method_call_respond(method_call, response, nullptr);
+    // g_autoptr(GError) error = nullptr;
+    // if (!fl_method_call_respond(method_call, response, &error))
+    //   g_warning("Failed to send method call response: %s", error->message);
+  }
   else
   {
-    response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
+    g_autoptr(FlMethodResponse) response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
+    fl_method_call_respond(method_call, response, nullptr);
   }
-
-  fl_method_call_respond(method_call, response, nullptr);
 }
 
 static void flutter_qjs_plugin_dispose(GObject *object)
@@ -67,9 +124,9 @@ void flutter_qjs_plugin_register_with_registrar(FlPluginRegistrar *registrar)
       g_object_new(flutter_qjs_plugin_get_type(), nullptr));
 
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
-  g_autoptr(FlMethodChannel) channel =
+  channel =
       fl_method_channel_new(fl_plugin_registrar_get_messenger(registrar),
-                            "flutter_qjs",
+                            "soko.ekibun.flutter_qjs",
                             FL_METHOD_CODEC(codec));
   fl_method_channel_set_method_call_handler(channel, method_call_cb,
                                             g_object_ref(plugin),

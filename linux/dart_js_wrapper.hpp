@@ -3,12 +3,10 @@
  * @Author: ekibun
  * @Date: 2020-08-14 21:45:02
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-15 15:42:55
+ * @LastEditTime: 2020-08-17 22:43:20
  */
 #include "../cxx/js_engine.hpp"
-// #include <flutter/standard_method_codec.h>
 #include <flutter_linux/flutter_linux.h>
-#include <variant>
 
 namespace std
 {

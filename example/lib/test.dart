@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-07-18 23:28:55
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-15 16:39:07
+ * @LastEditTime: 2020-08-17 21:52:14
  */
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -24,7 +24,7 @@ class _TestPageState extends State<TestPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("JS 引擎功能测试"),
+        title: Text("JS engine test"),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -36,7 +36,7 @@ class _TestPageState extends State<TestPage> {
               child: Row(
                 children: [
                   FlatButton(
-                      child: Text("初始化引擎"),
+                      child: Text("create engine"),
                       onPressed: () async {
                         if (engine != null) return;
                         engine = FlutterJs();
@@ -56,10 +56,10 @@ class _TestPageState extends State<TestPage> {
                         });
                       }),
                   FlatButton(
-                      child: Text("运行"),
+                      child: Text("evaluate"),
                       onPressed: () async {
                         if (engine == null) {
-                          print("请先初始化引擎");
+                          print("please create engine first");
                           return;
                         }
                         try {
@@ -70,7 +70,7 @@ class _TestPageState extends State<TestPage> {
                         setState(() {});
                       }),
                   FlatButton(
-                      child: Text("释放引擎"),
+                      child: Text("close engine"),
                       onPressed: () async {
                         if (engine != null) return;
                         await engine.destroy();
@@ -90,7 +90,7 @@ class _TestPageState extends State<TestPage> {
               ),
             ),
             SizedBox(height: 16),
-            Text("运行结果："),
+            Text("result:"),
             SizedBox(height: 16),
             Container(
               width: double.infinity,

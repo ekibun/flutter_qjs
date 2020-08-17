@@ -129,9 +129,11 @@ namespace
           [presult](qjs::Value resolve) {
             flutter::EncodableValue response = qjs::jsToDart(resolve);
             presult->Success(&response);
+            delete presult;
           },
           [presult](qjs::Value reject) {
             presult->Error("FlutterJSException", qjs::getStackTrack(reject));
+            delete presult;
           }});
     }
     else if (method_call.method_name().compare("call") == 0)
