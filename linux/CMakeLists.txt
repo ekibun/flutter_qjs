@@ -1,13 +1,4 @@
 cmake_minimum_required(VERSION 3.10)
-set(PROJECT_NAME "flutter_qjs")
-project(${PROJECT_NAME} LANGUAGES CXX)
-
-set(PLUGIN_NAME "${PROJECT_NAME}_plugin")
-
-add_library(${PLUGIN_NAME} SHARED
-  "${PLUGIN_NAME}.cc"
-)
-
 # quickjs
 set(QUICK_JS_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../cxx/quickjspp)
 file (STRINGS "${QUICK_JS_LIB_DIR}/quickjs/VERSION" QUICKJS_VERSION)
@@ -20,6 +11,15 @@ add_library(libquickjs SHARED
     ${QUICK_JS_LIB_DIR}/quickjs/quickjs.c
 )
 project(libquickjs LANGUAGES C)
+
+set(PROJECT_NAME "flutter_qjs")
+project(${PROJECT_NAME} LANGUAGES CXX)
+
+set(PLUGIN_NAME "${PROJECT_NAME}_plugin")
+
+add_library(${PLUGIN_NAME} SHARED
+  "${PLUGIN_NAME}.cc"
+)
 
 apply_standard_settings(${PLUGIN_NAME})
 set_target_properties(${PLUGIN_NAME} PROPERTIES

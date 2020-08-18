@@ -35,7 +35,7 @@ namespace
     auto promise = new std::promise<qjs::JSFutureReturn>();
     auto map = new flutter::EncodableMap();
     (*map)[std::string("engine")] = (int64_t)engine;
-    (*map)[std::string("args")] = qjs::jsToDart(args, std::unordered_map<qjs::Value, flutter::EncodableValue>());
+    (*map)[std::string("args")] = qjs::jsToDart(args);
     channel->InvokeMethod(
         name,
         std::make_unique<flutter::EncodableValue>(*map),

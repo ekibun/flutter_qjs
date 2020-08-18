@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-14 21:45:02
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-16 19:52:35
+ * @LastEditTime: 2020-08-18 13:44:05
  */
 #include "../cxx/js_engine.hpp"
 #include <flutter/standard_method_codec.h>
@@ -67,9 +67,8 @@ namespace qjs
     {
       auto buf = std::get<std::vector<double>>(val);
       JSValue array = JS_NewArray(ctx);
-      cache[val] = array;
       auto size = (uint32_t)buf.size();
-      for (uint32_t i = 0; i < size; i++)
+      for (uint32_t i = 0; i < size; ++i)
         JS_DefinePropertyValue(
             ctx, array, JS_NewAtomUInt32(ctx, i), JS_NewFloat64(ctx, buf[i]),
             JS_PROP_C_W_E);
@@ -103,6 +102,8 @@ namespace qjs
 
   flutter::EncodableValue jsToDart(Value val, std::unordered_map<Value, flutter::EncodableValue> cache = std::unordered_map<Value, flutter::EncodableValue>())
   {
+    if (JS_IsUndefined(val.v) || JS_IsNull(val.v) || JS_IsUninitialized(val.v))
+      return flutter::EncodableValue();
     if (cache.find(val) != cache.end())
       return cache[val];
     if (JS_IsBool(val.v))
@@ -110,13 +111,9 @@ namespace qjs
     {
       int tag = JS_VALUE_GET_TAG(val.v);
       if (tag == JS_TAG_INT)
-      {
         return (int64_t)val;
-      }
       else if (JS_TAG_IS_FLOAT64(tag))
-      {
         return (double)val;
-      }
     }
     if (JS_IsString(val.v))
       return (std::string)val;
@@ -126,16 +123,13 @@ namespace qjs
       if (buf)
         return (std::vector<uint8_t>(buf, buf + size));
     }
-    flutter::EncodableValue ret;
-    if (JS_IsUndefined(val.v) || JS_IsNull(val.v) || JS_IsUninitialized(val.v))
-      goto exception;
     if (JS_IsObject(val.v))
     {
       if (JS_IsFunction(val.ctx, val.v))
       {
         flutter::EncodableMap retMap;
         retMap[std::string("__js_function__")] = (int64_t) new JSValue{JS_DupValue(val.ctx, val.v)};
-        ret = retMap;
+        return retMap;
       }
       else if (JS_IsArray(val.ctx, val.v) > 0)
       {
@@ -146,14 +140,14 @@ namespace qjs
         {
           retList.push_back(jsToDart(val[i], cache));
         }
-        ret = retList;
+        return retList;
       }
       else
       {
         qjs::JSPropertyEnum *ptab;
         uint32_t plen;
         if (JS_GetOwnPropertyNames(val.ctx, &ptab, &plen, val.v, -1))
-          goto exception;
+          return flutter::EncodableValue();
         flutter::EncodableMap retMap;
         cache[val] = retMap;
         for (uint32_t i = 0; i < plen; i++)
@@ -163,13 +157,9 @@ namespace qjs
           JS_FreeAtom(val.ctx, ptab[i].atom);
         }
         js_free(val.ctx, ptab);
-        ret = retMap;
+        return retMap;
       }
-      goto done;
     }
-  exception:
-    ret = flutter::EncodableValue();
-  done:
-    return ret;
+    return flutter::EncodableValue();
   }
 } // namespace qjs

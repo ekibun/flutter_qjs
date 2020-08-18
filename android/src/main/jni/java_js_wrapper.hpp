@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-16 11:08:23
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-16 19:51:11
+ * @LastEditTime: 2020-08-18 23:41:02
  */
 #include <string>
 #include <unordered_map>
@@ -42,6 +42,29 @@ namespace qjs
     {
       jsize len = env->GetArrayLength((jbyteArray)val);
       return JS_NewArrayBufferCopy(ctx, (uint8_t *)env->GetByteArrayElements((jbyteArray)val, 0), len);
+    }
+    else if (className.compare("[I") == 0)
+    {
+      jsize len = env->GetArrayLength((jintArray)val);
+      return JS_NewArrayBufferCopy(ctx, (uint8_t *)env->GetIntArrayElements((jintArray)val, 0), len * 4);
+    }
+    else if (className.compare("[J") == 0)
+    {
+      jsize len = env->GetArrayLength((jlongArray)val);
+      return JS_NewArrayBufferCopy(ctx, (uint8_t *)env->GetLongArrayElements((jlongArray)val, 0), len * 8);
+    }
+    else if (className.compare("[D") == 0)
+    {
+      jobjectArray list = jniToArray(env, val);
+      jsize size = env->GetArrayLength(list);
+      JSValue array = JS_NewArray(ctx);
+      cache[val] = array;
+      for (uint32_t i = 0; i < size; i++)
+        JS_DefinePropertyValue(
+            ctx, array, JS_NewAtomUInt32(ctx, i),
+            javaToJs(ctx, env, env->GetObjectArrayElement(list, i), cache),
+            JS_PROP_C_W_E);
+      return array;
     }
     else if (className.compare("java.lang.Boolean") == 0)
     {
@@ -112,7 +135,7 @@ namespace qjs
         // 读取一条数据
         jobject entryObj = env->CallObjectMethod(iteratorObj, nextMID);
         JS_DefinePropertyValue(
-            ctx, obj, JS_ValueToAtom(ctx, javaToJs(ctx, env, env->CallObjectMethod(entryObj, getKeyMID), cache)), 
+            ctx, obj, JS_ValueToAtom(ctx, javaToJs(ctx, env, env->CallObjectMethod(entryObj, getKeyMID), cache)),
             javaToJs(ctx, env, env->CallObjectMethod(entryObj, getValueMID), cache),
             JS_PROP_C_W_E);
       }
@@ -129,9 +152,12 @@ namespace qjs
       return jniWrapPrimity<jboolean>(env, (bool)val);
     {
       int tag = JS_VALUE_GET_TAG(val.v);
-      if(tag == JS_TAG_INT) {
+      if (tag == JS_TAG_INT)
+      {
         return jniWrapPrimity<jlong>(env, (int64_t)val);
-      } else if (JS_TAG_IS_FLOAT64(tag)) {
+      }
+      else if (JS_TAG_IS_FLOAT64(tag))
+      {
         return jniWrapPrimity<jdouble>(env, (double)val);
       }
     }

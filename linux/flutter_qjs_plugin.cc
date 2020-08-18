@@ -3,13 +3,12 @@
  * @Author: ekibun
  * @Date: 2020-08-17 21:37:11
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-18 08:23:56
+ * @LastEditTime: 2020-08-18 23:22:08
  */
 #include "include/flutter_qjs/flutter_qjs_plugin.h"
 
 #include <flutter_linux/flutter_linux.h>
 #include <gtk/gtk.h>
-#include <sys/utsname.h>
 #include "dart_js_wrapper.hpp"
 
 #define FLUTTER_QJS_PLUGIN(obj)                                     \
@@ -23,11 +22,44 @@ struct _FlutterQjsPlugin
 
 G_DEFINE_TYPE(FlutterQjsPlugin, flutter_qjs_plugin, g_object_get_type())
 
-g_autoptr(FlMethodChannel) channel = nullptr;
+FlMethodChannel *channel = nullptr;
+
+void methodChannelInvokeCallback(GObject *object, GAsyncResult *result, gpointer user_data)
+{
+  auto promise = (std::promise<qjs::JSFutureReturn> *)user_data;
+  g_autoptr(FlMethodResponse) response = fl_method_channel_invoke_method_finish(
+      FL_METHOD_CHANNEL(object), result, nullptr);
+  g_autoptr(GError) error = nullptr;
+  g_autoptr(FlValue) res = fl_method_response_get_result(FL_METHOD_RESPONSE(response), &error);
+  fl_value_ref(res);
+  if (error)
+  {
+    promise->set_value((qjs::JSFutureReturn)[error_message = std::string(error->message)](qjs::JSContext * ctx) {
+      qjs::JSValue *ret = new qjs::JSValue{JS_NewString(ctx, error_message.c_str())};
+      return qjs::JSOSFutureArgv{-1, ret};
+    });
+  }
+  else
+  {
+    auto pres = fl_value_ref(res);
+    promise->set_value((qjs::JSFutureReturn)[pres](qjs::JSContext * ctx) {
+      qjs::JSValue *ret = new qjs::JSValue{qjs::dartToJs(ctx, pres)};
+      fl_value_unref(pres);
+      return qjs::JSOSFutureArgv{1, ret};
+    });
+  }
+}
 
 std::promise<qjs::JSFutureReturn> *invokeChannelMethod(std::string name, qjs::Value args, qjs::Engine *engine)
 {
   auto promise = new std::promise<qjs::JSFutureReturn>();
+  auto map = fl_value_new_map();
+  fl_value_set_string_take(map, "engine", fl_value_new_int((int64_t)engine));
+  fl_value_set_string_take(map, "args", qjs::jsToDart(args));
+  fl_method_channel_invoke_method(
+      channel, name.c_str(), map, nullptr,
+      methodChannelInvokeCallback,
+      promise);
   return promise;
 }
 
@@ -41,12 +73,8 @@ static void flutter_qjs_plugin_handle_method_call(
   if (strcmp(method, "createEngine") == 0)
   {
     qjs::Engine *engine = new qjs::Engine(invokeChannelMethod);
-    g_warning("engine %ld", engine);
     g_autoptr(FlMethodResponse) response = FL_METHOD_RESPONSE(fl_method_success_response_new(fl_value_new_int((int64_t)engine)));
     fl_method_call_respond(method_call, response, nullptr);
-    // g_autoptr(GError) error = nullptr;
-    // if (!fl_method_call_respond(method_call, response, &error))
-    //   g_warning("Failed to send method call response: %s", error->message);
   }
   else if (strcmp(method, "evaluate") == 0)
   {
@@ -54,14 +82,12 @@ static void flutter_qjs_plugin_handle_method_call(
     qjs::Engine *engine = (qjs::Engine *)fl_value_get_int(fl_value_lookup_string(args, "engine"));
     std::string script(fl_value_get_string(fl_value_lookup_string(args, "script")));
     std::string name(fl_value_get_string(fl_value_lookup_string(args, "name")));
-    g_warning("engine %ld; script: %s; name: %s", (int64_t)engine, script.c_str(), name.c_str());
     auto pmethod_call = (FlMethodCall *)g_object_ref(method_call);
     engine->commit(qjs::EngineTask{
         [script, name](qjs::Context &ctx) {
           return ctx.eval(script, name.c_str(), JS_EVAL_TYPE_GLOBAL);
         },
         [pmethod_call](qjs::Value resolve) {
-          g_warning("%s", fl_value_to_string(qjs::jsToDart(resolve)));
           g_autoptr(FlMethodResponse) response = FL_METHOD_RESPONSE(fl_method_success_response_new(qjs::jsToDart(resolve)));
           fl_method_call_respond(pmethod_call, response, nullptr);
           g_object_unref(pmethod_call);
@@ -70,11 +96,37 @@ static void flutter_qjs_plugin_handle_method_call(
           fl_method_call_respond_error(pmethod_call, "FlutterJSException", qjs::getStackTrack(reject).c_str(), nullptr, nullptr);
           g_object_unref(pmethod_call);
         }});
-    // g_autoptr(FlMethodResponse) response = FL_METHOD_RESPONSE(fl_method_success_response_new(args));
-    // fl_method_call_respond(method_call, response, nullptr);
-    // g_autoptr(GError) error = nullptr;
-    // if (!fl_method_call_respond(method_call, response, &error))
-    //   g_warning("Failed to send method call response: %s", error->message);
+  }
+  else if (strcmp(method, "call") == 0)
+  {
+    FlValue *args = fl_method_call_get_args(method_call);
+    qjs::Engine *engine = (qjs::Engine *)fl_value_get_int(fl_value_lookup_string(args, "engine"));
+    qjs::JSValue *function = (qjs::JSValue *)fl_value_get_int(fl_value_lookup_string(args, "function"));
+    FlValue *arguments = fl_value_lookup_string(args, "arguments");
+    auto pmethod_call = (FlMethodCall *)g_object_ref(method_call);
+    engine->commit(qjs::EngineTask{
+        [function, arguments](qjs::Context &ctx) {
+          size_t argscount = fl_value_get_length(arguments);
+          qjs::JSValue *callargs = new qjs::JSValue[argscount];
+          for (size_t i = 0; i < argscount; i++)
+          {
+            callargs[i] = qjs::dartToJs(ctx.ctx, fl_value_get_list_value(arguments, i));
+          }
+          qjs::JSValue ret = JS_Call(ctx.ctx, *function, qjs::JSValue{qjs::JSValueUnion{0}, qjs::JS_TAG_UNDEFINED}, (int)argscount, callargs);
+          qjs::JS_FreeValue(ctx.ctx, *function);
+          if (qjs::JS_IsException(ret))
+            throw qjs::exception{};
+          return qjs::Value{ctx.ctx, ret};
+        },
+        [pmethod_call](qjs::Value resolve) {
+          g_autoptr(FlMethodResponse) response = FL_METHOD_RESPONSE(fl_method_success_response_new(qjs::jsToDart(resolve)));
+          fl_method_call_respond(pmethod_call, response, nullptr);
+          g_object_unref(pmethod_call);
+        },
+        [pmethod_call](qjs::Value reject) {
+          fl_method_call_respond_error(pmethod_call, "FlutterJSException", qjs::getStackTrack(reject).c_str(), nullptr, nullptr);
+          g_object_unref(pmethod_call);
+        }});
   }
   else
   {

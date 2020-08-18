@@ -3,13 +3,15 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:29:09
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-17 23:31:55
+ * @LastEditTime: 2020-08-18 23:23:22
  */
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/services.dart';
 
 typedef JsMethodHandler = Future<dynamic> Function(String method, List args);
+
+class JsMethodHandlerNotImplement {}
 
 class _FlutterJs {
   factory _FlutterJs() => _getInstance();
@@ -22,10 +24,10 @@ class _FlutterJs {
       print(call.arguments);
       var engine = call.arguments["engine"];
       var args = call.arguments["args"];
-      print(methodHandlers.entries);
-      print(methodHandlers[engine]);
       if (methodHandlers[engine] == null) return call.noSuchMethod(null);
-      return await methodHandlers[engine](call.method, _wrapFunctionArguments(args, engine));
+      var ret = await methodHandlers[engine](call.method, _wrapFunctionArguments(args, engine));
+      if (ret is JsMethodHandlerNotImplement) return call.noSuchMethod(null);
+      return ret;
     });
   }
   dynamic _wrapFunctionArguments(dynamic val, dynamic engine) {
