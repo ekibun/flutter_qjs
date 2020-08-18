@@ -5,36 +5,10 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "(gdb) Windows 上的 Bash 启动",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "example/build/linux/debug/flutter_qjs_example",
-      "args": [],
-      "stopAtEntry": false,
-      "cwd": "${command:extension.vscode-wsl-workspaceFolder}",
-      "environment": [],
-      "externalConsole": false,
-      "pipeTransport": {
-        "debuggerPath": "/usr/bin/gdb",
-        "pipeProgram": "${env:windir}\\system32\\bash.exe",
-        "pipeArgs": [
-          "-c"
-        ],
-        "pipeCwd": ""
-      },
-      "setupCommands": [
-        {
-          "description": "为 gdb 启用整齐打印",
-          "text": "-enable-pretty-printing",
-          "ignoreFailures": true
-        }
-      ]
-    },
-    {
       "name": "(Windows) 启动",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "example/build/windows/runner/Debug/flutter_qjs_example.exe",
+      "program": "${workspaceFolder}/example/build/windows/runner/Debug/example.exe",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",

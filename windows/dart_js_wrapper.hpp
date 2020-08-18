@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-14 21:45:02
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-18 13:44:05
+ * @LastEditTime: 2020-08-19 00:35:29
  */
 #include "../cxx/js_engine.hpp"
 #include <flutter/standard_method_codec.h>
@@ -14,30 +14,19 @@ namespace std
   template <>
   struct hash<qjs::Value>
   {
-    std::size_t operator()(const qjs::Value &key) const
+    size_t operator()(const qjs::Value &key) const
     {
-      return std::hash<std::string>()((std::string)key);
-    }
-  };
-
-  template <>
-  struct hash<flutter::EncodableValue>
-  {
-    std::size_t operator()(const flutter::EncodableValue &key) const
-    {
-      return key.index();
+      return JS_VALUE_GET_TAG(key.v);
     }
   };
 } // namespace std
 
 namespace qjs
 {
-  JSValue dartToJs(JSContext *ctx, flutter::EncodableValue val, std::unordered_map<flutter::EncodableValue, JSValue> cache = std::unordered_map<flutter::EncodableValue, JSValue>())
+  JSValue dartToJs(JSContext *ctx, flutter::EncodableValue val)
   {
     if (val.IsNull())
       return JS_UNDEFINED;
-    if (cache.find(val) != cache.end())
-      return cache[val];
     if (std::holds_alternative<bool>(val))
       return JS_NewBool(ctx, std::get<bool>(val));
     if (std::holds_alternative<int32_t>(val))
@@ -78,11 +67,10 @@ namespace qjs
     {
       auto list = std::get<flutter::EncodableList>(val);
       JSValue array = JS_NewArray(ctx);
-      cache[val] = array;
       auto size = (uint32_t)list.size();
       for (uint32_t i = 0; i < size; i++)
         JS_DefinePropertyValue(
-            ctx, array, JS_NewAtomUInt32(ctx, i), dartToJs(ctx, list[i], cache),
+            ctx, array, JS_NewAtomUInt32(ctx, i), dartToJs(ctx, list[i]),
             JS_PROP_C_W_E);
       return array;
     }
@@ -90,10 +78,9 @@ namespace qjs
     {
       auto map = std::get<flutter::EncodableMap>(val);
       JSValue obj = JS_NewObject(ctx);
-      cache[val] = obj;
       for (auto iter = map.begin(); iter != map.end(); ++iter)
         JS_DefinePropertyValue(
-            ctx, obj, JS_ValueToAtom(ctx, dartToJs(ctx, iter->first, cache)), dartToJs(ctx, iter->second, cache),
+            ctx, obj, JS_ValueToAtom(ctx, dartToJs(ctx, iter->first)), dartToJs(ctx, iter->second),
             JS_PROP_C_W_E);
       return obj;
     }
@@ -102,29 +89,26 @@ namespace qjs
 
   flutter::EncodableValue jsToDart(Value val, std::unordered_map<Value, flutter::EncodableValue> cache = std::unordered_map<Value, flutter::EncodableValue>())
   {
-    if (JS_IsUndefined(val.v) || JS_IsNull(val.v) || JS_IsUninitialized(val.v))
-      return flutter::EncodableValue();
-    if (cache.find(val) != cache.end())
-      return cache[val];
-    if (JS_IsBool(val.v))
-      return (bool)val;
+    int tag = JS_VALUE_GET_TAG(val.v);
+    if (JS_TAG_IS_FLOAT64(tag))
+      return (double)val;
+    switch (tag)
     {
-      int tag = JS_VALUE_GET_TAG(val.v);
-      if (tag == JS_TAG_INT)
-        return (int64_t)val;
-      else if (JS_TAG_IS_FLOAT64(tag))
-        return (double)val;
-    }
-    if (JS_IsString(val.v))
+    case JS_TAG_BOOL:
+      return (bool)val;
+    case JS_TAG_INT:
+      return (int64_t)val;
+    case JS_TAG_STRING:
       return (std::string)val;
+    case JS_TAG_OBJECT:
     { // ArrayBuffer
       size_t size;
       uint8_t *buf = JS_GetArrayBuffer(val.ctx, &size, val.v);
       if (buf)
         return (std::vector<uint8_t>(buf, buf + size));
     }
-    if (JS_IsObject(val.v))
-    {
+      if (cache.find(val) != cache.end())
+        return cache[val];
       if (JS_IsFunction(val.ctx, val.v))
       {
         flutter::EncodableMap retMap;
@@ -159,7 +143,8 @@ namespace qjs
         js_free(val.ctx, ptab);
         return retMap;
       }
+    default:
+      return flutter::EncodableValue();
     }
-    return flutter::EncodableValue();
   }
 } // namespace qjs

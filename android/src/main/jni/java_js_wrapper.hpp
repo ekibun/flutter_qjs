@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-16 11:08:23
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-18 23:41:02
+ * @LastEditTime: 2020-08-19 00:40:54
  */
 #include <string>
 #include <unordered_map>
@@ -18,7 +18,7 @@ namespace std
   {
     std::size_t operator()(const qjs::Value &key) const
     {
-      return std::hash<std::string>()((std::string)key);
+      return JS_VALUE_GET_TAG(key.v);
     }
   };
 } // namespace std
@@ -146,24 +146,19 @@ namespace qjs
 
   jobject jsToJava(JNIEnv *env, qjs::Value val, std::unordered_map<Value, jobject> cache = std::unordered_map<Value, jobject>())
   {
-    if (cache.find(val) != cache.end())
-      return cache[val];
-    if (JS_IsBool(val.v))
+    int tag = JS_VALUE_GET_TAG(val.v);
+    if (JS_TAG_IS_FLOAT64(tag))
+      return jniWrapPrimity<jdouble>(env, (double)val);
+    switch (tag)
+    {
+    case JS_TAG_BOOL:
       return jniWrapPrimity<jboolean>(env, (bool)val);
-    {
-      int tag = JS_VALUE_GET_TAG(val.v);
-      if (tag == JS_TAG_INT)
-      {
-        return jniWrapPrimity<jlong>(env, (int64_t)val);
-      }
-      else if (JS_TAG_IS_FLOAT64(tag))
-      {
-        return jniWrapPrimity<jdouble>(env, (double)val);
-      }
-    }
-    if (JS_IsString(val.v))
+    case JS_TAG_INT:
+      return jniWrapPrimity<jlong>(env, (int64_t)val);
+    case JS_TAG_STRING:
       return env->NewStringUTF(((std::string)val).c_str());
-    {
+    case JS_TAG_OBJECT:
+    { // ArrayBuffer
       size_t size;
       uint8_t *buf = JS_GetArrayBuffer(val.ctx, &size, val.v);
       if (buf)
@@ -173,10 +168,8 @@ namespace qjs
         return arr;
       }
     }
-    if (JS_IsUndefined(val.v) || JS_IsNull(val.v) || JS_IsUninitialized(val.v))
-      return nullptr;
-    if (JS_IsObject(val.v))
-    {
+      if (cache.find(val) != cache.end())
+        return cache[val];
       if (JS_IsFunction(val.ctx, val.v))
       {
         std::map<jobject, jobject> retMap;
@@ -215,7 +208,8 @@ namespace qjs
         cache[val] = ret;
         return ret;
       }
+    default:
+      return nullptr;
     }
-    return nullptr;
   }
 } // namespace qjs
