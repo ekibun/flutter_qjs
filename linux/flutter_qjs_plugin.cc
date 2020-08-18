@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-17 21:37:11
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-18 00:57:10
+ * @LastEditTime: 2020-08-18 08:23:56
  */
 #include "include/flutter_qjs/flutter_qjs_plugin.h"
 
@@ -51,27 +51,11 @@ static void flutter_qjs_plugin_handle_method_call(
   else if (strcmp(method, "evaluate") == 0)
   {
     FlValue *args = fl_method_call_get_args(method_call);
-    qjs::Engine *engine = nullptr;
-    std::string script, name;
-    for (int i = 0; i < 3; ++i)
-    {
-      FlValue *key = fl_value_get_map_key(args, i);
-      const gchar *keychar = fl_value_to_string(key);
-      if (strcmp(keychar, "engine") == 0)
-      {
-        engine = (qjs::Engine *)fl_value_get_int(fl_value_get_map_value(args, i));
-      }
-      if (strcmp(keychar, "script") == 0)
-      {
-        script = fl_value_get_string(fl_value_get_map_value(args, i));
-      }
-      if (strcmp(keychar, "name") == 0)
-      {
-        name = fl_value_get_string(fl_value_get_map_value(args, i));
-      }
-    }
-    auto pmethod_call = g_object_ref(method_call);
+    qjs::Engine *engine = (qjs::Engine *)fl_value_get_int(fl_value_lookup_string(args, "engine"));
+    std::string script(fl_value_get_string(fl_value_lookup_string(args, "script")));
+    std::string name(fl_value_get_string(fl_value_lookup_string(args, "name")));
     g_warning("engine %ld; script: %s; name: %s", (int64_t)engine, script.c_str(), name.c_str());
+    auto pmethod_call = (FlMethodCall *)g_object_ref(method_call);
     engine->commit(qjs::EngineTask{
         [script, name](qjs::Context &ctx) {
           return ctx.eval(script, name.c_str(), JS_EVAL_TYPE_GLOBAL);
@@ -79,11 +63,11 @@ static void flutter_qjs_plugin_handle_method_call(
         [pmethod_call](qjs::Value resolve) {
           g_warning("%s", fl_value_to_string(qjs::jsToDart(resolve)));
           g_autoptr(FlMethodResponse) response = FL_METHOD_RESPONSE(fl_method_success_response_new(qjs::jsToDart(resolve)));
-          fl_method_call_respond((FlMethodCall *)pmethod_call, response, nullptr);
+          fl_method_call_respond(pmethod_call, response, nullptr);
           g_object_unref(pmethod_call);
         },
         [pmethod_call](qjs::Value reject) {
-          fl_method_call_respond_error((FlMethodCall *)pmethod_call, "FlutterJSException", qjs::getStackTrack(reject).c_str(), nullptr, nullptr);
+          fl_method_call_respond_error(pmethod_call, "FlutterJSException", qjs::getStackTrack(reject).c_str(), nullptr, nullptr);
           g_object_unref(pmethod_call);
         }});
     // g_autoptr(FlMethodResponse) response = FL_METHOD_RESPONSE(fl_method_success_response_new(args));

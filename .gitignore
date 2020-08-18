@@ -5,3 +5,5 @@
 .pub/
 
 build/
+.idea/
+.vscode/settings.json
