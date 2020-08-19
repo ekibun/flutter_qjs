@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-16 11:08:23
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-19 00:40:54
+ * @LastEditTime: 2020-08-19 13:06:19
  */
 #include <string>
 #include <unordered_map>
@@ -55,14 +55,13 @@ namespace qjs
     }
     else if (className.compare("[D") == 0)
     {
-      jobjectArray list = jniToArray(env, val);
-      jsize size = env->GetArrayLength(list);
+      jsize size = env->GetArrayLength((jdoubleArray)val);
       JSValue array = JS_NewArray(ctx);
-      cache[val] = array;
+      auto buf = env->GetDoubleArrayElements((jdoubleArray)val, 0);
       for (uint32_t i = 0; i < size; i++)
         JS_DefinePropertyValue(
             ctx, array, JS_NewAtomUInt32(ctx, i),
-            javaToJs(ctx, env, env->GetObjectArrayElement(list, i), cache),
+            JS_NewFloat64(ctx, buf[i]),
             JS_PROP_C_W_E);
       return array;
     }

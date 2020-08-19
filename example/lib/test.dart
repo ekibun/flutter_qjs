@@ -3,8 +3,10 @@
  * @Author: ekibun
  * @Date: 2020-07-18 23:28:55
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-18 23:23:46
+ * @LastEditTime: 2020-08-19 13:26:52
  */
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_qjs/flutter_qjs.dart';
@@ -51,6 +53,18 @@ class _TestPageState extends State<TestPage> {
                               return response.data;
                             case "hello":
                               return await arg[0](["hello: "]);
+                            case "test":
+                              return [
+                                true, 
+                                1, 
+                                0.5, 
+                                "str", 
+                                { "key": "val", 0: 1 }, 
+                                Uint8List(2), 
+                                Int32List(2), 
+                                Int64List(2), 
+                                Float64List(2), 
+                                Float32List(2)];
                             default:
                               return JsMethodHandlerNotImplement();
                           }
