@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 10:30:59
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-15 16:31:14
+ * @LastEditTime: 2020-08-20 11:11:30
  */
 #pragma once
 
@@ -15,7 +15,6 @@
 #include <iostream>
 
 #include "js_dart_promise.hpp"
-#include "quickjspp/quickjspp.hpp"
 
 namespace qjs
 {

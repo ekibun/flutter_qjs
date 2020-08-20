@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:29:09
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-18 23:23:22
+ * @LastEditTime: 2020-08-20 12:49:46
  */
 import 'dart:async';
 import 'dart:io';
@@ -65,7 +65,7 @@ class _FlutterJs {
 class FlutterJs {
   dynamic _engine;
 
-  ensureEngine() async {
+  _ensureEngine() async {
     if (_engine == null) {
       _engine = await _FlutterJs.instance._channel.invokeMethod("createEngine");
       print(_engine);
@@ -73,7 +73,7 @@ class FlutterJs {
   }
 
   setMethodHandler(JsMethodHandler handler) async {
-    await ensureEngine();
+    await _ensureEngine();
     _FlutterJs.instance.methodHandlers[_engine] = handler;
   }
 
@@ -85,7 +85,7 @@ class FlutterJs {
   }
 
   Future<dynamic> evaluate(String command, String name) async {
-    ensureEngine();
+    _ensureEngine();
     var arguments = {"engine": _engine, "script": command, "name": "<eval>"};
     return _FlutterJs.instance._wrapFunctionArguments(
         await _FlutterJs.instance._channel.invokeMethod("evaluate", arguments), _engine);

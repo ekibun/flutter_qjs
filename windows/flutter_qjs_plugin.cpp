@@ -151,7 +151,7 @@ namespace
             {
               callargs[i] = qjs::dartToJs(ctx.ctx, arguments[i]);
             }
-            qjs::JSValue ret = JS_Call(ctx.ctx, *function, qjs::JSValue{qjs::JSValueUnion{0}, qjs::JS_TAG_UNDEFINED}, (int)argscount, callargs);
+            qjs::JSValue ret = JS_Call(ctx.ctx, *function, ctx.global().v, (int)argscount, callargs);
             qjs::JS_FreeValue(ctx.ctx, *function);
             if (qjs::JS_IsException(ret))
               throw qjs::exception{};

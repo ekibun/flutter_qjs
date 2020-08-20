@@ -1,4 +1,17 @@
 cmake_minimum_required(VERSION 3.15)
+
+# quickjs
+set(QUICK_JS_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../cxx/quickjs)
+file (STRINGS "${QUICK_JS_LIB_DIR}/VERSION" QUICKJS_VERSION)
+add_library(libquickjs STATIC
+    ${QUICK_JS_LIB_DIR}/cutils.c
+    ${QUICK_JS_LIB_DIR}/libregexp.c
+    ${QUICK_JS_LIB_DIR}/libunicode.c
+    ${QUICK_JS_LIB_DIR}/quickjs.c
+)
+project(libquickjs LANGUAGES C)
+target_compile_options(libquickjs PRIVATE "-DCONFIG_VERSION=\"${QUICKJS_VERSION}\"")
+
 set(PROJECT_NAME "flutter_qjs")
 project(${PROJECT_NAME} LANGUAGES CXX)
 add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
@@ -14,12 +27,10 @@ set_target_properties(${PLUGIN_NAME} PROPERTIES
 target_compile_definitions(${PLUGIN_NAME} PRIVATE FLUTTER_PLUGIN_IMPL)
 target_include_directories(${PLUGIN_NAME} INTERFACE
   "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(${PLUGIN_NAME} PRIVATE flutter flutter_wrapper_plugin
-  "${CMAKE_CURRENT_SOURCE_DIR}/quickjs/libquickjs64.a"
-)
+target_link_libraries(${PLUGIN_NAME} PRIVATE flutter flutter_wrapper_plugin libquickjs)
 
 # List of absolute paths to libraries that should be bundled with the plugin
 set(flutter_qjs_bundled_libraries
-  "${CMAKE_CURRENT_SOURCE_DIR}/quickjs/libquickjs64.dll"
+  ""
   PARENT_SCOPE
 )

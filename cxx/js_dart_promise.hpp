@@ -3,16 +3,16 @@
  * @Author: ekibun
  * @Date: 2020-08-07 13:55:52
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-15 16:28:38
+ * @LastEditTime: 2020-08-20 11:10:20
  */
 #pragma once
-#include "quickjspp/quickjspp.hpp"
+#include "quickjs/quickjspp.hpp"
 #include <future>
 #include <string.h>
 
 namespace qjs
 {
-#include "quickjspp/quickjs/list.h"
+#include "quickjs/list.h"
 
   static JSClassID js_dart_promise_class_id;
 

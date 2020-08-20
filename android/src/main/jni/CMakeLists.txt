@@ -5,8 +5,6 @@
 
 cmake_minimum_required(VERSION 3.4.1)
 set(JNI_LIB_NAME libjsengine)
-set(QUICK_JS_LIB_DIR ../../../../cxx/quickjspp)
-
 
 # Creates and names a library, sets it as either STATIC
 # or SHARED, and provides the relative paths to its source code.
@@ -23,13 +21,14 @@ add_library( # Sets the name of the library.
              native-lib.cpp )
 
 # quickjs
-file (STRINGS "${QUICK_JS_LIB_DIR}/quickjs/VERSION" QUICKJS_VERSION)
+set(QUICK_JS_LIB_DIR ../../../../cxx/quickjs)
+file (STRINGS "${QUICK_JS_LIB_DIR}/VERSION" QUICKJS_VERSION)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DCONFIG_VERSION=\\\"${QUICKJS_VERSION}\\\"")
 target_sources(${JNI_LIB_NAME} PUBLIC
-    ${QUICK_JS_LIB_DIR}/quickjs/cutils.c
-    ${QUICK_JS_LIB_DIR}/quickjs/libregexp.c
-    ${QUICK_JS_LIB_DIR}/quickjs/libunicode.c
-    ${QUICK_JS_LIB_DIR}/quickjs/quickjs.c
+    ${QUICK_JS_LIB_DIR}/cutils.c
+    ${QUICK_JS_LIB_DIR}/libregexp.c
+    ${QUICK_JS_LIB_DIR}/libunicode.c
+    ${QUICK_JS_LIB_DIR}/quickjs.c
 )
 
 # Searches for a specified prebuilt library and stores the path as a

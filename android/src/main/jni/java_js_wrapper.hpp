@@ -3,12 +3,11 @@
  * @Author: ekibun
  * @Date: 2020-08-16 11:08:23
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-19 13:06:19
+ * @LastEditTime: 2020-08-20 11:29:32
  */
 #include <string>
 #include <unordered_map>
 #include "jni_helper.hpp"
-#include <android/log.h>
 #include "../../../../cxx/js_engine.hpp"
 
 namespace std
@@ -37,7 +36,6 @@ namespace qjs
     jmethodID mid = env->GetMethodID(classclass, "getName", "()Ljava/lang/String;");
     jobject clsObj = env->CallObjectMethod(objclass, mid);
     std::string className(env->GetStringUTFChars((jstring)clsObj, 0));
-    __android_log_print(ANDROID_LOG_DEBUG, "class", "class: %s", className.c_str());
     if (className.compare("[B") == 0)
     {
       jsize len = env->GetArrayLength((jbyteArray)val);

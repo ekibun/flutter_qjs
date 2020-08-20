@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:16:50
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-20 00:33:22
+ * @LastEditTime: 2020-08-20 12:02:54
 -->
 # flutter_qjs
 
@@ -11,9 +11,9 @@ A quickjs engine for flutter.
 
 ## Feature
 
-This plugin is a simple js engine for flutter used `quickjs` project.
+This plugin is a simple js engine for flutter used `quickjs` project. Plugin currently supports Windows, Linux, and Android.
 
-Each `FlutterJs` object create a new thread that running a simple js loop. A global async function `dart` is presented to invoke dart function, and `Promise` is supported in evaluating js script so that you can use `await` or `then` to get external result from `dart`. 
+Each `FlutterJs` object creates a new thread that runs a simple js loop. A global async function `dart` is presented to invoke dart function, and `Promise` is supported so that you can use `await` or `then` to get external result from `dart`. 
 
 Data convertion between dart and js are implemented as follow:
 
@@ -36,13 +36,46 @@ Data convertion between dart and js are implemented as follow:
 
 ## Getting Started
 
-1. Creat a `FlutterJs` object. Makes sure call `close` to release memory when not need it.
+1. Creat a `FlutterJs` object. Make sure call `close` to terminate thread and release memory when you don't need it.
 
-2. Call `setMethodHandler` to maintain `dart` function.
+```dart
+FlutterJs engine = FlutterJs();
+// do something ...
+await engine.destroy();
+engine = null;
+```
 
-3. Use `evaluate` to evaluate js script. Makes sure surrounding try-cacth to capture evaluating error.
+2. Call `setMethodHandler` to implements `dart` interaction. For example, you can use `Dio` to implements http in js:
 
-[this](example/lib/test.dart) contains a fully use of this plugin. 
+```dart
+engine.setMethodHandler((String method, List arg) async {
+  switch (method) {
+    case "http":
+      Response response = await Dio().get(arg[0]);
+      return response.data;
+    default:
+      return JsMethodHandlerNotImplement();
+  }
+});
+```
+
+and in javascript, call `dart` function to get data:
+
+```javascript
+dart("http", "https://baidu.com");
+```
+
+3. Use `evaluate` to run js script, and try-cacth is needed to capture exception.
+
+```
+try {
+  resp = "${await engine.evaluate(code ?? '', "<eval>")}";
+} catch (e) {
+  resp = e.toString();
+}
+```
+
+[Example](example/lib/test.dart) contains a fully use of this plugin. 
 
 **notice:**
 To use this plugin in Linux desktop application, you must change `cxx_std_14` to `cxx_std_17` in your project's `CMakeLists.txt`.

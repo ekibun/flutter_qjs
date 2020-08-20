@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-07-18 23:28:55
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-19 13:26:52
+ * @LastEditTime: 2020-08-20 12:51:21
  */
 import 'dart:typed_data';
 
@@ -44,17 +44,12 @@ class _TestPageState extends State<TestPage> {
                         engine = FlutterJs();
                         engine.setMethodHandler((String method, List arg) async {
                           switch (method) {
-                            case "delay":
-                              await Future.delayed(Duration(milliseconds: arg[0]));
-                              return;
                             case "http":
                               Response response = await Dio()
                                   .get(arg[0], options: Options(responseType: ResponseType.bytes));
                               return response.data;
-                            case "hello":
-                              return await arg[0](["hello: "]);
                             case "test":
-                              return [
+                              return await arg[0]([
                                 true, 
                                 1, 
                                 0.5, 
@@ -64,7 +59,7 @@ class _TestPageState extends State<TestPage> {
                                 Int32List(2), 
                                 Int64List(2), 
                                 Float64List(2), 
-                                Float32List(2)];
+                                Float32List(2)]);
                             default:
                               return JsMethodHandlerNotImplement();
                           }
