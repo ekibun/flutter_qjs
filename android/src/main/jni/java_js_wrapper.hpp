@@ -3,24 +3,12 @@
  * @Author: ekibun
  * @Date: 2020-08-16 11:08:23
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-20 11:29:32
+ * @LastEditTime: 2020-08-20 13:09:08
  */
 #include <string>
 #include <unordered_map>
 #include "jni_helper.hpp"
 #include "../../../../cxx/js_engine.hpp"
-
-namespace std
-{
-  template <>
-  struct hash<qjs::Value>
-  {
-    std::size_t operator()(const qjs::Value &key) const
-    {
-      return JS_VALUE_GET_TAG(key.v);
-    }
-  };
-} // namespace std
 
 namespace qjs
 {

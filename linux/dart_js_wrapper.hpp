@@ -3,22 +3,10 @@
  * @Author: ekibun
  * @Date: 2020-08-14 21:45:02
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-19 00:34:43
+ * @LastEditTime: 2020-08-20 13:09:21
  */
 #include "../cxx/js_engine.hpp"
 #include <flutter_linux/flutter_linux.h>
-
-namespace std
-{
-  template <>
-  struct hash<qjs::Value>
-  {
-    size_t operator()(const qjs::Value &key) const
-    {
-      return JS_VALUE_GET_TAG(key.v);
-    }
-  };
-} // namespace std
 
 namespace qjs
 {

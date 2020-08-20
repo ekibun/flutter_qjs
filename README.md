@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:16:50
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-20 12:02:54
+ * @LastEditTime: 2020-08-20 13:58:47
 -->
 # flutter_qjs
 
@@ -11,7 +11,7 @@ A quickjs engine for flutter.
 
 ## Feature
 
-This plugin is a simple js engine for flutter used `quickjs` project. Plugin currently supports Windows, Linux, and Android.
+This plugin is a simple js engine for flutter using the `quickjs` project. Plugin currently supports Windows, Linux, and Android.
 
 Each `FlutterJs` object creates a new thread that runs a simple js loop. A global async function `dart` is presented to invoke dart function, and `Promise` is supported so that you can use `await` or `then` to get external result from `dart`. 
 
@@ -36,7 +36,7 @@ Data convertion between dart and js are implemented as follow:
 
 ## Getting Started
 
-1. Creat a `FlutterJs` object. Make sure call `close` to terminate thread and release memory when you don't need it.
+1. Create a `FlutterJs` object. Make sure call `destroy` to terminate thread and release memory when you don't need it.
 
 ```dart
 FlutterJs engine = FlutterJs();
@@ -62,20 +62,20 @@ engine.setMethodHandler((String method, List arg) async {
 and in javascript, call `dart` function to get data:
 
 ```javascript
-dart("http", "https://baidu.com");
+dart("http", "http://example.com/");
 ```
 
-3. Use `evaluate` to run js script, and try-cacth is needed to capture exception.
+3. Use `evaluate` to run js script, and try-catch is needed to capture exception.
 
-```
+```dart
 try {
-  resp = "${await engine.evaluate(code ?? '', "<eval>")}";
+  print(await engine.evaluate(code ?? '', "<eval>"));
 } catch (e) {
-  resp = e.toString();
+  print(e.toString());
 }
 ```
 
-[Example](example/lib/test.dart) contains a fully use of this plugin. 
+[This example](example/lib/test.dart) contains a complete demonstration on how to use this plugin.
 
 **notice:**
 To use this plugin in Linux desktop application, you must change `cxx_std_14` to `cxx_std_17` in your project's `CMakeLists.txt`.

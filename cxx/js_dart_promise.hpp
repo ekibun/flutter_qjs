@@ -3,12 +3,24 @@
  * @Author: ekibun
  * @Date: 2020-08-07 13:55:52
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-20 11:10:20
+ * @LastEditTime: 2020-08-20 13:09:52
  */
 #pragma once
 #include "quickjs/quickjspp.hpp"
 #include <future>
 #include <string.h>
+
+namespace std
+{
+  template <>
+  struct hash<qjs::Value>
+  {
+    size_t operator()(const qjs::Value &key) const
+    {
+      return (size_t) JS_VALUE_GET_PTR(key.v);
+    }
+  };
+} // namespace std
 
 namespace qjs
 {

@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-07-18 23:28:55
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-20 12:51:21
+ * @LastEditTime: 2020-08-20 13:11:33
  */
 import 'dart:typed_data';
 
@@ -45,8 +45,7 @@ class _TestPageState extends State<TestPage> {
                         engine.setMethodHandler((String method, List arg) async {
                           switch (method) {
                             case "http":
-                              Response response = await Dio()
-                                  .get(arg[0], options: Options(responseType: ResponseType.bytes));
+                              Response response = await Dio().get(arg[0]);
                               return response.data;
                             case "test":
                               return await arg[0]([
