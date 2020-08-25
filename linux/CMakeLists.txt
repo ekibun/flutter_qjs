@@ -10,6 +10,7 @@ add_library(libquickjs SHARED
 )
 project(libquickjs LANGUAGES C)
 target_compile_options(libquickjs PRIVATE "-DCONFIG_VERSION=\"${QUICKJS_VERSION}\"")
+target_compile_options(libquickjs PRIVATE "-DDUMP_LEAKS")
 
 set(PROJECT_NAME "flutter_qjs")
 project(${PROJECT_NAME} LANGUAGES CXX)

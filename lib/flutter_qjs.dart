@@ -38,14 +38,14 @@ class FlutterJs {
   destroy() async {
     if (_engine != null) {
       await _FlutterJs.instance._channel
-          .invokeMethod("close", {"engine": _engine});
+          .invokeMethod("close", _engine);
       _engine = null;
     }
   }
 
   /// Evaluate js script.
   Future<dynamic> evaluate(String command, String name) async {
-    _ensureEngine();
+    await _ensureEngine();
     var arguments = {"engine": _engine, "script": command, "name": name};
     return _FlutterJs.instance._wrapFunctionArguments(
         await _FlutterJs.instance._channel.invokeMethod("evaluate", arguments),
@@ -62,7 +62,6 @@ class _FlutterJs {
       Map<dynamic, JsMethodHandler>();
   _FlutterJs._internal() {
     _channel.setMethodCallHandler((call) async {
-      print(call.arguments);
       var engine = call.arguments["engine"];
       var args = call.arguments["args"];
       if (methodHandlers[engine] == null) return call.noSuchMethod(null);

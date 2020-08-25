@@ -23,7 +23,7 @@ add_library( # Sets the name of the library.
 # quickjs
 set(QUICK_JS_LIB_DIR ../../../../cxx/quickjs)
 file (STRINGS "${QUICK_JS_LIB_DIR}/VERSION" QUICKJS_VERSION)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DCONFIG_VERSION=\\\"${QUICKJS_VERSION}\\\"")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DDUMP_LEAKS -DCONFIG_VERSION=\\\"${QUICKJS_VERSION}\\\"")
 target_sources(${JNI_LIB_NAME} PUBLIC
     ${QUICK_JS_LIB_DIR}/cutils.c
     ${QUICK_JS_LIB_DIR}/libregexp.c

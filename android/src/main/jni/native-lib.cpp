@@ -3,9 +3,10 @@
  * @Author: ekibun
  * @Date: 2020-08-09 18:16:11
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-16 19:00:06
+ * @LastEditTime: 2020-08-25 16:00:46
  */
 #include "java_js_wrapper.hpp"
+#include "android/log.h"
 
 JNIEnv *getEnv(JavaVM *gJvm)
 {
@@ -109,7 +110,7 @@ Java_soko_ekibun_flutter_1qjs_JniBridge_close(
     jobject thiz,
     jlong engine)
 {
-  delete (qjs::Engine *)engine;
+  delete ((qjs::Engine *)engine);
 }
 
 extern "C" JNIEXPORT void JNICALL
@@ -136,8 +137,8 @@ Java_soko_ekibun_flutter_1qjs_JniBridge_call(
           callargs[i] = qjs::javaToJs(ctx.ctx, env, env->GetObjectArrayElement(array, i));
         }
         jvm->DetachCurrentThread();
-        qjs::JSValue ret = JS_Call(ctx.ctx, *function, ctx.global(), (int)argscount, callargs);
-        qjs::JS_FreeValue(ctx.ctx, *function);
+        qjs::JSValue ret = qjs::call_handler(ctx.ctx, *function, (int)argscount, callargs);
+        delete[] callargs;
         if (qjs::JS_IsException(ret))
           throw qjs::exception{};
         return qjs::Value{ctx.ctx, ret};

@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-17 21:37:11
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-18 23:22:08
+ * @LastEditTime: 2020-08-25 16:07:02
  */
 #include "include/flutter_qjs/flutter_qjs_plugin.h"
 
@@ -112,8 +112,8 @@ static void flutter_qjs_plugin_handle_method_call(
           {
             callargs[i] = qjs::dartToJs(ctx.ctx, fl_value_get_list_value(arguments, i));
           }
-          qjs::JSValue ret = JS_Call(ctx.ctx, *function, qjs::JSValue{qjs::JSValueUnion{0}, qjs::JS_TAG_UNDEFINED}, (int)argscount, callargs);
-          qjs::JS_FreeValue(ctx.ctx, *function);
+          qjs::JSValue ret = qjs::call_handler(ctx.ctx, *function, (int)argscount, callargs);
+          delete[] callargs;
           if (qjs::JS_IsException(ret))
             throw qjs::exception{};
           return qjs::Value{ctx.ctx, ret};
@@ -127,6 +127,13 @@ static void flutter_qjs_plugin_handle_method_call(
           fl_method_call_respond_error(pmethod_call, "FlutterJSException", qjs::getStackTrack(reject).c_str(), nullptr, nullptr);
           g_object_unref(pmethod_call);
         }});
+  }
+  else if (strcmp(method, "close") == 0)
+  {
+    qjs::Engine *engine = (qjs::Engine *)fl_value_get_int(fl_method_call_get_args(method_call));
+    delete engine;
+    g_autoptr(FlMethodResponse) response = FL_METHOD_RESPONSE(fl_method_success_response_new(fl_value_new_null()));
+    fl_method_call_respond(method_call, response, nullptr);
   }
   else
   {

@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-07 13:55:52
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-20 13:09:52
+ * @LastEditTime: 2020-08-25 16:07:29
  */
 #pragma once
 #include "quickjs/quickjspp.hpp"
@@ -17,7 +17,7 @@ namespace std
   {
     size_t operator()(const qjs::Value &key) const
     {
-      return (size_t) JS_VALUE_GET_PTR(key.v);
+      return (size_t)JS_VALUE_GET_PTR(key.v);
     }
   };
 } // namespace std
@@ -46,11 +46,29 @@ namespace qjs
     JSValue reject;
   } JSOSFuture;
 
+  typedef struct
+  {
+    struct list_head link;
+    JSValue ref;
+  } JSOSRef;
+
   typedef struct JSThreadState
   {
-    struct list_head os_future; /* list of JSOSFuture.link */
+    struct list_head os_future;
+    struct list_head os_ref;
     DartChannel channel;
   } JSThreadState;
+
+  JSValue js_add_ref(Value val)
+  {
+    JSRuntime *rt = JS_GetRuntime(val.ctx);
+    JSThreadState *ts = (JSThreadState *)JS_GetRuntimeOpaque(rt);
+    JSOSRef *th;
+    th = (JSOSRef *)js_mallocz(val.ctx, sizeof(*th));
+    th->ref = JS_DupValue(val.ctx, val.v);
+    list_add_tail(&th->link, &ts->os_ref);
+    return th->ref;
+  }
 
   static JSValue js_add_future(Value resolve, Value reject, std::promise<JSFutureReturn> *promise)
   {
@@ -91,6 +109,21 @@ namespace qjs
     return js_add_future(resolve, reject, ts->channel(name, args));
   }
 
+  static void unlink_ref(JSRuntime *rt, JSOSRef *th)
+  {
+    if (th->link.prev)
+    {
+      list_del(&th->link);
+      th->link.prev = th->link.next = NULL;
+    }
+  }
+
+  static void free_ref(JSRuntime *rt, JSOSRef *th)
+  {
+    JS_FreeValueRT(rt, th->ref);
+    js_free_rt(rt, th);
+  }
+
   static void unlink_future(JSRuntime *rt, JSOSFuture *th)
   {
     if (th->link.prev)
@@ -117,6 +150,7 @@ namespace qjs
     }
     memset(ts, 0, sizeof(*ts));
     init_list_head(&ts->os_future);
+    init_list_head(&ts->os_ref);
     ts->channel = channel;
 
     JS_SetRuntimeOpaque(rt, ts);
@@ -135,12 +169,18 @@ namespace qjs
       unlink_future(rt, th);
       free_future(rt, th);
     }
+    list_for_each_safe(el, el1, &ts->os_ref)
+    {
+      JSOSRef *th = list_entry(el, JSOSRef, link);
+      unlink_ref(rt, th);
+      free_ref(rt, th);
+    }
     ts->channel = nullptr;
     free(ts);
     JS_SetRuntimeOpaque(rt, NULL); /* fail safe */
   }
 
-  static void call_handler(JSContext *ctx, JSValueConst func, int count, JSValue *argv)
+  static JSValue call_handler(JSContext *ctx, JSValueConst func, int count, JSValue *argv)
   {
     JSValue ret, func1;
     /* 'func' might be destroyed when calling itself (if it frees the
@@ -148,9 +188,9 @@ namespace qjs
     func1 = JS_DupValue(ctx, func);
     ret = JS_Call(ctx, func1, JS_UNDEFINED, count, argv);
     JS_FreeValue(ctx, func1);
-    if (JS_IsException(ret))
-      throw exception{};
-    JS_FreeValue(ctx, ret);
+    for (int i = 0; i < count; ++i)
+      JS_FreeValue(ctx, argv[i]);
+    return ret;
   }
 
   static int js_dart_poll(JSContext *ctx)
@@ -182,9 +222,10 @@ namespace qjs
           th->reject = JS_UNDEFINED;
           unlink_future(rt, th);
           free_future(rt, th);
-          call_handler(ctx, argv.count < 0 ? reject : resolve, abs(argv.count), argv.argv);
-          for (int i = 0; i < abs(argv.count); ++i)
-            JS_FreeValue(ctx, argv.argv[i]);
+          JSValue ret = call_handler(ctx, argv.count < 0 ? reject : resolve, abs(argv.count), argv.argv);
+          if (qjs::JS_IsException(ret))
+            throw qjs::exception{};
+          JS_FreeValue(ctx, ret);
           JS_FreeValue(ctx, resolve);
           JS_FreeValue(ctx, reject);
           delete argv.argv;

@@ -37,6 +37,12 @@
 #include <malloc.h>
 #endif
 
+#if defined(__ANDROID__)
+#include <android/log.h>
+#undef printf
+#define printf(...) __android_log_print(ANDROID_LOG_INFO, "qjs", __VA_ARGS__)
+#endif
+
 #ifdef _MSC_VER
 #include <WinSock2.h>
 

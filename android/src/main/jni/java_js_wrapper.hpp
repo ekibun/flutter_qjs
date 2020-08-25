@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-16 11:08:23
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-20 13:09:08
+ * @LastEditTime: 2020-08-25 18:06:08
  */
 #include <string>
 #include <unordered_map>
@@ -45,10 +45,15 @@ namespace qjs
       JSValue array = JS_NewArray(ctx);
       auto buf = env->GetDoubleArrayElements((jdoubleArray)val, 0);
       for (uint32_t i = 0; i < size; i++)
+      {
+        auto atom = JS_NewAtomUInt32(ctx, i);
         JS_DefinePropertyValue(
-            ctx, array, JS_NewAtomUInt32(ctx, i),
+            ctx, array, atom,
             JS_NewFloat64(ctx, buf[i]),
             JS_PROP_C_W_E);
+        JS_FreeAtom(ctx, atom);
+      }
+
       return array;
     }
     else if (className.compare("java.lang.Boolean") == 0)
@@ -82,10 +87,15 @@ namespace qjs
       JSValue array = JS_NewArray(ctx);
       cache[val] = array;
       for (uint32_t i = 0; i < size; i++)
+      {
+        auto atom = JS_NewAtomUInt32(ctx, i);
         JS_DefinePropertyValue(
-            ctx, array, JS_NewAtomUInt32(ctx, i),
-            javaToJs(ctx, env, env->GetObjectArrayElement(list, i), cache),
-            JS_PROP_C_W_E);
+          ctx, array, atom,
+          javaToJs(ctx, env, env->GetObjectArrayElement(list, i), cache),
+          JS_PROP_C_W_E);
+        JS_FreeAtom(ctx, atom);
+      }
+      
       return array;
     }
     else if (className.compare("java.util.HashMap") == 0)
@@ -119,10 +129,14 @@ namespace qjs
       {
         // 读取一条数据
         jobject entryObj = env->CallObjectMethod(iteratorObj, nextMID);
+        auto atomvalue = javaToJs(ctx, env, env->CallObjectMethod(entryObj, getKeyMID), cache);
+        auto atom = JS_ValueToAtom(ctx, atomvalue);
         JS_DefinePropertyValue(
-            ctx, obj, JS_ValueToAtom(ctx, javaToJs(ctx, env, env->CallObjectMethod(entryObj, getKeyMID), cache)),
+            ctx, obj, atom,
             javaToJs(ctx, env, env->CallObjectMethod(entryObj, getValueMID), cache),
             JS_PROP_C_W_E);
+        JS_FreeAtom(ctx, atom);
+        JS_FreeValue(ctx, atomvalue);
       }
       return obj;
     }
@@ -158,7 +172,7 @@ namespace qjs
       if (JS_IsFunction(val.ctx, val.v))
       {
         std::map<jobject, jobject> retMap;
-        retMap[env->NewStringUTF("__js_function__")] = jniWrapPrimity<jlong>(env, (int64_t) new JSValue{JS_DupValue(val.ctx, val.v)});
+        retMap[env->NewStringUTF("__js_function__")] = jniWrapPrimity<jlong>(env, (int64_t) new JSValue{js_add_ref(val)});
         return jniWrapMap(env, retMap);
       }
       else if (JS_IsArray(val.ctx, val.v) > 0)

@@ -21,7 +21,7 @@ class FlutterQjsPlugin: FlutterPlugin, MethodCallHandler {
 
   override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
     applicationContext = flutterPluginBinding.applicationContext
-    val channel = MethodChannel(flutterPluginBinding.binaryMessenger, "soko.ekibun.flutter_qjs")
+    channel = MethodChannel(flutterPluginBinding.binaryMessenger, "soko.ekibun.flutter_qjs")
     channel.setMethodCallHandler(this)
     channelwrapper = MethodChannelWrapper(handler, channel)
   }
@@ -37,13 +37,13 @@ class FlutterQjsPlugin: FlutterPlugin, MethodCallHandler {
       val name: String = call.argument<String>("name")!!
       JniBridge.instance.evaluate(engine, script, name, ResultWrapper(handler, result))
     } else if (call.method == "call") {
-      println(call.arguments<Map<*, *>>());
       val engine: Long = call.argument<Long>("engine")!!
       val function: Long = call.argument<Long>("function")!!
       val args: List<Any> = call.argument<List<Any>>("arguments")!!
       JniBridge.instance.call(engine, function, args, ResultWrapper(handler, result))
     } else if (call.method == "close") {
-      val engine: Long = call.argument<Long>("engine")!!
+      val engine: Long = call.arguments<Long>()
+      println(engine)
       JniBridge.instance.close(engine)
       result.success(null)
     } else {

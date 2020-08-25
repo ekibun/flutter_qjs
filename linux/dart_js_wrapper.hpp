@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-14 21:45:02
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-20 13:09:21
+ * @LastEditTime: 2020-08-25 18:11:19
  */
 #include "../cxx/js_engine.hpp"
 #include <flutter_linux/flutter_linux.h>
@@ -37,9 +37,14 @@ namespace qjs
       auto size = (uint32_t)fl_value_get_length(val);
       JSValue array = JS_NewArray(ctx);
       for (uint32_t i = 0; i < size; ++i)
+      {
+        auto atom = JS_NewAtomUInt32(ctx, i);
         JS_DefinePropertyValue(
-            ctx, array, JS_NewAtomUInt32(ctx, i), JS_NewFloat64(ctx, buf[i]),
+            ctx, array, atom, JS_NewFloat64(ctx, buf[i]),
             JS_PROP_C_W_E);
+        JS_FreeAtom(ctx, atom);
+      }
+        
       return array;
     }
     case FL_VALUE_TYPE_LIST:
@@ -47,10 +52,14 @@ namespace qjs
       auto size = (uint32_t)fl_value_get_length(val);
       JSValue array = JS_NewArray(ctx);
       for (uint32_t i = 0; i < size; ++i)
+      {
+        auto atom = JS_NewAtomUInt32(ctx, i);
         JS_DefinePropertyValue(
-            ctx, array, JS_NewAtomUInt32(ctx, i),
+            ctx, array, atom,
             dartToJs(ctx, fl_value_get_list_value(val, i)),
             JS_PROP_C_W_E);
+        JS_FreeAtom(ctx, atom);
+      }
       return array;
     }
     case FL_VALUE_TYPE_MAP:
@@ -58,11 +67,16 @@ namespace qjs
       auto size = (uint32_t)fl_value_get_length(val);
       JSValue obj = JS_NewObject(ctx);
       for (uint32_t i = 0; i < size; ++i)
+      {
+        auto atomvalue = dartToJs(ctx, fl_value_get_map_key(val, i));
+        auto atom = JS_ValueToAtom(ctx, atomvalue);
         JS_DefinePropertyValue(
-            ctx, obj,
-            JS_ValueToAtom(ctx, dartToJs(ctx, fl_value_get_map_key(val, i))),
+            ctx, obj, atom,
             dartToJs(ctx, fl_value_get_map_value(val, i)),
             JS_PROP_C_W_E);
+        JS_FreeAtom(ctx, atom);
+        JS_FreeValue(ctx, atomvalue);
+      }
       return obj;
     }
     default:
@@ -93,7 +107,7 @@ namespace qjs
       if (JS_IsFunction(val.ctx, val.v))
       {
         FlValue *retMap = fl_value_new_map();
-        fl_value_set_string_take(retMap, "__js_function__", fl_value_new_int((int64_t) new JSValue{JS_DupValue(val.ctx, val.v)}));
+        fl_value_set_string_take(retMap, "__js_function__", fl_value_new_int((int64_t) new JSValue{js_add_ref(val)}));
         return retMap;
       }
       else if (JS_IsArray(val.ctx, val.v) > 0)

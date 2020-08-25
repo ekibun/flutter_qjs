@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-14 21:45:02
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-20 13:06:24
+ * @LastEditTime: 2020-08-25 18:08:45
  */
 #include "../cxx/js_engine.hpp"
 #include <flutter/standard_method_codec.h>
@@ -46,9 +46,13 @@ namespace qjs
       JSValue array = JS_NewArray(ctx);
       auto size = (uint32_t)buf.size();
       for (uint32_t i = 0; i < size; ++i)
+      {
+        auto atom = JS_NewAtomUInt32(ctx, i);
         JS_DefinePropertyValue(
-            ctx, array, JS_NewAtomUInt32(ctx, i), JS_NewFloat64(ctx, buf[i]),
+            ctx, array, atom, JS_NewFloat64(ctx, buf[i]),
             JS_PROP_C_W_E);
+        JS_FreeAtom(ctx, atom);
+      }
       return array;
     }
     if (std::holds_alternative<flutter::EncodableList>(val))
@@ -57,9 +61,14 @@ namespace qjs
       JSValue array = JS_NewArray(ctx);
       auto size = (uint32_t)list.size();
       for (uint32_t i = 0; i < size; i++)
+      {
+        auto atom = JS_NewAtomUInt32(ctx, i);
         JS_DefinePropertyValue(
-            ctx, array, JS_NewAtomUInt32(ctx, i), dartToJs(ctx, list[i]),
+            ctx, array, atom, dartToJs(ctx, list[i]),
             JS_PROP_C_W_E);
+        JS_FreeAtom(ctx, atom);
+      }
+
       return array;
     }
     if (std::holds_alternative<flutter::EncodableMap>(val))
@@ -67,9 +76,16 @@ namespace qjs
       auto map = std::get<flutter::EncodableMap>(val);
       JSValue obj = JS_NewObject(ctx);
       for (auto iter = map.begin(); iter != map.end(); ++iter)
+      {
+        auto atomvalue = dartToJs(ctx, iter->first);
+        auto atom = JS_ValueToAtom(ctx, atomvalue);
         JS_DefinePropertyValue(
-            ctx, obj, JS_ValueToAtom(ctx, dartToJs(ctx, iter->first)), dartToJs(ctx, iter->second),
+            ctx, obj, atom, dartToJs(ctx, iter->second),
             JS_PROP_C_W_E);
+        JS_FreeAtom(ctx, atom);
+        JS_FreeValue(ctx, atomvalue);
+      }
+
       return obj;
     }
     return JS_UNDEFINED;
@@ -100,7 +116,7 @@ namespace qjs
       if (JS_IsFunction(val.ctx, val.v))
       {
         flutter::EncodableMap retMap;
-        retMap[std::string("__js_function__")] = (int64_t) new JSValue{JS_DupValue(val.ctx, val.v)};
+        retMap[std::string("__js_function__")] = (int64_t) new JSValue{js_add_ref(val)};
         return retMap;
       }
       else if (JS_IsArray(val.ctx, val.v) > 0)
