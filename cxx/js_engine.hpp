@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 10:30:59
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-20 11:11:30
+ * @LastEditTime: 2020-08-26 23:35:20
  */
 #pragma once
 
@@ -53,7 +53,8 @@ namespace qjs
 
     void handleException(qjs::Value exc)
     {
-      std::cout << getStackTrack(exc) << std::endl;
+      printf("%s", getStackTrack(exc).c_str());
+      std::cout << std::endl;
     }
 
   public:
@@ -125,7 +126,7 @@ namespace qjs
             if (err <= 0)
             {
               if (err < 0)
-                std::cout << getStackTrack(ctx.getException()) << std::endl;
+                handleException(ctx.getException());
               break;
             }
           }

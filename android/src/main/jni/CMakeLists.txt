@@ -30,6 +30,7 @@ target_sources(${JNI_LIB_NAME} PUBLIC
     ${QUICK_JS_LIB_DIR}/libunicode.c
     ${QUICK_JS_LIB_DIR}/quickjs.c
 )
+target_compile_features(${JNI_LIB_NAME} PUBLIC cxx_std_17)
 
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because CMake includes system libraries in the search path by

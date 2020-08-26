@@ -29,7 +29,6 @@ class FlutterQjsPlugin: FlutterPlugin, MethodCallHandler {
   override fun onMethodCall(call: MethodCall, result: Result) {
     if (call.method == "createEngine") {
       val engine: Long = JniBridge.instance.createEngine(channelwrapper)
-      println(engine)
       result.success(engine)
     } else if (call.method == "evaluate") {
       val engine: Long = call.argument<Long>("engine")!!
@@ -43,7 +42,6 @@ class FlutterQjsPlugin: FlutterPlugin, MethodCallHandler {
       JniBridge.instance.call(engine, function, args, ResultWrapper(handler, result))
     } else if (call.method == "close") {
       val engine: Long = call.arguments<Long>()
-      println(engine)
       JniBridge.instance.close(engine)
       result.success(null)
     } else {

@@ -33,11 +33,6 @@ android {
     }
     defaultConfig {
         minSdkVersion 16
-       externalNativeBuild {
-           cmake {
-               cppFlags "-std=c++17"
-           }
-       }
     }
     lintOptions {
         disable 'InvalidPackage'
@@ -45,12 +40,12 @@ android {
     kotlinOptions {
         jvmTarget = "1.8"
     }
-   externalNativeBuild {
-       cmake {
-           path "src/main/jni/CMakeLists.txt"
-           version "3.10.2"
-       }
-   }
+    externalNativeBuild {
+        cmake {
+            path "src/main/jni/CMakeLists.txt"
+            version "3.10.2"
+        }
+    }
 }
 
 dependencies {

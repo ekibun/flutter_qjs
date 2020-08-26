@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:16:50
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-20 13:58:47
+ * @LastEditTime: 2020-08-26 23:02:05
 -->
 # flutter_qjs
 
@@ -76,6 +76,3 @@ try {
 ```
 
 [This example](example/lib/test.dart) contains a complete demonstration on how to use this plugin.
-
-**notice:**
-To use this plugin in Linux desktop application, you must change `cxx_std_14` to `cxx_std_17` in your project's `CMakeLists.txt`.

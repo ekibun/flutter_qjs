@@ -37,12 +37,6 @@
 #include <malloc.h>
 #endif
 
-#if defined(__ANDROID__)
-#include <android/log.h>
-#undef printf
-#define printf(...) __android_log_print(ANDROID_LOG_INFO, "qjs", __VA_ARGS__)
-#endif
-
 #ifdef _MSC_VER
 #include <WinSock2.h>
 
@@ -1704,7 +1698,7 @@ static inline size_t js_def_malloc_usable_size(void *ptr)
     return malloc_size(ptr);
 #elif defined(_WIN32)
     return _msize(ptr);
-#elif defined(EMSCRIPTEN)
+#elif defined(EMSCRIPTEN) || defined(__ANDROID__)
     return 0;
 #elif defined(__linux__)
     return malloc_usable_size(ptr);
@@ -1778,7 +1772,7 @@ static const JSMallocFunctions def_malloc_funcs = {
     malloc_size,
 #elif defined(_WIN32)
     (size_t (*)(const void *))_msize,
-#elif defined(EMSCRIPTEN)
+#elif defined(EMSCRIPTEN) || defined(__ANDROID__)
     NULL,
 #elif defined(__linux__)
     (size_t (*)(const void *))malloc_usable_size,

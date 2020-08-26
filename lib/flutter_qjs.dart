@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:29:09
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-20 14:43:40
+ * @LastEditTime: 2020-08-26 23:11:10
  */
 import 'dart:async';
 import 'dart:io';
@@ -24,7 +24,6 @@ class FlutterJs {
   _ensureEngine() async {
     if (_engine == null) {
       _engine = await _FlutterJs.instance._channel.invokeMethod("createEngine");
-      print(_engine);
     }
   }
 

@@ -23,9 +23,8 @@
                 "C:/Users/ekibun/AppData/Local/Android/Sdk/ndk/21.3.6528147/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include"
             ],
             "defines": [
-                "_DEBUG",
-                "UNICODE",
-                "_UNICODE"
+                "__ANDROID__",
+                "__LINUX__"
             ],
             "windowsSdkVersion": "10.0.18362.0",
             "compilerPath": "C:/Users/ekibun/AppData/Local/Android/Sdk/cmake/3.10.2.4988404/bin/cmake.exe",
@@ -41,9 +40,7 @@
                 "/usr/include/**"
             ],
             "defines": [
-                "_DEBUG",
-                "UNICODE",
-                "_UNICODE"
+                "__LINUX__"
             ],
             "windowsSdkVersion": "10.0.18362.0",
             "compilerPath": "/usr/bin/clang++",
