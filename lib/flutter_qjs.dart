@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:29:09
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-26 23:11:10
+ * @LastEditTime: 2020-08-27 18:23:47
  */
 import 'dart:async';
 import 'dart:io';
@@ -11,6 +11,9 @@ import 'package:flutter/services.dart';
 
 /// Handle function to manage js call with `dart(method, ...args)` function.
 typedef JsMethodHandler = Future<dynamic> Function(String method, List args);
+
+/// Handle function to manage js module.
+typedef JsModuleHandler = Future<String> Function(String name);
 
 /// return this in [JsMethodHandler] to mark method not implemented.
 class JsMethodHandlerNotImplement {}
@@ -30,14 +33,19 @@ class FlutterJs {
   /// Set a handler to manage js call with `dart(method, ...args)` function.
   setMethodHandler(JsMethodHandler handler) async {
     await _ensureEngine();
-    _FlutterJs.instance.methodHandlers[_engine] = handler;
+    _FlutterJs.instance._methodHandlers[_engine] = handler;
+  }
+
+  /// Set a handler to manage js module.
+  setModuleHandler(JsModuleHandler handler) async {
+    await _ensureEngine();
+    _FlutterJs.instance._moduleHandlers[_engine] = handler;
   }
 
   /// Terminate thread and release memory.
   destroy() async {
     if (_engine != null) {
-      await _FlutterJs.instance._channel
-          .invokeMethod("close", _engine);
+      await _FlutterJs.instance._channel.invokeMethod("close", _engine);
       _engine = null;
     }
   }
@@ -47,8 +55,7 @@ class FlutterJs {
     await _ensureEngine();
     var arguments = {"engine": _engine, "script": command, "name": name};
     return _FlutterJs.instance._wrapFunctionArguments(
-        await _FlutterJs.instance._channel.invokeMethod("evaluate", arguments),
-        _engine);
+        await _FlutterJs.instance._channel.invokeMethod("evaluate", arguments), _engine);
   }
 }
 
@@ -57,17 +64,23 @@ class _FlutterJs {
   static _FlutterJs get instance => _getInstance();
   static _FlutterJs _instance;
   MethodChannel _channel = const MethodChannel('soko.ekibun.flutter_qjs');
-  Map<dynamic, JsMethodHandler> methodHandlers =
-      Map<dynamic, JsMethodHandler>();
+  Map<dynamic, JsMethodHandler> _methodHandlers = Map<dynamic, JsMethodHandler>();
+  Map<dynamic, JsModuleHandler> _moduleHandlers = Map<dynamic, JsModuleHandler>();
   _FlutterJs._internal() {
     _channel.setMethodCallHandler((call) async {
       var engine = call.arguments["engine"];
       var args = call.arguments["args"];
-      if (methodHandlers[engine] == null) return call.noSuchMethod(null);
-      var ret = await methodHandlers[engine](
-          call.method, _wrapFunctionArguments(args, engine));
-      if (ret is JsMethodHandlerNotImplement) return call.noSuchMethod(null);
-      return ret;
+      if (args is List) {
+        if (_methodHandlers[engine] == null) return call.noSuchMethod(null);
+        var ret = await _methodHandlers[engine](call.method, _wrapFunctionArguments(args, engine));
+        if (ret is JsMethodHandlerNotImplement) return call.noSuchMethod(null);
+        return ret;
+      } else {
+        if (_moduleHandlers[engine] == null) return call.noSuchMethod(null);
+        var ret = await _moduleHandlers[engine](args);
+        if (ret is JsMethodHandlerNotImplement) return call.noSuchMethod(null);
+        return ret;
+      }
     });
   }
   dynamic _wrapFunctionArguments(dynamic val, dynamic engine) {
@@ -83,13 +96,8 @@ class _FlutterJs {
       if (val["__js_function__"] != null) {
         var functionId = val["__js_function__"];
         return (List<dynamic> args) async {
-          var arguments = {
-            "engine": engine,
-            "function": functionId,
-            "arguments": args
-          };
-          return _wrapFunctionArguments(
-              await _channel.invokeMethod("call", arguments), engine);
+          var arguments = {"engine": engine, "function": functionId, "arguments": args};
+          return _wrapFunctionArguments(await _channel.invokeMethod("call", arguments), engine);
         };
       } else
         for (var key in val.keys) {

@@ -3,8 +3,12 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:16:50
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-26 23:37:16
+ * @LastEditTime: 2020-08-27 20:42:32
 -->
+## 0.0.5
+
+* add js module.
+
 ## 0.0.4
 
 * remove C++ std limitation for linux and android.

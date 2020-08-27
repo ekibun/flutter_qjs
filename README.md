@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:16:50
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-26 23:02:05
+ * @LastEditTime: 2020-08-27 20:55:04
 -->
 # flutter_qjs
 
@@ -13,9 +13,11 @@ A quickjs engine for flutter.
 
 This plugin is a simple js engine for flutter using the `quickjs` project. Plugin currently supports Windows, Linux, and Android.
 
-Each `FlutterJs` object creates a new thread that runs a simple js loop. A global async function `dart` is presented to invoke dart function, and `Promise` is supported so that you can use `await` or `then` to get external result from `dart`. 
+Each `FlutterJs` object creates a new thread that runs a simple js loop. 
 
-Data convertion between dart and js are implemented as follow:
+ES6 module with `import` function is supported and can manage in dart with `setModuleHandler`.
+
+A global async function `dart` is presented to invoke dart function, and `Promise` is supported so that you can use `await` or `then` to get external result from `dart`. Data convertion between dart and js are implemented as follow:
 
 | dart | js |
 | --- | --- |
@@ -48,7 +50,7 @@ engine = null;
 2. Call `setMethodHandler` to implements `dart` interaction. For example, you can use `Dio` to implements http in js:
 
 ```dart
-engine.setMethodHandler((String method, List arg) async {
+await engine.setMethodHandler((String method, List arg) async {
   switch (method) {
     case "http":
       Response response = await Dio().get(arg[0]);
@@ -65,7 +67,21 @@ and in javascript, call `dart` function to get data:
 dart("http", "http://example.com/");
 ```
 
-3. Use `evaluate` to run js script, and try-catch is needed to capture exception.
+3. Call `setModuleHandler` to resolve js module. For example, you can use assets files as module:
+
+```dart
+await engine.setModuleHandler((String module) async {
+  return await rootBundle.loadString("js/" + module.replaceFirst(new RegExp(r".js$"), "") + ".js");
+});
+```
+
+and in javascript, call `import` function to get module:
+
+```javascript
+import("hello").then(({default: greet}) => greet("world"));
+```
+
+4. Use `evaluate` to run js script, and try-catch is needed to capture js exception.
 
 ```dart
 try {
@@ -75,4 +91,4 @@ try {
 }
 ```
 
-[This example](example/lib/test.dart) contains a complete demonstration on how to use this plugin.
+[This example](example/lib/main.dart) contains a complete demonstration on how to use this plugin.

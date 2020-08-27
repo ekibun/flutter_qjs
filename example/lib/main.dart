@@ -3,15 +3,16 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:16:51
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-24 22:26:03
+ * @LastEditTime: 2020-08-27 20:39:32
  */
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_qjs/flutter_qjs.dart';
 
-import 'code/editor.dart';
+import 'highlight.dart';
 
 void main() {
   runApp(MyApp());
@@ -44,8 +45,10 @@ class TestPage extends StatefulWidget {
 }
 
 class _TestPageState extends State<TestPage> {
-  String code, resp;
+  String resp;
   FlutterJs engine;
+
+  CodeInputController _controller = CodeInputController();
 
   _createEngine() async {
     if (engine != null) return;
@@ -72,6 +75,10 @@ class _TestPageState extends State<TestPage> {
           return JsMethodHandlerNotImplement();
       }
     });
+    await engine.setModuleHandler((String module) async {
+      if(module == "test") return "export default '${new DateTime.now()}'";
+      return await rootBundle.loadString("js/" + module.replaceFirst(new RegExp(r".js$"), "") + ".js");
+    });
   }
 
   @override
@@ -89,8 +96,7 @@ class _TestPageState extends State<TestPage> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  FlatButton(
-                      child: Text("create engine"), onPressed: _createEngine),
+                  FlatButton(child: Text("create engine"), onPressed: _createEngine),
                   FlatButton(
                       child: Text("evaluate"),
                       onPressed: () async {
@@ -99,8 +105,8 @@ class _TestPageState extends State<TestPage> {
                           return;
                         }
                         try {
-                          resp = (await engine.evaluate(code ?? '', "<eval>"))
-                              .toString();
+                          resp =
+                              (await engine.evaluate(_controller.text ?? '', "<eval>")).toString();
                         } catch (e) {
                           resp = e.toString();
                         }
@@ -120,10 +126,12 @@ class _TestPageState extends State<TestPage> {
               padding: const EdgeInsets.all(12),
               color: Colors.grey.withOpacity(0.1),
               constraints: BoxConstraints(minHeight: 200),
-              child: CodeEditor(
-                onChanged: (v) {
-                  code = v;
-                },
+              child: TextField(
+                autofocus: true,
+                controller: _controller,
+                decoration: null,
+                expands: true,
+                maxLines: null
               ),
             ),
             SizedBox(height: 16),

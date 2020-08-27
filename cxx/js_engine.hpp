@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 10:30:59
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-26 23:35:20
+ * @LastEditTime: 2020-08-27 18:55:57
  */
 #pragma once
 
@@ -76,6 +76,7 @@ namespace qjs
                 __DartImpl.__invoke(res, rej, method, args));
             )xxx",
             "<dart>", JS_EVAL_TYPE_MODULE);
+        JS_SetModuleLoaderFunc(rt.rt, nullptr, js_module_loader, nullptr);
         std::vector<EngineTaskResolver> unresolvedTask;
         Value promiseWrapper = ctx.eval(
             R"xxx(

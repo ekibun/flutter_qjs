@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-07 13:55:52
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-25 16:07:29
+ * @LastEditTime: 2020-08-27 20:31:25
  */
 #pragma once
 #include "quickjs/quickjspp.hpp"
@@ -58,6 +58,34 @@ namespace qjs
     struct list_head os_ref;
     DartChannel channel;
   } JSThreadState;
+
+  JSModuleDef *js_module_loader(
+      JSContext *ctx,
+      const char *module_name, void *opaque)
+  {
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    JSThreadState *ts = (JSThreadState *)JS_GetRuntimeOpaque(rt);
+    auto promise = ts->channel("__dart_load_module__", Value{ctx, JS_NewString(ctx, module_name)});
+    JSOSFutureArgv argv = promise->get_future().get()(ctx);
+    if (argv.count > 0)
+    {
+      const char *str = JS_ToCString(ctx, argv.argv[0]);
+      JSValue func_val = JS_Eval(ctx, str, strlen(str), module_name, JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+      JS_FreeCString(ctx, str);
+      JS_FreeValue(ctx, argv.argv[0]);
+      if (JS_IsException(func_val))
+        return NULL;
+      /* the module is already referenced, so we must free it */
+      JSModuleDef *m = (JSModuleDef *)JS_VALUE_GET_PTR(func_val);
+      JS_FreeValue(ctx, func_val);
+      return m;
+    }
+    else
+    {
+      JS_Throw(ctx, argv.argv[0]);
+      return NULL;
+    }
+  }
 
   JSValue js_add_ref(Value val)
   {
