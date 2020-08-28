@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 10:30:59
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-28 20:33:54
+ * @LastEditTime: 2020-08-28 22:56:29
  */
 #pragma once
 
@@ -43,24 +43,40 @@ namespace qjs
 
   Value js_encode(std::string encoding, Value input)
   {
-    auto string = (std::string)input;
-    auto converter = iconvpp::converter(encoding, "utf-8", true);
-    std::string output;
-    converter.convert((std::string)input, output);
-
-    return {input.ctx, JS_NewArrayBufferCopy(input.ctx, (uint8_t *)output.c_str(), output.size())};
+    auto inputStr = (std::string)input;
+    try
+    {
+      auto converter = iconvpp::converter(encoding, "utf-8", true);
+      std::string output;
+      converter.convert(inputStr, output);
+      return {input.ctx, JS_NewArrayBufferCopy(input.ctx, (uint8_t *)output.c_str(), output.size())};
+    }
+    catch (std::runtime_error err)
+    {
+      return {input.ctx, JS_NewArrayBufferCopy(input.ctx, (uint8_t *)inputStr.c_str(), inputStr.size())};
+    }
   }
 
   std::string js_decode(std::string encoding, Value input)
   {
     size_t size;
     uint8_t *buf = JS_GetArrayBuffer(input.ctx, &size, input.v);
-    if (!buf) return std::string();
-
-    auto converter = iconvpp::converter("utf-8", encoding, true);
-    std::string output;
-    converter.convert(std::string((char *)buf, size), output);
-    return output;
+    if (!buf)
+    {
+      return std::string();
+    }
+    std::string inputStr((char *)buf, size);
+    try
+    {
+      auto converter = iconvpp::converter("utf-8", encoding, true);
+      std::string output;
+      converter.convert(inputStr, output);
+      return output;
+    }
+    catch (std::runtime_error err)
+    {
+      return inputStr;
+    }
   }
 
   class Engine
@@ -99,18 +115,27 @@ namespace qjs
               import * as __DartImpl from "__DartImpl";
               globalThis.dart = (method, ...args) => new Promise((res, rej) => 
                 __DartImpl.__invoke(res, rej, method, args));
-              class Encoding {
+              class TextDecoder {
+                constructor(encoding){
+                  this.encoding = encoding;
+                }
+                decode(dat) {
+                  if(dat && dat.buffer instanceof ArrayBuffer) dat = dat.buffer;
+                  if(dat instanceof ArrayBuffer)
+                    return __DartImpl.__decode(this.encoding, dat);
+                  throw "The provided value is not of type '(ArrayBuffer or ArrayBufferView)'";
+                }
+              };
+              class TextEncoder {
                 constructor(encoding){
                   this.encoding = encoding;
                 }
                 encode(dat) {
                   return __DartImpl.__encode(this.encoding, dat);
                 }
-                decode(dat) {
-                  return __DartImpl.__decode(this.encoding, dat);
-                }
               };
-              globalThis.Encoding = Encoding;
+              globalThis.TextDecoder = TextDecoder;
+              globalThis.TextEncoder = TextEncoder;
             )xxx",
             "<dart>", JS_EVAL_TYPE_MODULE);
         JS_SetModuleLoaderFunc(rt.rt, nullptr, js_module_loader, nullptr);

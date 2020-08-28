@@ -3,8 +3,12 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:16:50
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-28 10:46:26
+ * @LastEditTime: 2020-08-28 23:49:13
 -->
+## 0.0.6 -b iconv
+
+* implement `TextEncoder` and `TextDecoder`.
+
 ## 0.0.6
 
 * remove handler when destroy.

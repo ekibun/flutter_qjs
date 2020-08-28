@@ -20,6 +20,9 @@ add_library( # Sets the name of the library.
              # Provides a relative path to your source file(s).
              native-lib.cpp )
 
+#iconv
+add_subdirectory(../../../../cxx/libiconv libiconv.out)
+
 # quickjs
 set(QUICK_JS_LIB_DIR ../../../../cxx/quickjs)
 file (STRINGS "${QUICK_JS_LIB_DIR}/VERSION" QUICKJS_VERSION)
@@ -51,7 +54,7 @@ find_library( # Sets the name of the path variable.
 
 target_link_libraries( # Specifies the target library.
                        ${JNI_LIB_NAME}
-
+                       libiconv
                        # Links the target library to the log library
                        # included in the NDK.
                        ${log-lib} )

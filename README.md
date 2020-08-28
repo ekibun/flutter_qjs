@@ -3,11 +3,13 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:16:50
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-27 21:11:55
+ * @LastEditTime: 2020-08-28 23:48:13
 -->
-# flutter_qjs
+# flutter_qjs (with iconv)
 
 A quickjs engine for flutter.
+
+This is a branch with internal `TextEncoder` and `TextDecoder` implemented by `libiconv`.
 
 ## Feature
 
