@@ -76,8 +76,9 @@ class _TestPageState extends State<TestPage> {
       }
     });
     await engine.setModuleHandler((String module) async {
-      if(module == "test") return "export default '${new DateTime.now()}'";
-      return await rootBundle.loadString("js/" + module.replaceFirst(new RegExp(r".js$"), "") + ".js");
+      if (module == "test") return "export default '${new DateTime.now()}'";
+      return await rootBundle.loadString(
+          "js/" + module.replaceFirst(new RegExp(r".js$"), "") + ".js");
     });
   }
 
@@ -96,7 +97,8 @@ class _TestPageState extends State<TestPage> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  FlatButton(child: Text("create engine"), onPressed: _createEngine),
+                  FlatButton(
+                      child: Text("create engine"), onPressed: _createEngine),
                   FlatButton(
                       child: Text("evaluate"),
                       onPressed: () async {
@@ -105,8 +107,9 @@ class _TestPageState extends State<TestPage> {
                           return;
                         }
                         try {
-                          resp =
-                              (await engine.evaluate(_controller.text ?? '', "<eval>")).toString();
+                          resp = (await engine.evaluate(
+                                  _controller.text ?? '', "<eval>"))
+                              .toString();
                         } catch (e) {
                           resp = e.toString();
                         }
@@ -127,12 +130,11 @@ class _TestPageState extends State<TestPage> {
               color: Colors.grey.withOpacity(0.1),
               constraints: BoxConstraints(minHeight: 200),
               child: TextField(
-                autofocus: true,
-                controller: _controller,
-                decoration: null,
-                expands: true,
-                maxLines: null
-              ),
+                  autofocus: true,
+                  controller: _controller,
+                  decoration: null,
+                  expands: true,
+                  maxLines: null),
             ),
             SizedBox(height: 16),
             Text("result:"),

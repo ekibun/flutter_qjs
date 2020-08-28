@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:16:50
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-27 20:55:04
+ * @LastEditTime: 2020-08-27 21:11:55
 -->
 # flutter_qjs
 
@@ -71,7 +71,8 @@ dart("http", "http://example.com/");
 
 ```dart
 await engine.setModuleHandler((String module) async {
-  return await rootBundle.loadString("js/" + module.replaceFirst(new RegExp(r".js$"), "") + ".js");
+  return await rootBundle.loadString(
+      "js/" + module.replaceFirst(new RegExp(r".js$"), "") + ".js");
 });
 ```
 

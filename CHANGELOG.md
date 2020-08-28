@@ -3,8 +3,12 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:16:50
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-27 20:42:32
+ * @LastEditTime: 2020-08-28 10:46:26
 -->
+## 0.0.6
+
+* remove handler when destroy.
+
 ## 0.0.5
 
 * add js module.
