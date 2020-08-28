@@ -1,0 +1,336 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="iconv.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\include\iconv.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="converters.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ascii.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="utf8.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="aliases.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="aliases_aix.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="aliases_aix_sysaix.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="aliases_dos.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="aliases_extra.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="aliases_osf1.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="aliases_osf1_sysosf1.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="aliases_sysaix.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="aliases_syshpux.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="aliases_sysosf1.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="aliases_syssolaris.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="aliases2.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="armscii_8.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="atarist.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="big5.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="big5_2003.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="big5hkscs1999.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="big5hkscs2001.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="big5hkscs2004.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="big5hkscs2008.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="c99.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="canonical.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="canonical_aix.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="canonical_aix_sysaix.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="canonical_dos.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="canonical_extra.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="canonical_local.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="canonical_local_sysaix.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="canonical_local_syshpux.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="canonical_local_sysosf1.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="canonical_local_syssolaris.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="canonical_osf1.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="canonical_osf1_sysosf1.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="canonical_sysaix.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="canonical_syshpux.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="canonical_sysosf1.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="canonical_syssolaris.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ces_big5.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ces_gbk.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cjk_variants.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cns11643.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cns11643_1.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cns11643_2.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cns11643_3.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cns11643_4.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cns11643_4a.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cns11643_4b.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cns11643_5.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cns11643_6.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cns11643_7.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cns11643_15.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cns11643_inv.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp437.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp737.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp775.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp850.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp852.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp853.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp855.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp856.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp857.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp858.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp860.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp861.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp862.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp863.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp864.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp865.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp866.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp869.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp874.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp922.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp932.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp932ext.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp936.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp936ext.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp943.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp949.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp950.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp950ext.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp1046.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp1124.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp1125.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp1129.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp1131.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp1133.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp1161.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp1162.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp1163.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp1250.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp1251.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp1252.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp1253.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp1254.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp1255.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp1256.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp1257.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cp1258.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="dec_hanyu.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="dec_kanji.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

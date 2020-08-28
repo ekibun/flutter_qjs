@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 10:30:59
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-27 18:55:57
+ * @LastEditTime: 2020-08-28 20:33:54
  */
 #pragma once
 
@@ -14,13 +14,14 @@
 #include <future>
 #include <iostream>
 
+#include "libiconv/iconv.hpp"
 #include "js_dart_promise.hpp"
 
 namespace qjs
 {
   struct EngineTask
   {
-    std::function<Value(Context&)> invoke;
+    std::function<Value(Context &)> invoke;
     std::function<void(Value)> resolve;
     std::function<void(Value)> reject;
   };
@@ -38,6 +39,28 @@ namespace qjs
     if ((bool)exc["stack"])
       err += "\n" + (std::string)exc["stack"];
     return err;
+  }
+
+  Value js_encode(std::string encoding, Value input)
+  {
+    auto string = (std::string)input;
+    auto converter = iconvpp::converter(encoding, "utf-8", true);
+    std::string output;
+    converter.convert((std::string)input, output);
+
+    return {input.ctx, JS_NewArrayBufferCopy(input.ctx, (uint8_t *)output.c_str(), output.size())};
+  }
+
+  std::string js_decode(std::string encoding, Value input)
+  {
+    size_t size;
+    uint8_t *buf = JS_GetArrayBuffer(input.ctx, &size, input.v);
+    if (!buf) return std::string();
+
+    auto converter = iconvpp::converter("utf-8", encoding, true);
+    std::string output;
+    converter.convert(std::string((char *)buf, size), output);
+    return output;
   }
 
   class Engine
@@ -60,7 +83,7 @@ namespace qjs
   public:
     inline Engine(std::function<std::promise<JSFutureReturn> *(std::string, Value, Engine *)> channel) : stoped{false}
     {
-      thread = std::thread([this, channel = [this, channel](std::string method, Value args){
+      thread = std::thread([this, channel = [this, channel](std::string method, Value args) {
         return channel(method, args, this);
       }] {
         // 创建运行环境
@@ -68,12 +91,26 @@ namespace qjs
         js_init_handlers(rt.rt, channel);
         Context ctx(rt);
         auto &module = ctx.addModule("__DartImpl");
-        module.function<&js_dart_future>("__invoke");
+        module.function<&js_dart_future>("__invoke")
+            .function<&js_encode>("__encode")
+            .function<&js_decode>("__decode");
         ctx.eval(
             R"xxx(
               import * as __DartImpl from "__DartImpl";
               globalThis.dart = (method, ...args) => new Promise((res, rej) => 
                 __DartImpl.__invoke(res, rej, method, args));
+              class Encoding {
+                constructor(encoding){
+                  this.encoding = encoding;
+                }
+                encode(dat) {
+                  return __DartImpl.__encode(this.encoding, dat);
+                }
+                decode(dat) {
+                  return __DartImpl.__decode(this.encoding, dat);
+                }
+              };
+              globalThis.Encoding = Encoding;
             )xxx",
             "<dart>", JS_EVAL_TYPE_MODULE);
         JS_SetModuleLoaderFunc(rt.rt, nullptr, js_module_loader, nullptr);

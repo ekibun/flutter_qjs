@@ -9,6 +9,10 @@ add_library(libquickjs STATIC
     ${QUICK_JS_LIB_DIR}/libunicode.c
     ${QUICK_JS_LIB_DIR}/quickjs.c
 )
+
+#iconv
+add_subdirectory(../cxx/libiconv libiconv.out)
+
 project(libquickjs LANGUAGES C)
 target_compile_options(libquickjs PRIVATE "-DCONFIG_VERSION=\"${QUICKJS_VERSION}\"")
 target_compile_options(libquickjs PRIVATE "-DDUMP_LEAKS")
@@ -28,7 +32,7 @@ set_target_properties(${PLUGIN_NAME} PROPERTIES
 target_compile_definitions(${PLUGIN_NAME} PRIVATE FLUTTER_PLUGIN_IMPL)
 target_include_directories(${PLUGIN_NAME} INTERFACE
   "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(${PLUGIN_NAME} PRIVATE flutter flutter_wrapper_plugin libquickjs)
+target_link_libraries(${PLUGIN_NAME} PRIVATE flutter flutter_wrapper_plugin libquickjs libiconv)
 
 # List of absolute paths to libraries that should be bundled with the plugin
 set(flutter_qjs_bundled_libraries

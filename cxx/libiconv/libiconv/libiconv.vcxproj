@@ -1,0 +1,272 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{3C4A735B-D756-41D7-AC12-D7379B749B1D}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>libiconv</RootNamespace>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v140</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;LIBICONV_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)\include;$(SolutionDir)\libcharset;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libcharset.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>_DEBUG;_WINDOWS;_USRDLL;LIBICONV_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)\include;$(SolutionDir)\libcharset;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libcharset.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;LIBICONV_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)\include;$(SolutionDir)\libcharset;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libcharset.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>NDEBUG;_WINDOWS;_USRDLL;LIBICONV_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir);$(SolutionDir)\include;$(SolutionDir)\libcharset;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libcharset.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="iconv.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\include\iconv.h" />
+    <ClInclude Include="aliases.h" />
+    <ClInclude Include="aliases2.h" />
+    <ClInclude Include="aliases_aix.h" />
+    <ClInclude Include="aliases_aix_sysaix.h" />
+    <ClInclude Include="aliases_dos.h" />
+    <ClInclude Include="aliases_extra.h" />
+    <ClInclude Include="aliases_osf1.h" />
+    <ClInclude Include="aliases_osf1_sysosf1.h" />
+    <ClInclude Include="aliases_sysaix.h" />
+    <ClInclude Include="aliases_syshpux.h" />
+    <ClInclude Include="aliases_sysosf1.h" />
+    <ClInclude Include="aliases_syssolaris.h" />
+    <ClInclude Include="armscii_8.h" />
+    <ClInclude Include="ascii.h" />
+    <ClInclude Include="atarist.h" />
+    <ClInclude Include="big5.h" />
+    <ClInclude Include="big5hkscs1999.h" />
+    <ClInclude Include="big5hkscs2001.h" />
+    <ClInclude Include="big5hkscs2004.h" />
+    <ClInclude Include="big5hkscs2008.h" />
+    <ClInclude Include="big5_2003.h" />
+    <ClInclude Include="c99.h" />
+    <ClInclude Include="canonical.h" />
+    <ClInclude Include="canonical_aix.h" />
+    <ClInclude Include="canonical_aix_sysaix.h" />
+    <ClInclude Include="canonical_dos.h" />
+    <ClInclude Include="canonical_extra.h" />
+    <ClInclude Include="canonical_local.h" />
+    <ClInclude Include="canonical_local_sysaix.h" />
+    <ClInclude Include="canonical_local_syshpux.h" />
+    <ClInclude Include="canonical_local_sysosf1.h" />
+    <ClInclude Include="canonical_local_syssolaris.h" />
+    <ClInclude Include="canonical_osf1.h" />
+    <ClInclude Include="canonical_osf1_sysosf1.h" />
+    <ClInclude Include="canonical_sysaix.h" />
+    <ClInclude Include="canonical_syshpux.h" />
+    <ClInclude Include="canonical_sysosf1.h" />
+    <ClInclude Include="canonical_syssolaris.h" />
+    <ClInclude Include="ces_big5.h" />
+    <ClInclude Include="ces_gbk.h" />
+    <ClInclude Include="cjk_variants.h" />
+    <ClInclude Include="cns11643.h" />
+    <ClInclude Include="cns11643_1.h" />
+    <ClInclude Include="cns11643_15.h" />
+    <ClInclude Include="cns11643_2.h" />
+    <ClInclude Include="cns11643_3.h" />
+    <ClInclude Include="cns11643_4.h" />
+    <ClInclude Include="cns11643_4a.h" />
+    <ClInclude Include="cns11643_4b.h" />
+    <ClInclude Include="cns11643_5.h" />
+    <ClInclude Include="cns11643_6.h" />
+    <ClInclude Include="cns11643_7.h" />
+    <ClInclude Include="cns11643_inv.h" />
+    <ClInclude Include="converters.h" />
+    <ClInclude Include="cp1046.h" />
+    <ClInclude Include="cp1124.h" />
+    <ClInclude Include="cp1125.h" />
+    <ClInclude Include="cp1129.h" />
+    <ClInclude Include="cp1131.h" />
+    <ClInclude Include="cp1133.h" />
+    <ClInclude Include="cp1161.h" />
+    <ClInclude Include="cp1162.h" />
+    <ClInclude Include="cp1163.h" />
+    <ClInclude Include="cp1250.h" />
+    <ClInclude Include="cp1251.h" />
+    <ClInclude Include="cp1252.h" />
+    <ClInclude Include="cp1253.h" />
+    <ClInclude Include="cp1254.h" />
+    <ClInclude Include="cp1255.h" />
+    <ClInclude Include="cp1256.h" />
+    <ClInclude Include="cp1257.h" />
+    <ClInclude Include="cp1258.h" />
+    <ClInclude Include="cp437.h" />
+    <ClInclude Include="cp737.h" />
+    <ClInclude Include="cp775.h" />
+    <ClInclude Include="cp850.h" />
+    <ClInclude Include="cp852.h" />
+    <ClInclude Include="cp853.h" />
+    <ClInclude Include="cp855.h" />
+    <ClInclude Include="cp856.h" />
+    <ClInclude Include="cp857.h" />
+    <ClInclude Include="cp858.h" />
+    <ClInclude Include="cp860.h" />
+    <ClInclude Include="cp861.h" />
+    <ClInclude Include="cp862.h" />
+    <ClInclude Include="cp863.h" />
+    <ClInclude Include="cp864.h" />
+    <ClInclude Include="cp865.h" />
+    <ClInclude Include="cp866.h" />
+    <ClInclude Include="cp869.h" />
+    <ClInclude Include="cp874.h" />
+    <ClInclude Include="cp922.h" />
+    <ClInclude Include="cp932.h" />
+    <ClInclude Include="cp932ext.h" />
+    <ClInclude Include="cp936.h" />
+    <ClInclude Include="cp936ext.h" />
+    <ClInclude Include="cp943.h" />
+    <ClInclude Include="cp949.h" />
+    <ClInclude Include="cp950.h" />
+    <ClInclude Include="cp950ext.h" />
+    <ClInclude Include="dec_hanyu.h" />
+    <ClInclude Include="dec_kanji.h" />
+    <ClInclude Include="utf8.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
