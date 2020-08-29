@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 10:30:59
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-29 23:09:54
+ * @LastEditTime: 2020-08-29 23:48:38
  */
 #pragma once
 
@@ -90,7 +90,7 @@ namespace qjs
                   if(dat && dat.buffer instanceof ArrayBuffer) dat = dat.buffer;
                   if(dat instanceof ArrayBuffer)
                     return super.__decode(dat);
-                  throw new TypeError("The provided value is not of type '(ArrayBuffer or ArrayBufferView)'");
+                  throw new TypeError("Failed to execute 'decode' on 'TextDecoder': The provided value is not of type '(ArrayBuffer or ArrayBufferView)'");
                 }
               };
               class TextEncoder extends __DartImpl.Encoding {
