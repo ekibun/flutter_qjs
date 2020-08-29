@@ -1,0 +1,36 @@
+{
+    "tasks": [{
+        "type": "shell",
+        "label": "flutter build debug linux",
+        "command": "bash",
+        "args": [
+            "-ic",
+            "flutter build linux --debug -v",
+        ],
+        "options": {
+            "cwd": "${workspaceFolder}/example"
+        },
+        "group": {
+            "kind": "build",
+            "isDefault": true
+        }
+    }, {
+        "type": "shell",
+        "label": "flutter build debug windows",
+        "command": "flutter",
+        "args": [
+            "build",
+            "windows",
+            "--debug",
+            "-v",
+        ],
+        "options": {
+            "cwd": "${workspaceFolder}/example"
+        },
+        "group": {
+            "kind": "build",
+            "isDefault": true
+        }
+    }],
+    "version": "2.0.0"
+}

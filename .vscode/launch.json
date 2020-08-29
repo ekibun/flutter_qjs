@@ -12,12 +12,45 @@
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
+      "preLaunchTask": "flutter build debug windows",
       "environment": [],
       "externalConsole": false
     },
     {
+      "miDebuggerPath": "/usr/bin/gdb",
+      "name": "(gdb) Windows 上的 Bash 启动",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "example/build/linux/debug/bundle/example",
+      "args": [],
+      "stopAtEntry": false,
+      "cwd": "${command:extension.vscode-wsl-workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "pipeTransport": {
+        "debuggerPath": "/usr/bin/gdb",
+        "pipeProgram": "${env:windir}\\system32\\bash.exe",
+        "pipeArgs": ["-ic"],
+        "pipeCwd": ""
+      },
+      "sourceFileMap": {
+        "/mnt/c": "C:\\",
+        "/mnt/d": "D:\\",
+        "/usr": "${env:LOCALAPPDATA}\\Packages\\CanonicalGroupLimited.UbuntuonWindows_79rhkp1fndgsc\\LocalState\\rootfs\\usr"
+      },
+      "preLaunchTask": "flutter build debug linux",
+      "setupCommands": [
+          {
+              "description": "为 gdb 启用整齐打印",
+              "text": "-enable-pretty-printing",
+              "ignoreFailures": true
+          }
+      ]
+    },
+    {
       "name": "Flutter",
-      "program": "example/lib/main.dart",
+      "cwd": "${workspaceFolder}/example",
+      "program": "lib/main.dart",
       "request": "launch",
       "type": "dart"
     }

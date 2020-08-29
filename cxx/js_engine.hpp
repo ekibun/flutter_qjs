@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 10:30:59
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-28 22:56:29
+ * @LastEditTime: 2020-08-29 19:43:50
  */
 #pragma once
 
@@ -14,7 +14,7 @@
 #include <future>
 #include <iostream>
 
-#include "libiconv/iconv.hpp"
+#include "js_encoding.hpp"
 #include "js_dart_promise.hpp"
 
 namespace qjs
@@ -39,44 +39,6 @@ namespace qjs
     if ((bool)exc["stack"])
       err += "\n" + (std::string)exc["stack"];
     return err;
-  }
-
-  Value js_encode(std::string encoding, Value input)
-  {
-    auto inputStr = (std::string)input;
-    try
-    {
-      auto converter = iconvpp::converter(encoding, "utf-8", true);
-      std::string output;
-      converter.convert(inputStr, output);
-      return {input.ctx, JS_NewArrayBufferCopy(input.ctx, (uint8_t *)output.c_str(), output.size())};
-    }
-    catch (std::runtime_error err)
-    {
-      return {input.ctx, JS_NewArrayBufferCopy(input.ctx, (uint8_t *)inputStr.c_str(), inputStr.size())};
-    }
-  }
-
-  std::string js_decode(std::string encoding, Value input)
-  {
-    size_t size;
-    uint8_t *buf = JS_GetArrayBuffer(input.ctx, &size, input.v);
-    if (!buf)
-    {
-      return std::string();
-    }
-    std::string inputStr((char *)buf, size);
-    try
-    {
-      auto converter = iconvpp::converter("utf-8", encoding, true);
-      std::string output;
-      converter.convert(inputStr, output);
-      return output;
-    }
-    catch (std::runtime_error err)
-    {
-      return inputStr;
-    }
   }
 
   class Engine
@@ -107,35 +69,35 @@ namespace qjs
         js_init_handlers(rt.rt, channel);
         Context ctx(rt);
         auto &module = ctx.addModule("__DartImpl");
-        module.function<&js_dart_future>("__invoke")
-            .function<&js_encode>("__encode")
-            .function<&js_decode>("__decode");
+        module.function<&js_dart_future>("__invoke");
+        module.class_<js_text_encoder>("TextEncoder")
+            .constructor<std::string>()
+            .fun<&js_text_encoder::encode>("encode")
+            .fun<&js_text_encoder::encoding>("encoding");
+        module.class_<js_text_decoder>("TextDecoder")
+            .constructor<std::string>()
+            .fun<&js_text_decoder::decode>("decode")
+            .fun<&js_text_decoder::encoding>("encoding");
         ctx.eval(
             R"xxx(
               import * as __DartImpl from "__DartImpl";
               globalThis.dart = (method, ...args) => new Promise((res, rej) => 
                 __DartImpl.__invoke(res, rej, method, args));
-              class TextDecoder {
+              class TextDecoder extends __DartImpl.TextDecoder {
                 constructor(encoding){
-                  this.encoding = encoding;
+                  super(encoding);
+                  if(encoding !== this.encoding)
+                    throw new RangeError("Failed to construct 'TextDecoder': The encoding label provided ('"+ encoding +"') is invalid.");
                 }
                 decode(dat) {
                   if(dat && dat.buffer instanceof ArrayBuffer) dat = dat.buffer;
                   if(dat instanceof ArrayBuffer)
-                    return __DartImpl.__decode(this.encoding, dat);
-                  throw "The provided value is not of type '(ArrayBuffer or ArrayBufferView)'";
-                }
-              };
-              class TextEncoder {
-                constructor(encoding){
-                  this.encoding = encoding;
-                }
-                encode(dat) {
-                  return __DartImpl.__encode(this.encoding, dat);
+                    return super.decode(dat);
+                  throw new TypeError("The provided value is not of type '(ArrayBuffer or ArrayBufferView)'");
                 }
               };
               globalThis.TextDecoder = TextDecoder;
-              globalThis.TextEncoder = TextEncoder;
+              globalThis.TextEncoder = __DartImpl.TextEncoder;
             )xxx",
             "<dart>", JS_EVAL_TYPE_MODULE);
         JS_SetModuleLoaderFunc(rt.rt, nullptr, js_module_loader, nullptr);

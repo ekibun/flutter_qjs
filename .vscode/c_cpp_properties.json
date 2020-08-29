@@ -37,7 +37,8 @@
             "includePath": [
                 "${workspaceFolder}/linux/**",
                 "${workspaceFolder}/example/linux/**",
-                "/usr/include/**"
+                "/usr/include/**",
+                "/usr/lib/x86_64-linux-gnu/**"
             ],
             "defines": [
                 "__LINUX__"
@@ -46,7 +47,7 @@
             "compilerPath": "/usr/bin/clang++",
             "cStandard": "c11",
             "cppStandard": "c++17",
-            "intelliSenseMode": "gcc-x64"
+            "intelliSenseMode": "clang-x64"
         }
     ],
     "version": 4
