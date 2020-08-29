@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-29 18:33:27
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-29 20:34:10
+ * @LastEditTime: 2020-08-29 23:11:07
  */
 #include "quickjs/quickjspp.hpp"
 #include "libiconv/iconv.hpp"
@@ -14,36 +14,19 @@ namespace qjs
   {
   protected:
     iconvpp::converter *converter = nullptr;
-    std::string __encoding;
   public:
+    bool hasConverter = false;
 
-    js_encoding(std::string encoding)
+    js_encoding(std::string from, std::string to, bool fatal)
     {
-      __encoding = encoding;
       try
       {
-        converter = new iconvpp::converter(encoding, "utf-8");
+        converter = new iconvpp::converter(from, to, !fatal);
+        hasConverter = converter != nullptr;
       }
-      catch (std::runtime_error &)
-      {
-        __encoding = "utf-8";
-      }
+      catch (std::runtime_error &) {}
     }
 
-    ~js_encoding()
-    {
-      if (converter)
-        delete converter;
-    }
-  };
-
-  class js_text_encoder : public js_encoding {
-  public:
-    std::string encoding;
-    js_text_encoder(std::string encoding) : js_encoding(encoding) {
-      this->encoding = __encoding;
-    }
-    
     Value encode(Value input)
     {
       auto inputStr = (std::string)input;
@@ -61,15 +44,6 @@ namespace qjs
         JS_ThrowInternalError(input.ctx, "Encoder error");
         throw exception{};
       }
-    }
-  };
-
-  class js_text_decoder : public js_encoding
-  {
-  public:
-    std::string encoding;
-    js_text_decoder(std::string encoding) : js_encoding(encoding) {
-      this->encoding = __encoding;
     }
 
     std::string decode(Value input)
@@ -95,6 +69,12 @@ namespace qjs
         JS_ThrowInternalError(input.ctx, "Decoder error");
         throw exception{};
       }
+    }
+
+    ~js_encoding()
+    {
+      if (converter)
+        delete converter;
     }
   };
 } // namespace qjs

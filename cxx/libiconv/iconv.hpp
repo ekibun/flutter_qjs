@@ -65,30 +65,33 @@ class converter {
   }
 
   void convert(const std::string& input, std::string& output) const {
+    if(input.size() == 0) return;
     // copy the string to a buffer as iconv function requires a non-const char
     // pointer.
     std::vector<char> in_buf(input.begin(), input.end());
     char* src_ptr = &in_buf[0];
     size_t src_size = input.size();
 
-    std::vector<char> buf(buf_size_);
+    std::vector<char> buf(buf_size_ + 1);
     std::string dst;
     while (0 < src_size) {
       char* dst_ptr = &buf[0];
-      size_t dst_size = buf.size();
+      size_t dst_size = buf_size_;
       size_t res = ::iconv(iconv_, &src_ptr, &src_size, &dst_ptr, &dst_size);
       if (res == (size_t)-1) {
         if (errno == E2BIG)  {
           // ignore this error
         } else if (ignore_error_) {
           // skip character
+          buf[buf_size_ - dst_size] = *src_ptr;
           ++src_ptr;
           --src_size;
+          --dst_size;
         } else {
           check_convert_error();
         }
       }
-      dst.append(&buf[0], buf.size() - dst_size);
+      dst.append(&buf[0], buf_size_ - dst_size);
     }
     dst.swap(output);
   }

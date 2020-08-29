@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 10:30:59
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-29 20:21:54
+ * @LastEditTime: 2020-08-29 23:09:54
  */
 #pragma once
 
@@ -70,37 +70,37 @@ namespace qjs
         Context ctx(rt);
         auto &module = ctx.addModule("__DartImpl");
         module.function<&js_dart_future>("__invoke");
-        module.class_<js_text_encoder>("TextEncoder")
-            .constructor<std::string>()
-            .fun<&js_text_encoder::encode>("encode")
-            .fun<&js_text_encoder::encoding>("encoding");
-        module.class_<js_text_decoder>("TextDecoder")
-            .constructor<std::string>()
-            .fun<&js_text_decoder::decode>("decode")
-            .fun<&js_text_decoder::encoding>("encoding");
+        module.class_<js_encoding>("Encoding")
+            .constructor<std::string, std::string, bool>()
+            .fun<&js_encoding::encode>("__encode")
+            .fun<&js_encoding::decode>("__decode")
+            .fun<&js_encoding::hasConverter>("__hasConverter");
         ctx.eval(
             R"xxx(
               import * as __DartImpl from "__DartImpl";
               globalThis.dart = (method, ...args) => new Promise((res, rej) => 
                 __DartImpl.__invoke(res, rej, method, args));
-              class TextDecoder extends __DartImpl.TextDecoder {
-                constructor(encoding){
-                  super(encoding);
-                  if(encoding !== this.encoding)
+              class TextDecoder extends __DartImpl.Encoding {
+                constructor(encoding, options){
+                  super("utf-8", encoding || "utf-8", options && options.fatal);
+                  if(!this.__hasConverter)
                     throw new RangeError("Failed to construct 'TextDecoder': The encoding label provided ('"+ encoding +"') is invalid.");
                 }
                 decode(dat) {
                   if(dat && dat.buffer instanceof ArrayBuffer) dat = dat.buffer;
                   if(dat instanceof ArrayBuffer)
-                    return super.decode(dat);
+                    return super.__decode(dat);
                   throw new TypeError("The provided value is not of type '(ArrayBuffer or ArrayBufferView)'");
                 }
               };
-              class TextEncoder extends __DartImpl.TextEncoder {
-                constructor(encoding){
-                  super(encoding);
-                  if(encoding !== this.encoding)
+              class TextEncoder extends __DartImpl.Encoding {
+                constructor(encoding, options){
+                  super(encoding || "utf-8", "utf-8", options && options.fatal);
+                  if(!this.__hasConverter)
                     throw new RangeError("Failed to construct 'TextEncoder': The encoding label provided ('"+ encoding +"') is invalid.");
+                }
+                encode(dat) {
+                  return super.__encode(dat);
                 }
               };
               globalThis.TextDecoder = TextDecoder;
