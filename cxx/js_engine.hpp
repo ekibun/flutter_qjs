@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 10:30:59
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-29 19:43:50
+ * @LastEditTime: 2020-08-29 20:21:54
  */
 #pragma once
 
@@ -96,8 +96,15 @@ namespace qjs
                   throw new TypeError("The provided value is not of type '(ArrayBuffer or ArrayBufferView)'");
                 }
               };
+              class TextEncoder extends __DartImpl.TextEncoder {
+                constructor(encoding){
+                  super(encoding);
+                  if(encoding !== this.encoding)
+                    throw new RangeError("Failed to construct 'TextEncoder': The encoding label provided ('"+ encoding +"') is invalid.");
+                }
+              };
               globalThis.TextDecoder = TextDecoder;
-              globalThis.TextEncoder = __DartImpl.TextEncoder;
+              globalThis.TextEncoder = TextEncoder;
             )xxx",
             "<dart>", JS_EVAL_TYPE_MODULE);
         JS_SetModuleLoaderFunc(rt.rt, nullptr, js_module_loader, nullptr);

@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-29 18:33:27
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-29 19:36:33
+ * @LastEditTime: 2020-08-29 20:34:10
  */
 #include "quickjs/quickjspp.hpp"
 #include "libiconv/iconv.hpp"
@@ -22,7 +22,7 @@ namespace qjs
       __encoding = encoding;
       try
       {
-        converter = new iconvpp::converter(encoding, "utf-8", true);
+        converter = new iconvpp::converter(encoding, "utf-8");
       }
       catch (std::runtime_error &)
       {
@@ -57,7 +57,9 @@ namespace qjs
       }
       catch (std::runtime_error &)
       {
-        return {input.ctx, JS_NewArrayBufferCopy(input.ctx, (uint8_t *)inputStr.c_str(), inputStr.size())};
+        // TODO throw with message
+        JS_ThrowInternalError(input.ctx, "Encoder error");
+        throw exception{};
       }
     }
   };
@@ -77,20 +79,21 @@ namespace qjs
       if (!buf)
       {
         JS_ThrowTypeError(input.ctx, "The provided value is not of type '(ArrayBuffer or ArrayBufferView)'");
-        throw exception();
+        throw exception{};
       }
-      std::string inputStr((char *)buf, size);
       try
       {
         std::string output;
         if (!converter)
           throw std::runtime_error("no match encoding");
-        converter->convert(inputStr, output);
+        converter->convert(std::string((char *)buf, size), output);
         return output;
       }
       catch (std::runtime_error &)
       {
-        return inputStr;
+        // TODO throw with message
+        JS_ThrowInternalError(input.ctx, "Decoder error");
+        throw exception{};
       }
     }
   };
