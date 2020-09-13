@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:16:51
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-27 20:39:32
+ * @LastEditTime: 2020-09-06 19:44:32
  */
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
@@ -46,13 +46,13 @@ class TestPage extends StatefulWidget {
 
 class _TestPageState extends State<TestPage> {
   String resp;
-  FlutterJs engine;
+  FlutterQjs engine;
 
   CodeInputController _controller = CodeInputController();
 
   _createEngine() async {
     if (engine != null) return;
-    engine = FlutterJs();
+    engine = FlutterQjs();
     await engine.setMethodHandler((String method, List arg) async {
       switch (method) {
         case "http":

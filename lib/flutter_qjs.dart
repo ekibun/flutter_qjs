@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:29:09
  * @LastEditors: ekibun
- * @LastEditTime: 2020-08-28 10:45:14
+ * @LastEditTime: 2020-09-06 13:03:56
  */
 import 'dart:async';
 import 'dart:io';
@@ -19,9 +19,9 @@ typedef JsModuleHandler = Future<String> Function(String name);
 class JsMethodHandlerNotImplement {}
 
 /// FlutterJs instance.
-/// Each [FlutterJs] object creates a new thread that runs a simple js loop.
+/// Each [FlutterQjs] object creates a new thread that runs a simple js loop.
 /// Make sure call `destroy` to terminate thread and release memory when you don't need it.
-class FlutterJs {
+class FlutterQjs {
   dynamic _engine;
   dynamic get pointer => _engine;
 

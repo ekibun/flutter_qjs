@@ -121,7 +121,7 @@ namespace
       qjs::Engine *engine = (qjs::Engine *)std::get<int64_t>(ValueOrNull(args, "engine"));
       std::string script = std::get<std::string>(ValueOrNull(args, "script"));
       std::string name = std::get<std::string>(ValueOrNull(args, "name"));
-      auto presult = result.release();
+      std::shared_ptr<flutter::MethodResult<flutter::EncodableValue>> presult = std::move(result);
       engine->commit(qjs::EngineTask{
           [script, name](qjs::Context &ctx) {
             return ctx.eval(script, name.c_str(), JS_EVAL_TYPE_GLOBAL);
@@ -129,11 +129,9 @@ namespace
           [presult](qjs::Value resolve) {
             flutter::EncodableValue response = qjs::jsToDart(resolve);
             presult->Success(&response);
-            delete presult;
           },
           [presult](qjs::Value reject) {
             presult->Error("FlutterJSException", qjs::getStackTrack(reject));
-            delete presult;
           }});
     }
     else if (method_call.method_name().compare("call") == 0)
@@ -142,7 +140,7 @@ namespace
       qjs::Engine *engine = (qjs::Engine *)std::get<int64_t>(ValueOrNull(args, "engine"));
       qjs::JSValue *function = (qjs::JSValue *)std::get<int64_t>(ValueOrNull(args, "function"));
       flutter::EncodableList arguments = std::get<flutter::EncodableList>(ValueOrNull(args, "arguments"));
-      auto presult = result.release();
+      std::shared_ptr<flutter::MethodResult<flutter::EncodableValue>> presult = std::move(result);
       engine->commit(qjs::EngineTask{
           [function, arguments](qjs::Context &ctx) {
             size_t argscount = arguments.size();
