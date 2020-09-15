@@ -13,7 +13,7 @@
 
 namespace qjs {
 
-#include "quickjs.h"
+#include "quickjs/quickjs.h"
 
 /** Exception type.
  * Indicates that exception has occured in JS context.
