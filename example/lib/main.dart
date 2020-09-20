@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:16:51
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-06 19:44:32
+ * @LastEditTime: 2020-09-21 01:20:17
  */
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
@@ -53,7 +53,7 @@ class _TestPageState extends State<TestPage> {
   _createEngine() async {
     if (engine != null) return;
     engine = FlutterQjs();
-    await engine.setMethodHandler((String method, List arg) async {
+    engine.setMethodHandler((String method, List arg) async {
       switch (method) {
         case "http":
           Response response = await Dio().get(arg[0]);
@@ -72,14 +72,16 @@ class _TestPageState extends State<TestPage> {
             Float32List(2)
           ]);
         default:
-          return JsMethodHandlerNotImplement();
+          throw Exception("NotImplement");
       }
     });
-    await engine.setModuleHandler((String module) async {
+    engine.setModuleHandler((String module) {
       if (module == "test") return "export default '${new DateTime.now()}'";
-      return await rootBundle.loadString(
-          "js/" + module.replaceFirst(new RegExp(r".js$"), "") + ".js");
+      return "";
+      // return await rootBundle.loadString(
+      //     "js/" + module.replaceFirst(new RegExp(r".js$"), "") + ".js");
     });
+    engine.dispatch();
   }
 
   @override
@@ -119,7 +121,7 @@ class _TestPageState extends State<TestPage> {
                       child: Text("close engine"),
                       onPressed: () async {
                         if (engine == null) return;
-                        await engine.destroy();
+                        await engine.close();
                         engine = null;
                       }),
                 ],

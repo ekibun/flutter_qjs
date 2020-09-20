@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 3.15)
 
+set(CXX_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../cxx)
+
 # quickjs
-set(QUICK_JS_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../cxx/quickjs)
+set(QUICK_JS_LIB_DIR ${CXX_LIB_DIR}/quickjs)
 file (STRINGS "${QUICK_JS_LIB_DIR}/VERSION" QUICKJS_VERSION)
 add_library(libquickjs STATIC
     ${QUICK_JS_LIB_DIR}/cutils.c
@@ -21,6 +23,7 @@ set(PLUGIN_NAME "${PROJECT_NAME}_plugin")
 
 add_library(${PLUGIN_NAME} SHARED
   "${PLUGIN_NAME}.cpp"
+  "${CXX_LIB_DIR}/ffi.cpp"
 )
 apply_standard_settings(${PLUGIN_NAME})
 set_target_properties(${PLUGIN_NAME} PROPERTIES

@@ -3,131 +3,106 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:29:09
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-06 13:03:56
+ * @LastEditTime: 2020-09-21 01:36:30
  */
 import 'dart:async';
-import 'dart:io';
-import 'package:flutter/services.dart';
+import 'dart:ffi';
+import 'dart:isolate';
+
+import 'package:ffi/ffi.dart';
+import 'package:flutter_qjs/ffi.dart';
+import 'package:flutter_qjs/wrapper.dart';
 
 /// Handle function to manage js call with `dart(method, ...args)` function.
-typedef JsMethodHandler = Future<dynamic> Function(String method, List args);
+typedef JsMethodHandler = dynamic Function(String method, List args);
 
 /// Handle function to manage js module.
-typedef JsModuleHandler = Future<String> Function(String name);
+typedef JsModuleHandler = String Function(String name);
 
-/// return this in [JsMethodHandler] to mark method not implemented.
-class JsMethodHandlerNotImplement {}
-
-/// FlutterJs instance.
-/// Each [FlutterQjs] object creates a new thread that runs a simple js loop.
-/// Make sure call `destroy` to terminate thread and release memory when you don't need it.
 class FlutterQjs {
-  dynamic _engine;
-  dynamic get pointer => _engine;
+  Pointer _rt;
+  Pointer _ctx;
+  ReceivePort port = ReceivePort();
+  JsMethodHandler methodHandler;
+  JsModuleHandler moduleHandler;
 
-  _ensureEngine() async {
-    if (_engine == null) {
-      _engine = await _FlutterJs.instance._channel.invokeMethod("createEngine");
-    }
+  _ensureEngine() {
+    if (_rt != null) return;
+    _rt = jsNewRuntime((ctx, method, argv) {
+      if (method.address != 0) {
+        var argvs = jsToDart(ctx, argv);
+        if (methodHandler == null) throw Exception("No MethodHandler");
+        return dartToJs(ctx, methodHandler(Utf8.fromUtf8(method.cast<Utf8>()), argvs));
+      }
+      if (moduleHandler == null) throw Exception("No ModuleHandler");
+      var ret = Utf8.toUtf8(moduleHandler(Utf8.fromUtf8(argv.cast<Utf8>())));
+      Future.microtask(() {
+        free(ret);
+      });
+      return ret;
+    }, port);
+    _ctx = jsNewContextWithPromsieWrapper(_rt);
   }
 
   /// Set a handler to manage js call with `dart(method, ...args)` function.
-  setMethodHandler(JsMethodHandler handler) async {
-    if (handler == null)
-      return _FlutterJs.instance._methodHandlers.remove(_engine);
-    await _ensureEngine();
-    _FlutterJs.instance._methodHandlers[_engine] = handler;
+  setMethodHandler(JsMethodHandler handler) {
+    methodHandler = handler;
   }
 
   /// Set a handler to manage js module.
-  setModuleHandler(JsModuleHandler handler) async {
-    if (handler == null)
-      return _FlutterJs.instance._moduleHandlers.remove(_engine);
-    await _ensureEngine();
-    _FlutterJs.instance._moduleHandlers[_engine] = handler;
+  setModuleHandler(JsModuleHandler handler) {
+    moduleHandler = handler;
   }
 
-  /// Terminate thread and release memory.
-  destroy() async {
-    if (_engine != null) {
-      await setMethodHandler(null);
-      await setModuleHandler(null);
-      var engine = _engine;
-      _engine = null;
-      await _FlutterJs.instance._channel.invokeMethod("close", engine);
+  /// Free Runtime and Context which can be recreate when evaluate again.
+  recreate() {
+    if (_rt != null) {
+      jsFreeContext(_ctx);
+      jsFreeRuntime(_rt);
+    }
+    _rt = null;
+    _ctx = null;
+  }
+
+  /// Close ReceivePort.
+  close() {
+    if (port != null) {
+      port.close();
+      recreate();
+    }
+    port = null;
+  }
+
+  /// DispatchMessage
+  Future<void> dispatch() async {
+    await for (var _ in port) {
+      while (true) {
+        int err = jsExecutePendingJob(_rt);
+        if (err <= 0) {
+          if (err < 0) print(parseJSException(_ctx));
+          break;
+        }
+      }
+      List jsPromises = runtimeOpaques[_rt].ref.where((v) => v is JSPromise).toList();
+      for (JSPromise jsPromise in jsPromises) {
+        if (jsPromise.checkResolveReject()) {
+          jsPromise.release();
+          runtimeOpaques[_rt].ref.remove(jsPromise);
+        }
+      }
     }
   }
 
   /// Evaluate js script.
   Future<dynamic> evaluate(String command, String name) async {
-    await _ensureEngine();
-    var arguments = {"engine": _engine, "script": command, "name": name};
-    return _FlutterJs.instance._wrapFunctionArguments(
-        await _FlutterJs.instance._channel.invokeMethod("evaluate", arguments),
-        _engine);
-  }
-}
-
-class _FlutterJs {
-  factory _FlutterJs() => _getInstance();
-  static _FlutterJs get instance => _getInstance();
-  static _FlutterJs _instance;
-  MethodChannel _channel = const MethodChannel('soko.ekibun.flutter_qjs');
-  Map<dynamic, JsMethodHandler> _methodHandlers =
-      Map<dynamic, JsMethodHandler>();
-  Map<dynamic, JsModuleHandler> _moduleHandlers =
-      Map<dynamic, JsModuleHandler>();
-  _FlutterJs._internal() {
-    _channel.setMethodCallHandler((call) async {
-      var engine = call.arguments["engine"];
-      var args = call.arguments["args"];
-      if (args is List) {
-        if (_methodHandlers[engine] == null) return call.noSuchMethod(null);
-        var ret = await _methodHandlers[engine](
-            call.method, _wrapFunctionArguments(args, engine));
-        if (ret is JsMethodHandlerNotImplement) return call.noSuchMethod(null);
-        return ret;
-      } else {
-        if (_moduleHandlers[engine] == null) return call.noSuchMethod(null);
-        var ret = await _moduleHandlers[engine](args);
-        if (ret is JsMethodHandlerNotImplement) return call.noSuchMethod(null);
-        return ret;
-      }
-    });
-  }
-  dynamic _wrapFunctionArguments(dynamic val, dynamic engine) {
-    if (val is List && !(val is List<int>)) {
-      for (var i = 0; i < val.length; ++i) {
-        val[i] = _wrapFunctionArguments(val[i], engine);
-      }
-    } else if (val is Map) {
-      // wrap boolean in Android see https://github.com/flutter/flutter/issues/45066
-      if (Platform.isAndroid && val["__js_boolean__"] != null) {
-        return val["__js_boolean__"] != 0;
-      }
-      if (val["__js_function__"] != null) {
-        var functionId = val["__js_function__"];
-        return (List<dynamic> args) async {
-          var arguments = {
-            "engine": engine,
-            "function": functionId,
-            "arguments": args,
-          };
-          return _wrapFunctionArguments(
-              await _channel.invokeMethod("call", arguments), engine);
-        };
-      } else
-        for (var key in val.keys) {
-          val[key] = _wrapFunctionArguments(val[key], engine);
-        }
+    _ensureEngine();
+    var jsval = jsEval(_ctx, command, name, JSEvalType.GLOBAL);
+    if (jsIsException(jsval) != 0) {
+      throw Exception(parseJSException(_ctx));
     }
-    return val;
-  }
-
-  static _FlutterJs _getInstance() {
-    if (_instance == null) {
-      _instance = new _FlutterJs._internal();
-    }
-    return _instance;
+    var ret = runtimeOpaques[_rt]?.promsieToFuture(jsval);
+    jsFreeValue(_ctx, jsval);
+    deleteJSValue(jsval);
+    return ret;
   }
 }

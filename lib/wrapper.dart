@@ -3,8 +3,9 @@
  * @Author: ekibun
  * @Date: 2020-09-19 22:07:47
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-20 15:41:16
+ * @LastEditTime: 2020-09-21 01:23:06
  */
+import 'dart:async';
 import 'dart:ffi';
 import 'dart:typed_data';
 
@@ -12,10 +13,10 @@ import 'package:ffi/ffi.dart';
 
 import 'ffi.dart';
 
-class JSFunction extends JSRef {
+class JSRefValue implements JSRef {
   Pointer val;
   Pointer ctx;
-  JSFunction(this.ctx, Pointer val) {
+  JSRefValue(this.ctx, Pointer val) {
     Pointer rt = jsGetRuntime(ctx);
     this.val = jsDupValue(ctx, val);
     runtimeOpaques[rt]?.ref?.add(this);
@@ -26,17 +27,92 @@ class JSFunction extends JSRef {
     if (val != null) {
       jsFreeValue(ctx, val);
       deleteJSValue(val);
-      val = null;
     }
-  }
-
-  @override
-  noSuchMethod(Invocation invocation) {
-    return super.noSuchMethod(invocation);
+    val = null;
+    ctx = null;
   }
 }
 
+class JSPromise extends JSRefValue {
+  Completer completer;
+  JSPromise(Pointer ctx, Pointer val, this.completer) : super(ctx, val);
+
+  @override
+  void release() {
+    super.release();
+    if (!completer.isCompleted) {
+      completer.completeError("Promise cannot resolve");
+    }
+  }
+
+  bool checkResolveReject() {
+    if (val == null || completer.isCompleted) return true;
+    var status = jsToDart(ctx, val);
+    if (status["__resolved"] == true) {
+      completer.complete(status["__value"]);
+      return true;
+    }
+    if (status["__rejected"] == true) {
+      completer.completeError(status["__error"] ?? "undefined");
+      return true;
+    }
+    return false;
+  }
+}
+
+class JSFunction extends JSRefValue {
+  JSFunction(Pointer ctx, Pointer val) : super(ctx, val);
+
+  @override
+  noSuchMethod(Invocation invocation) {
+    if (val == null) return;
+    List<Pointer> args = invocation.positionalArguments.map((e) => dartToJs(ctx, e)).toList();
+    Pointer jsRet = jsCall(ctx, val, null, args);
+    for (Pointer jsArg in args) {
+      jsFreeValue(ctx, jsArg);
+      deleteJSValue(jsArg);
+    }
+    bool isException = jsIsException(jsRet) != 0;
+    var ret = jsToDart(ctx, jsRet);
+    jsFreeValue(ctx, jsRet);
+    deleteJSValue(jsRet);
+    if (isException) {
+      throw Exception(parseJSException(ctx));
+    }
+    return ret;
+  }
+}
+
+Pointer jsGetPropertyStr(Pointer ctx, Pointer val, String prop) {
+  var jsAtomVal = jsNewString(ctx, prop);
+  var jsAtom = jsValueToAtom(ctx, jsAtomVal);
+  Pointer jsProp = jsGetProperty(ctx, val, jsAtom);
+  jsFreeAtom(ctx, jsAtom);
+  jsFreeValue(ctx, jsAtomVal);
+  deleteJSValue(jsAtomVal);
+  return jsProp;
+}
+
+String parseJSException(Pointer ctx) {
+  Pointer e = jsGetException(ctx);
+  var err = jsToCString(ctx, e);
+  if (jsValueGetTag(e) == JSTag.OBJECT) {
+    Pointer stack = jsGetPropertyStr(ctx, e, "stack");
+    if (jsToBool(ctx, stack) != 0) {
+      err += '\n' + jsToCString(ctx, stack);
+    }
+    jsFreeValue(ctx, stack);
+    deleteJSValue(stack);
+  }
+  jsFreeValue(ctx, e);
+  deleteJSValue(e);
+  return err;
+}
+
 Pointer dartToJs(Pointer ctx, dynamic val, {Map<dynamic, dynamic> cache}) {
+  if (val is Future) {
+    return runtimeOpaques[jsGetRuntime(ctx)]?.futureToPromise(val);
+  }
   if (cache == null) cache = Map();
   if (val is bool) return jsNewBool(ctx, val ? 1 : 0);
   if (val is int) return jsNewInt64(ctx, val);
@@ -51,7 +127,7 @@ Pointer dartToJs(Pointer ctx, dynamic val, {Map<dynamic, dynamic> cache}) {
     return ret;
   }
   if (cache.containsKey(val)) {
-    return cache[val];
+    return jsDupValue(ctx, cache[val]);
   }
   if (val is JSFunction) {
     return jsDupValue(ctx, val.val);
@@ -78,7 +154,7 @@ Pointer dartToJs(Pointer ctx, dynamic val, {Map<dynamic, dynamic> cache}) {
   if (val is Map) {
     Pointer ret = jsNewObject(ctx);
     cache[val] = ret;
-    for (MapEntry<dynamic, dynamic> entry in val.entries){
+    for (MapEntry<dynamic, dynamic> entry in val.entries) {
       var jsAtomVal = dartToJs(ctx, entry.key, cache: cache);
       var jsAtom = jsValueToAtom(ctx, jsAtomVal);
       jsDefinePropertyValue(
@@ -125,13 +201,7 @@ dynamic jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
       if (jsIsFunction(ctx, val) != 0) {
         return JSFunction(ctx, val);
       } else if (jsIsArray(ctx, val) != 0) {
-        var jsAtomVal = jsNewString(ctx, "length");
-        var jsAtom = jsValueToAtom(ctx, jsAtomVal);
-        var jslength = jsGetProperty(ctx, val, jsAtom);
-        jsFreeAtom(ctx, jsAtom);
-        jsFreeValue(ctx, jsAtomVal);
-        deleteJSValue(jsAtomVal);
-
+        Pointer jslength = jsGetPropertyStr(ctx, val, "length");
         int length = jsToInt64(ctx, jslength);
         deleteJSValue(jslength);
         List<dynamic> ret = List();
@@ -174,4 +244,71 @@ dynamic jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
     default:
   }
   return null;
+}
+
+Pointer jsNewContextWithPromsieWrapper(Pointer rt) {
+  var ctx = jsNewContext(rt);
+  var jsPromiseCtor = jsEval(
+      ctx,
+      """
+        () => {
+          const __resolver = {};
+          const __ret = new Promise((res, rej) => {
+            __resolver.__res = res;
+            __resolver.__rej = rej;
+          });
+          __ret.__res = __resolver.__res;
+          __ret.__rej = __resolver.__rej;
+          return __ret;
+        }
+        """,
+      "<future>",
+      JSEvalType.GLOBAL);
+  var promiseCtor = JSRefValue(ctx, jsPromiseCtor);
+  jsFreeValue(ctx, jsPromiseCtor);
+  deleteJSValue(jsPromiseCtor);
+  runtimeOpaques[rt].futureToPromise = (future) {
+    var ctor = promiseCtor.val;
+    if (ctor == null) throw Exception("Runtime has been released!");
+    var jsPromise = jsCall(ctx, ctor, null, List());
+    var promise = jsToDart(ctx, jsPromise);
+    future.then((value) {
+      promise['__res'](value);
+    }).catchError((err) {
+      promise['__rej'](err);
+    });
+    return jsPromise;
+  };
+  var jsPromiseWrapper = jsEval(
+      ctx,
+      """
+        (value) => {
+          const __ret = Promise.resolve(value)
+            .then(v => {
+              __ret.__value = v;
+              __ret.__resolved = true;
+            }).catch(e => {
+              __ret.__error = e;
+              __ret.__rejected = true;
+            });
+          return __ret;
+        }
+        """,
+      "<future>",
+      JSEvalType.GLOBAL);
+  var promiseWrapper = JSRefValue(ctx, jsPromiseWrapper);
+  jsFreeValue(ctx, jsPromiseWrapper);
+  deleteJSValue(jsPromiseWrapper);
+  runtimeOpaques[rt].promsieToFuture = (promise) {
+    var completer = Completer();
+    var wrapper = promiseWrapper.val;
+    if (wrapper == null) completer.completeError(Exception("Runtime has been released!"));
+    var jsPromise = jsCall(ctx, wrapper, null, [promise]);
+    runtimeOpaques[rt].ref.add(JSPromise(ctx, jsPromise, completer));
+    jsFreeValue(ctx, jsPromise);
+    deleteJSValue(jsPromise);
+    return completer.future;
+  };
+
+  return ctx;
 }

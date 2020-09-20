@@ -3,9 +3,11 @@
  * @Author: ekibun
  * @Date: 2020-09-19 10:29:04
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-20 15:41:02
+ * @LastEditTime: 2020-09-21 01:30:41
  */
 import 'dart:ffi';
+import 'dart:io';
+import 'dart:isolate';
 
 import 'package:ffi/ffi.dart';
 
@@ -24,7 +26,7 @@ class JSProp {
   static const WRITABLE = (1 << 1);
   static const ENUMERABLE = (1 << 2);
   static const C_W_E = (CONFIGURABLE | WRITABLE | ENUMERABLE);
-} 
+}
 
 class JSTag {
   static const FIRST = -11; /* first negative tag */
@@ -47,7 +49,11 @@ class JSTag {
   static const FLOAT64 = 7;
 }
 
-final DynamicLibrary qjsLib = DynamicLibrary.open("test/lib/build/Debug/ffi_library.dll");
+final DynamicLibrary qjsLib = Platform.environment['FLUTTER_TEST'] == 'true'
+    ? (Platform.isWindows
+        ? DynamicLibrary.open("test/build/Debug/flutter_qjs.dll")
+        : DynamicLibrary.process())
+    : (Platform.isWindows ? DynamicLibrary.open("flutter_qjs_plugin.dll") : DynamicLibrary.process());
 
 /// JSValue *jsEXCEPTION()
 final Pointer Function() jsEXCEPTION =
@@ -68,24 +74,28 @@ final Pointer Function(
     )>>("jsNewRuntime")
     .asFunction();
 
-typedef JSChannel = Pointer Function(Pointer ctx, String method, Pointer argv);
+typedef JSChannel = Pointer Function(Pointer ctx, Pointer method, Pointer argv);
 
 class RuntimeOpaque {
   JSChannel channel;
   List<JSRef> ref = List();
+  ReceivePort port;
+  Pointer Function(Future) futureToPromise;
+  Future Function(Pointer) promsieToFuture;
 }
 
 final Map<Pointer, RuntimeOpaque> runtimeOpaques = Map();
 
-Pointer channelDispacher(Pointer ctx, Pointer<Utf8> method, Pointer argv) {
-  return runtimeOpaques[jsGetRuntime(ctx)].channel(ctx, Utf8.fromUtf8(method), argv);
+Pointer channelDispacher(Pointer ctx, Pointer method, Pointer argv) {
+  return runtimeOpaques[jsGetRuntime(ctx)].channel(ctx, method, argv);
 }
 
 Pointer jsNewRuntime(
   JSChannel callback,
+  ReceivePort port,
 ) {
   var rt = _jsNewRuntime(Pointer.fromFunction(channelDispacher));
-  runtimeOpaques[rt] = RuntimeOpaque()..channel = callback;
+  runtimeOpaques[rt] = RuntimeOpaque()..channel = callback..port = port;
   return rt;
 }
 
@@ -173,6 +183,7 @@ Pointer jsEval(
   var val = _jsEval(ctx, utf8input, Utf8.strlen(utf8input), utf8filename, evalFlags);
   free(utf8input);
   free(utf8filename);
+  runtimeOpaques[jsGetRuntime(ctx)].port.sendPort.send('eval');
   return val;
 }
 
@@ -503,23 +514,18 @@ final Pointer Function(
 
 /// int jsDefinePropertyValue(JSContext *ctx, JSValueConst *this_obj,
 ///                           JSAtom prop, JSValue *val, int flags)
-final int Function(
-  Pointer ctx,
-  Pointer thisObj,
-  int prop,
-  Pointer val,
-  int flag
-) jsDefinePropertyValue = qjsLib
-    .lookup<
-        NativeFunction<
-            Int32 Function(
-      Pointer,
-      Pointer,
-      Uint32,
-      Pointer,
-      Int32,
-    )>>("jsDefinePropertyValue")
-    .asFunction();
+final int Function(Pointer ctx, Pointer thisObj, int prop, Pointer val, int flag)
+    jsDefinePropertyValue = qjsLib
+        .lookup<
+            NativeFunction<
+                Int32 Function(
+          Pointer,
+          Pointer,
+          Uint32,
+          Pointer,
+          Int32,
+        )>>("jsDefinePropertyValue")
+        .asFunction();
 
 /// void jsFreeAtom(JSContext *ctx, JSAtom v)
 final Pointer Function(
@@ -591,4 +597,103 @@ final int Function(
       Pointer,
       Int32,
     )>>("jsPropertyEnumGetAtom")
+    .asFunction();
+
+/// uint32_t sizeOfJSValue()
+final int Function() _sizeOfJSValue =
+    qjsLib.lookup<NativeFunction<Uint32 Function()>>("sizeOfJSValue").asFunction();
+
+final sizeOfJSValue = _sizeOfJSValue();
+
+/// void setJSValueList(JSValue *list, int i, JSValue *val)
+final void Function(
+  Pointer list,
+  int i,
+  Pointer val,
+) setJSValueList = qjsLib
+    .lookup<
+        NativeFunction<
+            Void Function(
+      Pointer,
+      Uint32,
+      Pointer,
+    )>>("setJSValueList")
+    .asFunction();
+
+/// JSValue *jsCall(JSContext *ctx, JSValueConst *func_obj, JSValueConst *this_obj,
+///                 int argc, JSValueConst *argv)
+final Pointer Function(
+  Pointer ctx,
+  Pointer funcObj,
+  Pointer thisObj,
+  int argc,
+  Pointer argv,
+) _jsCall = qjsLib
+    .lookup<
+        NativeFunction<
+            Pointer Function(
+      Pointer,
+      Pointer,
+      Pointer,
+      Int32,
+      Pointer,
+    )>>("jsCall")
+    .asFunction();
+
+Pointer jsCall(
+  Pointer ctx,
+  Pointer funcObj,
+  Pointer thisObj,
+  List<Pointer> argv,
+) {
+  Pointer jsArgs = allocate<Uint8>(count: argv.length > 0 ? sizeOfJSValue * argv.length : 1);
+  for (int i = 0; i < argv.length; ++i) {
+    Pointer jsArg = argv[i];
+    setJSValueList(jsArgs, i, jsArg);
+  }
+  Pointer func1 = jsDupValue(ctx, funcObj);
+  Pointer _thisObj = thisObj ?? jsUNDEFINED();
+  Pointer jsRet = _jsCall(ctx, funcObj, _thisObj, argv.length, jsArgs);
+  if (thisObj == null) {
+    jsFreeValue(ctx, _thisObj);
+    deleteJSValue(_thisObj);
+  }
+  jsFreeValue(ctx, func1);
+  deleteJSValue(func1);
+  free(jsArgs);
+  runtimeOpaques[jsGetRuntime(ctx)].port.sendPort.send('call');
+  return jsRet;
+}
+
+/// int jsIsException(JSValueConst *val)
+final int Function(
+  Pointer val,
+) jsIsException = qjsLib
+    .lookup<
+        NativeFunction<
+            Int32 Function(
+      Pointer,
+    )>>("jsIsException")
+    .asFunction();
+
+/// JSValue *jsGetException(JSContext *ctx)
+final Pointer Function(
+  Pointer ctx,
+) jsGetException = qjsLib
+    .lookup<
+        NativeFunction<
+            Pointer Function(
+      Pointer,
+    )>>("jsGetException")
+    .asFunction();
+
+/// int jsExecutePendingJob(JSRuntime *rt)
+final int Function(
+  Pointer ctx,
+) jsExecutePendingJob = qjsLib
+    .lookup<
+        NativeFunction<
+            Int32 Function(
+      Pointer,
+    )>>("jsExecutePendingJob")
     .asFunction();

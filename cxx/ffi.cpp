@@ -3,10 +3,11 @@
  * @Author: ekibun
  * @Date: 2020-09-06 18:32:45
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-20 15:50:41
+ * @LastEditTime: 2020-09-21 01:41:39
  */
 #include "quickjs/quickjs.h"
 #include <functional>
+#include <future>
 
 #ifdef _MSC_VER
 #define DLLEXPORT __declspec(dllexport)
@@ -16,7 +17,7 @@
 
 extern "C"
 {
-  typedef JSValue *JSChannel(JSContext *ctx, const char *method, JSValueConst *argv);
+  typedef void *JSChannel(JSContext *ctx, const char *method, void *argv);
 
   DLLEXPORT JSValue *jsEXCEPTION()
   {
@@ -39,11 +40,13 @@ extern "C"
   {
     JSRuntime *rt = JS_GetRuntime(ctx);
     JSChannel *channel = (JSChannel *)JS_GetRuntimeOpaque(rt);
-    JSValue val = *channel(ctx, "__load_module__", new JSValue{JS_NewString(ctx, module_name)});
-    const char *str = JS_ToCString(ctx, val);
+    const char *str = (char *)channel(ctx, (char *)0, (void *)module_name);
+    if (str == 0)
+    {
+      JS_ThrowReferenceError(ctx, "Module Not Found");
+      return NULL;
+    }
     JSValue func_val = JS_Eval(ctx, str, strlen(str), module_name, JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
-    JS_FreeCString(ctx, str);
-    JS_FreeValue(ctx, val);
     if (JS_IsException(func_val))
       return NULL;
     /* the module is already referenced, so we must free it */
@@ -58,7 +61,7 @@ extern "C"
     JSChannel *channel = (JSChannel *)JS_GetRuntimeOpaque(rt);
     const char *str = JS_ToCString(ctx, argv[0]);
     JS_DupValue(ctx, *(argv + 1));
-    JSValue ret = *channel(ctx, str, argv + 1);
+    JSValue ret = *(JSValue *)channel(ctx, str, argv + 1);
     JS_FreeValue(ctx, *(argv + 1));
     JS_FreeCString(ctx, str);
     return ret;
@@ -230,7 +233,7 @@ extern "C"
   }
 
   DLLEXPORT int jsDefinePropertyValue(JSContext *ctx, JSValueConst *this_obj,
-                           JSAtom prop, JSValue *val, int flags)
+                                      JSAtom prop, JSValue *val, int flags)
   {
     return JS_DefinePropertyValue(ctx, *this_obj, prop, *val, flags);
   }
@@ -259,5 +262,37 @@ extern "C"
   DLLEXPORT JSAtom jsPropertyEnumGetAtom(JSPropertyEnum *ptab, int i)
   {
     return ptab[i].atom;
+  }
+
+  DLLEXPORT uint32_t sizeOfJSValue()
+  {
+    return sizeof JSValue;
+  }
+
+  DLLEXPORT void setJSValueList(JSValue *list, uint32_t i, JSValue *val)
+  {
+    list[i] = *val;
+  }
+
+  DLLEXPORT JSValue *jsCall(JSContext *ctx, JSValueConst *func_obj, JSValueConst *this_obj,
+                            int argc, JSValueConst *argv)
+  {
+    return new JSValue{JS_Call(ctx, *func_obj, *this_obj, argc, argv)};
+  }
+
+  DLLEXPORT int jsIsException(JSValueConst *val)
+  {
+    return JS_IsException(*val);
+  }
+
+  DLLEXPORT JSValue *jsGetException(JSContext *ctx)
+  {
+    return new JSValue{JS_GetException(ctx)};
+  }
+
+  DLLEXPORT int jsExecutePendingJob(JSRuntime *rt)
+  {
+    JSContext *ctx;
+    return JS_ExecutePendingJob(rt, &ctx);
   }
 }
