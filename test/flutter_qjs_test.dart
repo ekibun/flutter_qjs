@@ -3,31 +3,75 @@
  * @Author: ekibun
  * @Date: 2020-09-06 13:02:46
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-13 22:59:06
+ * @LastEditTime: 2020-09-20 15:55:50
  */
-import 'dart:ffi';
-import 'package:ffi/ffi.dart';
+import 'dart:convert';
+import 'dart:io';
 
-void main() {
-  final DynamicLibrary qjsLib = DynamicLibrary.open("test/lib/build/Debug/ffi_library.dll");
-  print(qjsLib);
-  // JSRuntime *js_NewRuntime(void);
-  final Pointer Function() jsNewRuntime =
-      qjsLib.lookup<NativeFunction<Pointer Function()>>("jsNewRuntime").asFunction();
-  final rt = jsNewRuntime();
-  print(rt);
-  // JSContext *js_NewContext(JSRuntime *rt);
-  final Pointer Function(Pointer rt) jsNewContext =
-      qjsLib.lookup<NativeFunction<Pointer Function(Pointer)>>("jsNewContext").asFunction();
-  final ctx = jsNewContext(rt);
-  print(ctx);
-  // JSValue *js_Eval(JSContext *ctx, const char *input, const char *filename, int eval_flags)
-  final Pointer Function(Pointer rt, Pointer<Utf8> input, Pointer<Utf8> filename, int evalFlags) jsEval =
-      qjsLib.lookup<NativeFunction<Pointer Function(Pointer,Pointer<Utf8>,Pointer<Utf8>, Int32)>>("jsEval").asFunction();
-  final jsval = jsEval(ctx, Utf8.toUtf8("`hello \${'world'}!`"), Utf8.toUtf8("<eval>"), 0);
-  // const char *js_ToCString(JSContext *ctx, JSValue *val)
-  final Pointer<Utf8> Function(Pointer rt, Pointer val) jsToCString =
-      qjsLib.lookup<NativeFunction<Pointer<Utf8> Function(Pointer,Pointer)>>("jsToCString").asFunction();
-  final str = Utf8.fromUtf8(jsToCString(ctx, jsval));
-  print(str);
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:flutter_qjs/ffi.dart';
+import 'package:flutter_qjs/wrapper.dart';
+
+void main() async {
+  test('make', () async {
+    final utf8Encoding = Encoding.getByName('utf-8');
+    final cmakePath =
+        "C:/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe";
+    final buildDir = "./build";
+    var result = Process.runSync(
+      cmakePath,
+      ['-S', './', '-B', buildDir],
+      workingDirectory: 'test/lib',
+      stdoutEncoding: utf8Encoding,
+      stderrEncoding: utf8Encoding,
+    );
+    stdout.write(result.stdout);
+    stderr.write(result.stderr);
+    expect(result.exitCode, 0);
+
+    result = Process.runSync(
+      cmakePath,
+      ['--build', buildDir, '--verbose'],
+      workingDirectory: 'test/lib',
+      stdoutEncoding: utf8Encoding,
+      stderrEncoding: utf8Encoding,
+    );
+    stdout.write(result.stdout);
+    stderr.write(result.stderr);
+    expect(result.exitCode, 0);
+  });
+  test('jsToDart', () async {
+    final rt = jsNewRuntime((ctx, method, argv) {
+      var argvs = jsToDart(ctx, argv);
+      print([method, argvs]);
+      return dartToJs(ctx, [
+        argvs,
+        {
+          [233, 2]: {}
+        }
+      ]);
+    });
+    final ctx = jsNewContext(rt);
+    final jsval = jsEval(
+      ctx,
+      """
+      const a = {};
+      a.a = a;
+      channel('channel', [
+          0.1, true, false, 1, "world", 
+          new ArrayBuffer(2),
+          ()=>'hello',
+          a
+        ]);
+      """,
+      "<eval>",
+      JSEvalType.GLOBAL,
+    );
+    print(jsToDart(ctx, jsval));
+    jsFreeValue(ctx, jsval);
+    deleteJSValue(jsval);
+    jsFreeContext(ctx);
+    jsFreeRuntime(rt);
+  });
 }
