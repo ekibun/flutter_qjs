@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:16:51
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-21 13:50:40
+ * @LastEditTime: 2020-09-21 23:54:55
  */
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
@@ -75,10 +75,8 @@ class _TestPageState extends State<TestPage> {
       }
     });
     engine.setModuleHandler((String module) {
-      if (module == "test") return "export default '${new DateTime.now()}'";
-      return "";
-      // return await rootBundle.loadString(
-      //     "js/" + module.replaceFirst(new RegExp(r".js$"), "") + ".js");
+      if (module == "hello") return "export default '${new DateTime.now()}'";
+      return "Module Not found";
     });
     engine.dispatch();
   }

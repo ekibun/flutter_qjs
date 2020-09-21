@@ -3,13 +3,14 @@
  * @Author: ekibun
  * @Date: 2020-09-19 22:07:47
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-21 13:56:53
+ * @LastEditTime: 2020-09-22 00:27:54
  */
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
+import 'package:flutter/cupertino.dart';
 
 import 'ffi.dart';
 
@@ -114,7 +115,20 @@ String parseJSException(Pointer ctx, {Pointer e}) {
 
 Pointer dartToJs(Pointer ctx, dynamic val, {Map<dynamic, dynamic> cache}) {
   if (val is Future) {
-    return runtimeOpaques[jsGetRuntime(ctx)]?.futureToPromise(val);
+    var resolvingFunc = allocate<Uint8>(count: sizeOfJSValue * 2);
+    var resolvingFunc2 = Pointer.fromAddress(resolvingFunc.address + sizeOfJSValue);
+    var ret = jsNewPromiseCapability(ctx, resolvingFunc);
+    var res = jsToDart(ctx, resolvingFunc);
+    var rej = jsToDart(ctx, resolvingFunc2);
+    jsFreeValue(ctx, resolvingFunc);
+    jsFreeValue(ctx, resolvingFunc2);
+    free(resolvingFunc);
+    val.then((value) {
+      res(value);
+    }, onError: (e, stack) {
+      rej(e.toString() + "\n" + stack.toString());
+    });
+    return ret;
   }
   if (cache == null) cache = Map();
   if (val is bool) return jsNewBool(ctx, val ? 1 : 0);
@@ -251,37 +265,6 @@ dynamic jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
 
 Pointer jsNewContextWithPromsieWrapper(Pointer rt) {
   var ctx = jsNewContext(rt);
-  var jsPromiseCtor = jsEval(
-      ctx,
-      """
-        () => {
-          const __resolver = {};
-          const __ret = new Promise((res, rej) => {
-            __resolver.__res = res;
-            __resolver.__rej = rej;
-          });
-          __ret.__res = __resolver.__res;
-          __ret.__rej = __resolver.__rej;
-          return __ret;
-        }
-        """,
-      "<future>",
-      JSEvalType.GLOBAL);
-  var promiseCtor = JSRefValue(ctx, jsPromiseCtor);
-  jsFreeValue(ctx, jsPromiseCtor);
-  deleteJSValue(jsPromiseCtor);
-  runtimeOpaques[rt].futureToPromise = (future) {
-    var ctor = promiseCtor.val;
-    if (ctor == null) throw Exception("Runtime has been released!");
-    var jsPromise = jsCall(ctx, ctor, null, List());
-    var promise = jsToDart(ctx, jsPromise);
-    future.then((value) {
-      promise['__res'](value);
-    }).catchError((err) {
-      promise['__rej'](err);
-    });
-    return jsPromise;
-  };
   var jsPromiseWrapper = jsEval(
       ctx,
       """

@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-09-06 18:32:45
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-21 18:34:04
+ * @LastEditTime: 2020-09-22 00:17:02
  */
 #include "quickjs/quickjs.h"
 #include <functional>
@@ -297,5 +297,10 @@ extern "C"
   {
     JSContext *ctx;
     return JS_ExecutePendingJob(rt, &ctx);
+  }
+
+  DLLEXPORT JSValue *jsNewPromiseCapability(JSContext *ctx, JSValue *resolving_funcs)
+  {
+    return new JSValue{JS_NewPromiseCapability(ctx, resolving_funcs)};
   }
 }

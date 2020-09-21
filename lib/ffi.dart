@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-09-19 10:29:04
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-21 18:36:56
+ * @LastEditTime: 2020-09-22 00:23:36
  */
 import 'dart:ffi';
 import 'dart:io';
@@ -104,7 +104,6 @@ class RuntimeOpaque {
   JSChannel channel;
   List<JSRef> ref = List();
   ReceivePort port;
-  Pointer Function(Future) futureToPromise;
   Future Function(Pointer) promsieToFuture;
 }
 
@@ -722,4 +721,17 @@ final int Function(
             Int32 Function(
       Pointer,
     )>>("jsExecutePendingJob")
+    .asFunction();
+
+/// JSValue *jsNewPromiseCapability(JSContext *ctx, JSValue *resolving_funcs)
+final Pointer Function(
+  Pointer ctx,
+  Pointer resolvingFuncs,
+) jsNewPromiseCapability = qjsLib
+    .lookup<
+        NativeFunction<
+            Pointer Function(
+      Pointer,
+      Pointer,
+    )>>("jsNewPromiseCapability")
     .asFunction();
