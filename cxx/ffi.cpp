@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-09-06 18:32:45
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-21 01:41:39
+ * @LastEditTime: 2020-09-21 14:09:25
  */
 #include "quickjs/quickjs.h"
 #include <functional>
@@ -18,6 +18,11 @@
 extern "C"
 {
   typedef void *JSChannel(JSContext *ctx, const char *method, void *argv);
+
+  DLLEXPORT JSValue *jsThrowInternalError(JSContext *ctx, char *message)
+  {
+    return new JSValue{JS_ThrowInternalError(ctx, "%s", message)};
+  }
 
   DLLEXPORT JSValue *jsEXCEPTION()
   {
@@ -42,10 +47,7 @@ extern "C"
     JSChannel *channel = (JSChannel *)JS_GetRuntimeOpaque(rt);
     const char *str = (char *)channel(ctx, (char *)0, (void *)module_name);
     if (str == 0)
-    {
-      JS_ThrowReferenceError(ctx, "Module Not Found");
       return NULL;
-    }
     JSValue func_val = JS_Eval(ctx, str, strlen(str), module_name, JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
     if (JS_IsException(func_val))
       return NULL;
@@ -70,7 +72,7 @@ extern "C"
   DLLEXPORT JSRuntime *jsNewRuntime(JSChannel channel)
   {
     JSRuntime *rt = JS_NewRuntime();
-    JS_SetRuntimeOpaque(rt, channel);
+    JS_SetRuntimeOpaque(rt, (void *)channel);
     JS_SetModuleLoaderFunc(rt, nullptr, js_module_loader, nullptr);
     return rt;
   }
@@ -266,7 +268,7 @@ extern "C"
 
   DLLEXPORT uint32_t sizeOfJSValue()
   {
-    return sizeof JSValue;
+    return sizeof (JSValue);
   }
 
   DLLEXPORT void setJSValueList(JSValue *list, uint32_t i, JSValue *val)

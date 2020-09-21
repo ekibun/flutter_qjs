@@ -4,12 +4,14 @@
 # Sets the minimum version of CMake required to build the native library.
 
 cmake_minimum_required(VERSION 3.4.1)
-set(JNI_LIB_NAME libjsengine)
+set(JNI_LIB_NAME qjs)
 
 # Creates and names a library, sets it as either STATIC
 # or SHARED, and provides the relative paths to its source code.
 # You can define multiple libraries, and CMake builds them for you.
 # Gradle automatically packages shared libraries with your APK.
+
+set(CXX_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../cxx)
 
 add_library( # Sets the name of the library.
              ${JNI_LIB_NAME}
@@ -18,10 +20,10 @@ add_library( # Sets the name of the library.
              SHARED
 
              # Provides a relative path to your source file(s).
-             native-lib.cpp )
+             ${CXX_LIB_DIR}/ffi.cpp )
 
 # quickjs
-set(QUICK_JS_LIB_DIR ../../../../cxx/quickjs)
+set(QUICK_JS_LIB_DIR ${CXX_LIB_DIR}/quickjs)
 file (STRINGS "${QUICK_JS_LIB_DIR}/VERSION" QUICKJS_VERSION)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DDUMP_LEAKS -DCONFIG_VERSION=\\\"${QUICKJS_VERSION}\\\"")
 target_sources(${JNI_LIB_NAME} PUBLIC

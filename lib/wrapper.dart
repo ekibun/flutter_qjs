@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-09-19 22:07:47
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-21 01:23:06
+ * @LastEditTime: 2020-09-21 13:56:53
  */
 import 'dart:async';
 import 'dart:ffi';
@@ -53,7 +53,10 @@ class JSPromise extends JSRefValue {
       return true;
     }
     if (status["__rejected"] == true) {
-      completer.completeError(status["__error"] ?? "undefined");
+      completer.completeError(parseJSException(
+        ctx,
+        e: jsGetPropertyStr(ctx, val, "__error"),
+      ));
       return true;
     }
     return false;
@@ -93,8 +96,8 @@ Pointer jsGetPropertyStr(Pointer ctx, Pointer val, String prop) {
   return jsProp;
 }
 
-String parseJSException(Pointer ctx) {
-  Pointer e = jsGetException(ctx);
+String parseJSException(Pointer ctx, {Pointer e}) {
+  e = e ?? jsGetException(ctx);
   var err = jsToCString(ctx, e);
   if (jsValueGetTag(e) == JSTag.OBJECT) {
     Pointer stack = jsGetPropertyStr(ctx, e, "stack");
@@ -192,7 +195,7 @@ dynamic jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
       int size = psize.value;
       free(psize);
       if (buf.address != 0) {
-        return buf.asTypedList(size);
+        return Uint8List.fromList(buf.asTypedList(size));
       }
       int valptr = jsValueGetPtr(val).address;
       if (cache.containsKey(valptr)) {

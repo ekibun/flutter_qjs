@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-09-19 10:29:04
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-21 01:30:41
+ * @LastEditTime: 2020-09-21 14:25:47
  */
 import 'dart:ffi';
 import 'dart:io';
@@ -53,7 +53,31 @@ final DynamicLibrary qjsLib = Platform.environment['FLUTTER_TEST'] == 'true'
     ? (Platform.isWindows
         ? DynamicLibrary.open("test/build/Debug/flutter_qjs.dll")
         : DynamicLibrary.process())
-    : (Platform.isWindows ? DynamicLibrary.open("flutter_qjs_plugin.dll") : DynamicLibrary.process());
+    : (Platform.isWindows
+        ? DynamicLibrary.open("flutter_qjs_plugin.dll")
+        : Platform.isAndroid
+            ? DynamicLibrary.open("libqjs.so")
+            : DynamicLibrary.process());
+
+/// JSValue *jsThrowInternalError(JSContext *ctx, char *message)
+final Pointer Function(
+  Pointer ctx,
+  Pointer<Utf8> message,
+) _jsThrowInternalError = qjsLib
+    .lookup<
+        NativeFunction<
+            Pointer Function(
+      Pointer,
+      Pointer<Utf8>,
+    )>>("jsThrowInternalError")
+    .asFunction();
+
+Pointer jsThrowInternalError(Pointer ctx, String message) {
+  var utf8message = Utf8.toUtf8(message);
+  var val = _jsThrowInternalError(ctx, utf8message);
+  free(utf8message);
+  return val;
+}
 
 /// JSValue *jsEXCEPTION()
 final Pointer Function() jsEXCEPTION =
@@ -95,7 +119,9 @@ Pointer jsNewRuntime(
   ReceivePort port,
 ) {
   var rt = _jsNewRuntime(Pointer.fromFunction(channelDispacher));
-  runtimeOpaques[rt] = RuntimeOpaque()..channel = callback..port = port;
+  runtimeOpaques[rt] = RuntimeOpaque()
+    ..channel = callback
+    ..port = port;
   return rt;
 }
 

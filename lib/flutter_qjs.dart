@@ -3,10 +3,11 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:29:09
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-21 01:36:30
+ * @LastEditTime: 2020-09-21 13:46:50
  */
 import 'dart:async';
 import 'dart:ffi';
+import 'dart:io';
 import 'dart:isolate';
 
 import 'package:ffi/ffi.dart';
@@ -29,17 +30,27 @@ class FlutterQjs {
   _ensureEngine() {
     if (_rt != null) return;
     _rt = jsNewRuntime((ctx, method, argv) {
-      if (method.address != 0) {
-        var argvs = jsToDart(ctx, argv);
-        if (methodHandler == null) throw Exception("No MethodHandler");
-        return dartToJs(ctx, methodHandler(Utf8.fromUtf8(method.cast<Utf8>()), argvs));
+      try {
+        if (method.address != 0) {
+          if (methodHandler == null) throw Exception("No MethodHandler");
+          var argvs = jsToDart(ctx, argv);
+          return dartToJs(ctx, methodHandler(Utf8.fromUtf8(method.cast<Utf8>()), argvs));
+        }
+        if (moduleHandler == null) throw Exception("No ModuleHandler");
+        var ret = Utf8.toUtf8(moduleHandler(Utf8.fromUtf8(argv.cast<Utf8>())));
+        Future.microtask(() {
+          free(ret);
+        });
+        return ret;
+      } catch (e, stack) {
+        var err = jsThrowInternalError(ctx, e.toString() + "\n" + stack.toString());
+        if (method.address == 0) {
+          jsFreeValue(ctx, err);
+          deleteJSValue(err);
+          return Pointer.fromAddress(0);
+        }
+        return err;
       }
-      if (moduleHandler == null) throw Exception("No ModuleHandler");
-      var ret = Utf8.toUtf8(moduleHandler(Utf8.fromUtf8(argv.cast<Utf8>())));
-      Future.microtask(() {
-        free(ret);
-      });
-      return ret;
     }, port);
     _ctx = jsNewContextWithPromsieWrapper(_rt);
   }

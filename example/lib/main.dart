@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:16:51
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-21 01:20:17
+ * @LastEditTime: 2020-09-21 13:50:40
  */
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
@@ -53,13 +53,12 @@ class _TestPageState extends State<TestPage> {
   _createEngine() async {
     if (engine != null) return;
     engine = FlutterQjs();
-    engine.setMethodHandler((String method, List arg) async {
+    engine.setMethodHandler((String method, List arg) {
       switch (method) {
         case "http":
-          Response response = await Dio().get(arg[0]);
-          return response.data;
+          return Dio().get(arg[0]).then((response) => response.data);
         case "test":
-          return await arg[0]([
+          return arg[0]([
             true,
             1,
             0.5,
@@ -72,7 +71,7 @@ class _TestPageState extends State<TestPage> {
             Float32List(2)
           ]);
         default:
-          throw Exception("NotImplement");
+          throw Exception("No such method");
       }
     });
     engine.setModuleHandler((String module) {
