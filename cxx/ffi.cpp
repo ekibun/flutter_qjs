@@ -3,11 +3,12 @@
  * @Author: ekibun
  * @Date: 2020-09-06 18:32:45
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-21 14:09:25
+ * @LastEditTime: 2020-09-21 18:34:04
  */
 #include "quickjs/quickjs.h"
 #include <functional>
 #include <future>
+#include <string.h>
 
 #ifdef _MSC_VER
 #define DLLEXPORT __declspec(dllexport)
