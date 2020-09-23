@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-09-06 18:32:45
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-22 00:17:02
+ * @LastEditTime: 2020-09-24 00:28:11
  */
 #include "quickjs/quickjs.h"
 #include <functional>
@@ -13,7 +13,7 @@
 #ifdef _MSC_VER
 #define DLLEXPORT __declspec(dllexport)
 #else
-#define DLLEXPORT __attribute__((visibility("default")))
+#define DLLEXPORT __attribute__((visibility("default"))) __attribute__((used))
 #endif
 
 extern "C"
@@ -22,22 +22,22 @@ extern "C"
 
   DLLEXPORT JSValue *jsThrowInternalError(JSContext *ctx, char *message)
   {
-    return new JSValue{JS_ThrowInternalError(ctx, "%s", message)};
+    return new JSValue(JS_ThrowInternalError(ctx, "%s", message));
   }
 
   DLLEXPORT JSValue *jsEXCEPTION()
   {
-    return new JSValue{JS_EXCEPTION};
+    return new JSValue(JS_EXCEPTION);
   }
 
   DLLEXPORT JSValue *jsUNDEFINED()
   {
-    return new JSValue{JS_UNDEFINED};
+    return new JSValue(JS_UNDEFINED);
   }
 
   DLLEXPORT JSValue *jsNULL()
   {
-    return new JSValue{JS_NULL};
+    return new JSValue(JS_NULL);
   }
 
   JSModuleDef *js_module_loader(
@@ -107,7 +107,7 @@ extern "C"
 
   DLLEXPORT JSValue *jsEval(JSContext *ctx, const char *input, size_t input_len, const char *filename, int eval_flags)
   {
-    return new JSValue{JS_Eval(ctx, input, input_len, filename, eval_flags)};
+    return new JSValue(JS_Eval(ctx, input, input_len, filename, eval_flags));
   }
 
   DLLEXPORT int32_t jsValueGetTag(JSValue *val)
@@ -127,37 +127,37 @@ extern "C"
 
   DLLEXPORT JSValue *jsNewBool(JSContext *ctx, int val)
   {
-    return new JSValue{JS_NewBool(ctx, val)};
+    return new JSValue(JS_NewBool(ctx, val));
   }
 
   DLLEXPORT JSValue *jsNewInt64(JSContext *ctx, int64_t val)
   {
-    return new JSValue{JS_NewInt64(ctx, val)};
+    return new JSValue(JS_NewInt64(ctx, val));
   }
 
   DLLEXPORT JSValue *jsNewFloat64(JSContext *ctx, double val)
   {
-    return new JSValue{JS_NewFloat64(ctx, val)};
+    return new JSValue(JS_NewFloat64(ctx, val));
   }
 
   DLLEXPORT JSValue *jsNewString(JSContext *ctx, const char *str)
   {
-    return new JSValue{JS_NewString(ctx, str)};
+    return new JSValue(JS_NewString(ctx, str));
   }
 
   DLLEXPORT JSValue *jsNewArrayBufferCopy(JSContext *ctx, const uint8_t *buf, size_t len)
   {
-    return new JSValue{JS_NewArrayBufferCopy(ctx, buf, len)};
+    return new JSValue(JS_NewArrayBufferCopy(ctx, buf, len));
   }
 
   DLLEXPORT JSValue *jsNewArray(JSContext *ctx)
   {
-    return new JSValue{JS_NewArray(ctx)};
+    return new JSValue(JS_NewArray(ctx));
   }
 
   DLLEXPORT JSValue *jsNewObject(JSContext *ctx)
   {
-    return new JSValue{JS_NewObject(ctx)};
+    return new JSValue(JS_NewObject(ctx));
   }
 
   DLLEXPORT void jsFreeValue(JSContext *ctx, JSValue *v)
@@ -172,12 +172,12 @@ extern "C"
 
   DLLEXPORT JSValue *jsDupValue(JSContext *ctx, JSValueConst *v)
   {
-    return new JSValue{JS_DupValue(ctx, *v)};
+    return new JSValue(JS_DupValue(ctx, *v));
   }
 
   DLLEXPORT JSValue *jsDupValueRT(JSRuntime *rt, JSValue *v)
   {
-    return new JSValue{JS_DupValueRT(rt, *v)};
+    return new JSValue(JS_DupValueRT(rt, *v));
   }
 
   DLLEXPORT int32_t jsToBool(JSContext *ctx, JSValueConst *val)
@@ -232,7 +232,7 @@ extern "C"
   DLLEXPORT JSValue *jsGetProperty(JSContext *ctx, JSValueConst *this_obj,
                                    JSAtom prop)
   {
-    return new JSValue{JS_GetProperty(ctx, *this_obj, prop)};
+    return new JSValue(JS_GetProperty(ctx, *this_obj, prop));
   }
 
   DLLEXPORT int jsDefinePropertyValue(JSContext *ctx, JSValueConst *this_obj,
@@ -253,7 +253,7 @@ extern "C"
 
   DLLEXPORT JSValue *jsAtomToValue(JSContext *ctx, JSAtom val)
   {
-    return new JSValue{JS_AtomToValue(ctx, val)};
+    return new JSValue(JS_AtomToValue(ctx, val));
   }
 
   DLLEXPORT int jsGetOwnPropertyNames(JSContext *ctx, JSPropertyEnum **ptab,
@@ -280,7 +280,7 @@ extern "C"
   DLLEXPORT JSValue *jsCall(JSContext *ctx, JSValueConst *func_obj, JSValueConst *this_obj,
                             int argc, JSValueConst *argv)
   {
-    return new JSValue{JS_Call(ctx, *func_obj, *this_obj, argc, argv)};
+    return new JSValue(JS_Call(ctx, *func_obj, *this_obj, argc, argv));
   }
 
   DLLEXPORT int jsIsException(JSValueConst *val)
@@ -290,7 +290,7 @@ extern "C"
 
   DLLEXPORT JSValue *jsGetException(JSContext *ctx)
   {
-    return new JSValue{JS_GetException(ctx)};
+    return new JSValue(JS_GetException(ctx));
   }
 
   DLLEXPORT int jsExecutePendingJob(JSRuntime *rt)
@@ -301,6 +301,6 @@ extern "C"
 
   DLLEXPORT JSValue *jsNewPromiseCapability(JSContext *ctx, JSValue *resolving_funcs)
   {
-    return new JSValue{JS_NewPromiseCapability(ctx, resolving_funcs)};
+    return new JSValue(JS_NewPromiseCapability(ctx, resolving_funcs));
   }
 }
