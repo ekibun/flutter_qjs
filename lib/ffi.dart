@@ -53,15 +53,13 @@ final DynamicLibrary qjsLib = Platform.environment['FLUTTER_TEST'] == 'true'
     ? (Platform.isWindows
         ? DynamicLibrary.open("test/build/Debug/ffiquickjs.dll")
         : Platform.isMacOS
-            ? DynamicLibrary.open("macos/flutterqjs.framework/flutterqjs")
+            ? DynamicLibrary.open("test/build/Debug/libffiquickjs.dylib")
             : DynamicLibrary.process())
     : (Platform.isWindows
         ? DynamicLibrary.open("flutter_qjs_plugin.dll")
         : Platform.isAndroid
             ? DynamicLibrary.open("libqjs.so")
-            : Platform.isIOS || Platform.isMacOS
-                ? DynamicLibrary.open("flutterqjs.framework/flutterqjs")
-                : DynamicLibrary.process());
+            : DynamicLibrary.process());
 
 /// JSValue *jsThrowInternalError(JSContext *ctx, char *message)
 final Pointer Function(

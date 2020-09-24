@@ -8,6 +8,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter_qjs/ffi.dart';
 import 'package:flutter_qjs/flutter_qjs.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -39,6 +40,16 @@ void main() async {
     stderr.write(result.stderr);
     expect(result.exitCode, 0);
   }, testOn: 'windows');
+  test('make.macos', () async {
+    var result = Process.runSync(
+      "sh",
+      ['./make.sh'],
+      workingDirectory: 'macos',
+    );
+    stdout.write(result.stdout);
+    stderr.write(result.stderr);
+    expect(result.exitCode, 0);
+  }, testOn: 'mac-os');
   test('jsToDart', () async {
     final qjs = FlutterQjs();
     qjs.setMethodHandler((method, args) {
