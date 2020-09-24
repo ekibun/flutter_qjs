@@ -18,7 +18,7 @@ A new flutter plugin project.
 
   s.platform = :osx, '10.11'
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
-  s.vendored_frameworks = 'build/release-iphoneos/flutter_qjs.framework'
+  s.vendored_frameworks = 'build/Release/flutterqjs.framework'
   s.static_framework = false
   s.swift_version = '5.0'
 end

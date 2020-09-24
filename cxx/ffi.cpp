@@ -5,20 +5,13 @@
  * @LastEditors: ekibun
  * @LastEditTime: 2020-09-24 00:28:11
  */
-#include "quickjs/quickjs.h"
+#include "ffi.h"
 #include <functional>
 #include <future>
 #include <string.h>
 
-#ifdef _MSC_VER
-#define DLLEXPORT __declspec(dllexport)
-#else
-#define DLLEXPORT __attribute__((visibility("default"))) __attribute__((used))
-#endif
-
 extern "C"
 {
-  typedef void *JSChannel(JSContext *ctx, const char *method, void *argv);
 
   DLLEXPORT JSValue *jsThrowInternalError(JSContext *ctx, char *message)
   {
@@ -58,7 +51,7 @@ extern "C"
     return m;
   }
 
-  JSValue js_channel(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+  JSValue js_channel(JSContext *ctx, JSValueConst this_val, int32_t argc, JSValueConst *argv)
   {
     JSRuntime *rt = JS_GetRuntime(ctx);
     JSChannel *channel = (JSChannel *)JS_GetRuntimeOpaque(rt);
@@ -105,7 +98,7 @@ extern "C"
     return JS_GetRuntime(ctx);
   }
 
-  DLLEXPORT JSValue *jsEval(JSContext *ctx, const char *input, size_t input_len, const char *filename, int eval_flags)
+  DLLEXPORT JSValue *jsEval(JSContext *ctx, const char *input, size_t input_len, const char *filename, int32_t eval_flags)
   {
     return new JSValue(JS_Eval(ctx, input, input_len, filename, eval_flags));
   }
@@ -125,7 +118,7 @@ extern "C"
     return JS_TAG_IS_FLOAT64(tag);
   }
 
-  DLLEXPORT JSValue *jsNewBool(JSContext *ctx, int val)
+  DLLEXPORT JSValue *jsNewBool(JSContext *ctx, int32_t val)
   {
     return new JSValue(JS_NewBool(ctx, val));
   }
@@ -235,8 +228,8 @@ extern "C"
     return new JSValue(JS_GetProperty(ctx, *this_obj, prop));
   }
 
-  DLLEXPORT int jsDefinePropertyValue(JSContext *ctx, JSValueConst *this_obj,
-                                      JSAtom prop, JSValue *val, int flags)
+  DLLEXPORT int32_t jsDefinePropertyValue(JSContext *ctx, JSValueConst *this_obj,
+                                      JSAtom prop, JSValue *val, int32_t flags)
   {
     return JS_DefinePropertyValue(ctx, *this_obj, prop, *val, flags);
   }
@@ -256,13 +249,13 @@ extern "C"
     return new JSValue(JS_AtomToValue(ctx, val));
   }
 
-  DLLEXPORT int jsGetOwnPropertyNames(JSContext *ctx, JSPropertyEnum **ptab,
-                                      uint32_t *plen, JSValueConst *obj, int flags)
+  DLLEXPORT int32_t jsGetOwnPropertyNames(JSContext *ctx, JSPropertyEnum **ptab,
+                                      uint32_t *plen, JSValueConst *obj, int32_t flags)
   {
     return JS_GetOwnPropertyNames(ctx, ptab, plen, *obj, flags);
   }
 
-  DLLEXPORT JSAtom jsPropertyEnumGetAtom(JSPropertyEnum *ptab, int i)
+  DLLEXPORT JSAtom jsPropertyEnumGetAtom(JSPropertyEnum *ptab, int32_t i)
   {
     return ptab[i].atom;
   }
@@ -278,12 +271,12 @@ extern "C"
   }
 
   DLLEXPORT JSValue *jsCall(JSContext *ctx, JSValueConst *func_obj, JSValueConst *this_obj,
-                            int argc, JSValueConst *argv)
+                            int32_t argc, JSValueConst *argv)
   {
     return new JSValue(JS_Call(ctx, *func_obj, *this_obj, argc, argv));
   }
 
-  DLLEXPORT int jsIsException(JSValueConst *val)
+  DLLEXPORT int32_t jsIsException(JSValueConst *val)
   {
     return JS_IsException(*val);
   }
@@ -293,7 +286,7 @@ extern "C"
     return new JSValue(JS_GetException(ctx));
   }
 
-  DLLEXPORT int jsExecutePendingJob(JSRuntime *rt)
+  DLLEXPORT int32_t jsExecutePendingJob(JSRuntime *rt)
   {
     JSContext *ctx;
     return JS_ExecutePendingJob(rt, &ctx);

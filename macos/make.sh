@@ -7,5 +7,5 @@
 ### 
 mkdir build
 cd build
-cmake .. -G Xcode -DCMAKE_TOOLCHAIN_FILE=../ios.toolchain.cmake -DPLATFORM=OS64COMBINED
+cmake .. -G Xcode -DCMAKE_OSX_ARCHITECTURES=x86_64
 cmake --build . --config Release
