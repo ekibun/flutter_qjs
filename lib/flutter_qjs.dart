@@ -45,7 +45,6 @@ class FlutterQjs {
         var err = jsThrowInternalError(ctx, e.toString() + "\n" + stack.toString());
         if (method.address == 0) {
           jsFreeValue(ctx, err);
-          deleteJSValue(err);
           return Pointer.fromAddress(0);
         }
         return err;
@@ -112,7 +111,6 @@ class FlutterQjs {
     }
     var ret = runtimeOpaques[_rt]?.promsieToFuture(jsval);
     jsFreeValue(_ctx, jsval);
-    deleteJSValue(jsval);
     return ret;
   }
 }

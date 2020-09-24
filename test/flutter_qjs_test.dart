@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-09-06 13:02:46
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-21 01:39:49
+ * @LastEditTime: 2020-09-24 22:55:33
  */
 import 'dart:convert';
 import 'dart:io';
@@ -12,7 +12,7 @@ import 'package:flutter_qjs/flutter_qjs.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() async {
-  test('make', () async {
+  test('make.windows', () async {
     final utf8Encoding = Encoding.getByName('utf-8');
     final cmakePath =
         "C:/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe";
@@ -38,7 +38,7 @@ void main() async {
     stdout.write(result.stdout);
     stderr.write(result.stderr);
     expect(result.exitCode, 0);
-  });
+  }, testOn: 'windows');
   test('jsToDart', () async {
     final qjs = FlutterQjs();
     qjs.setMethodHandler((method, args) {
@@ -57,8 +57,8 @@ void main() async {
           0.1, true, false, 1, "world", module
         ]));
       """, "<eval>").then((value) {
-        print(value);
-      });
+      print(value);
+    });
     Future.delayed(Duration(seconds: 5)).then((v) {
       qjs.close();
     });

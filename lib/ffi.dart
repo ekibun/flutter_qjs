@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-09-19 10:29:04
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-22 00:23:36
+ * @LastEditTime: 2020-09-24 23:25:32
  */
 import 'dart:ffi';
 import 'dart:io';
@@ -51,8 +51,10 @@ class JSTag {
 
 final DynamicLibrary qjsLib = Platform.environment['FLUTTER_TEST'] == 'true'
     ? (Platform.isWindows
-        ? DynamicLibrary.open("test/build/Debug/flutter_qjs.dll")
-        : DynamicLibrary.process())
+        ? DynamicLibrary.open("test/build/Debug/ffiquickjs.dll")
+        : Platform.isMacOS
+            ? DynamicLibrary.open("macos/flutterqjs.framework/flutterqjs")
+            : DynamicLibrary.process())
     : (Platform.isWindows
         ? DynamicLibrary.open("flutter_qjs_plugin.dll")
         : Platform.isAndroid
@@ -512,17 +514,6 @@ final int Function(
     )>>("jsIsArray")
     .asFunction();
 
-/// void deleteJSValue(JSValueConst *val)
-final void Function(
-  Pointer val,
-) deleteJSValue = qjsLib
-    .lookup<
-        NativeFunction<
-            Void Function(
-      Pointer,
-    )>>("deleteJSValue")
-    .asFunction();
-
 /// JSValue *jsGetProperty(JSContext *ctx, JSValueConst *this_obj,
 ///                           JSAtom prop)
 final Pointer Function(
@@ -683,10 +674,8 @@ Pointer jsCall(
   Pointer jsRet = _jsCall(ctx, funcObj, _thisObj, argv.length, jsArgs);
   if (thisObj == null) {
     jsFreeValue(ctx, _thisObj);
-    deleteJSValue(_thisObj);
   }
   jsFreeValue(ctx, func1);
-  deleteJSValue(func1);
   free(jsArgs);
   runtimeOpaques[jsGetRuntime(ctx)].port.sendPort.send('call');
   return jsRet;

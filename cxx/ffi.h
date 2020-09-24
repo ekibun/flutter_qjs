@@ -75,8 +75,6 @@ extern "C"
 
   DLLEXPORT int32_t jsIsArray(JSContext *ctx, JSValueConst *val);
 
-  DLLEXPORT void deleteJSValue(JSValueConst *val);
-
   DLLEXPORT JSValue *jsGetProperty(JSContext *ctx, JSValueConst *this_obj,
                                    JSAtom prop);
 

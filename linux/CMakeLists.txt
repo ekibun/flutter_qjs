@@ -1,19 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
-set(CXX_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../cxx)
-
-# quickjs
-set(QUICK_JS_LIB_DIR ${CXX_LIB_DIR}/quickjs)
-file (STRINGS "${QUICK_JS_LIB_DIR}/VERSION" QUICKJS_VERSION)
-add_library(libquickjs SHARED
-    ${QUICK_JS_LIB_DIR}/cutils.c
-    ${QUICK_JS_LIB_DIR}/libregexp.c
-    ${QUICK_JS_LIB_DIR}/libunicode.c
-    ${QUICK_JS_LIB_DIR}/quickjs.c
-)
-project(libquickjs LANGUAGES C)
-target_compile_options(libquickjs PRIVATE "-DCONFIG_VERSION=\"${QUICKJS_VERSION}\"")
-target_compile_options(libquickjs PRIVATE "-DDUMP_LEAKS")
+include("${CMAKE_CURRENT_SOURCE_DIR}/../cxx/quickjs.cmake")
+target_compile_options(quickjs PRIVATE "-fPIC")
 
 set(PROJECT_NAME "flutter_qjs")
 project(${PROJECT_NAME} LANGUAGES CXX)
@@ -33,7 +21,7 @@ target_compile_definitions(${PLUGIN_NAME} PRIVATE FLUTTER_PLUGIN_IMPL)
 target_include_directories(${PLUGIN_NAME} INTERFACE
   "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(${PLUGIN_NAME} PRIVATE flutter)
-target_link_libraries(${PLUGIN_NAME} PRIVATE libquickjs)
+target_link_libraries(${PLUGIN_NAME} PRIVATE quickjs)
 target_link_libraries(${PLUGIN_NAME} PRIVATE PkgConfig::GTK)
 
 # List of absolute paths to libraries that should be bundled with the plugin

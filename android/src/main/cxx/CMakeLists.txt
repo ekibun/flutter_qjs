@@ -11,7 +11,7 @@ set(JNI_LIB_NAME qjs)
 # You can define multiple libraries, and CMake builds them for you.
 # Gradle automatically packages shared libraries with your APK.
 
-set(CXX_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../../../cxx)
+include("${CMAKE_CURRENT_SOURCE_DIR}/../../../../cxx/quickjs.cmake")
 
 add_library( # Sets the name of the library.
              ${JNI_LIB_NAME}
@@ -21,18 +21,6 @@ add_library( # Sets the name of the library.
 
              # Provides a relative path to your source file(s).
              ${CXX_LIB_DIR}/ffi.cpp )
-
-# quickjs
-set(QUICK_JS_LIB_DIR ${CXX_LIB_DIR}/quickjs)
-file (STRINGS "${QUICK_JS_LIB_DIR}/VERSION" QUICKJS_VERSION)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DDUMP_LEAKS -DCONFIG_VERSION=\\\"${QUICKJS_VERSION}\\\"")
-target_sources(${JNI_LIB_NAME} PUBLIC
-    ${QUICK_JS_LIB_DIR}/cutils.c
-    ${QUICK_JS_LIB_DIR}/libregexp.c
-    ${QUICK_JS_LIB_DIR}/libunicode.c
-    ${QUICK_JS_LIB_DIR}/quickjs.c
-)
-target_compile_features(${JNI_LIB_NAME} PUBLIC cxx_std_17)
 
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because CMake includes system libraries in the search path by
@@ -53,7 +41,7 @@ find_library( # Sets the name of the path variable.
 
 target_link_libraries( # Specifies the target library.
                        ${JNI_LIB_NAME}
-
+                       quickjs
                        # Links the target library to the log library
                        # included in the NDK.
                        ${log-lib} )

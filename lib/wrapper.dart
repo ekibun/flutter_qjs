@@ -26,7 +26,6 @@ class JSRefValue implements JSRef {
   void release() {
     if (val != null) {
       jsFreeValue(ctx, val);
-      deleteJSValue(val);
     }
     val = null;
     ctx = null;
@@ -73,12 +72,10 @@ class JSFunction extends JSRefValue {
     Pointer jsRet = jsCall(ctx, val, null, args);
     for (Pointer jsArg in args) {
       jsFreeValue(ctx, jsArg);
-      deleteJSValue(jsArg);
     }
     bool isException = jsIsException(jsRet) != 0;
     var ret = jsToDart(ctx, jsRet);
     jsFreeValue(ctx, jsRet);
-    deleteJSValue(jsRet);
     if (isException) {
       throw Exception(parseJSException(ctx));
     }
@@ -92,7 +89,6 @@ Pointer jsGetPropertyStr(Pointer ctx, Pointer val, String prop) {
   Pointer jsProp = jsGetProperty(ctx, val, jsAtom);
   jsFreeAtom(ctx, jsAtom);
   jsFreeValue(ctx, jsAtomVal);
-  deleteJSValue(jsAtomVal);
   return jsProp;
 }
 
@@ -105,10 +101,8 @@ String parseJSException(Pointer ctx, {Pointer e}) {
       err += '\n' + jsToCString(ctx, stack);
     }
     jsFreeValue(ctx, stack);
-    deleteJSValue(stack);
   }
   jsFreeValue(ctx, e);
-  deleteJSValue(e);
   return err;
 }
 
@@ -163,7 +157,6 @@ Pointer dartToJs(Pointer ctx, dynamic val, {Map<dynamic, dynamic> cache}) {
       );
       jsFreeAtom(ctx, jsAtom);
       jsFreeValue(ctx, jsAtomVal);
-      deleteJSValue(jsAtomVal);
     }
     return ret;
   }
@@ -182,7 +175,6 @@ Pointer dartToJs(Pointer ctx, dynamic val, {Map<dynamic, dynamic> cache}) {
       );
       jsFreeAtom(ctx, jsAtom);
       jsFreeValue(ctx, jsAtomVal);
-      deleteJSValue(jsAtomVal);
     }
     return ret;
   }
@@ -219,7 +211,6 @@ dynamic jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
       } else if (jsIsArray(ctx, val) != 0) {
         Pointer jslength = jsGetPropertyStr(ctx, val, "length");
         int length = jsToInt64(ctx, jslength);
-        deleteJSValue(jslength);
         List<dynamic> ret = List();
         cache[valptr] = ret;
         for (int i = 0; i < length; ++i) {
@@ -228,10 +219,8 @@ dynamic jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
           var jsProp = jsGetProperty(ctx, val, jsAtom);
           jsFreeAtom(ctx, jsAtom);
           jsFreeValue(ctx, jsAtomVal);
-          deleteJSValue(jsAtomVal);
           ret.add(jsToDart(ctx, jsProp, cache: cache));
           jsFreeValue(ctx, jsProp);
-          deleteJSValue(jsProp);
         }
         return ret;
       } else {
@@ -248,9 +237,7 @@ dynamic jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
           var jsProp = jsGetProperty(ctx, val, jsAtom);
           ret[jsToDart(ctx, jsAtomValue, cache: cache)] = jsToDart(ctx, jsProp, cache: cache);
           jsFreeValue(ctx, jsAtomValue);
-          deleteJSValue(jsAtomValue);
           jsFreeValue(ctx, jsProp);
-          deleteJSValue(jsProp);
           jsFreeAtom(ctx, jsAtom);
         }
         free(ptab);
@@ -283,7 +270,6 @@ Pointer jsNewContextWithPromsieWrapper(Pointer rt) {
       JSEvalType.GLOBAL);
   var promiseWrapper = JSRefValue(ctx, jsPromiseWrapper);
   jsFreeValue(ctx, jsPromiseWrapper);
-  deleteJSValue(jsPromiseWrapper);
   runtimeOpaques[rt].promsieToFuture = (promise) {
     var completer = Completer();
     var wrapper = promiseWrapper.val;
@@ -291,7 +277,6 @@ Pointer jsNewContextWithPromsieWrapper(Pointer rt) {
     var jsPromise = jsCall(ctx, wrapper, null, [promise]);
     runtimeOpaques[rt].ref.add(JSPromise(ctx, jsPromise, completer));
     jsFreeValue(ctx, jsPromise);
-    deleteJSValue(jsPromise);
     return completer.future;
   };
 

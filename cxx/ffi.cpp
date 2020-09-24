@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-09-06 18:32:45
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-24 00:28:11
+ * @LastEditTime: 2020-09-24 22:32:15
  */
 #include "ffi.h"
 #include <functional>
@@ -156,11 +156,13 @@ extern "C"
   DLLEXPORT void jsFreeValue(JSContext *ctx, JSValue *v)
   {
     JS_FreeValue(ctx, *v);
+    delete v;
   }
 
   DLLEXPORT void jsFreeValueRT(JSRuntime *rt, JSValue *v)
   {
     JS_FreeValueRT(rt, *v);
+    delete v;
   }
 
   DLLEXPORT JSValue *jsDupValue(JSContext *ctx, JSValueConst *v)
@@ -215,11 +217,6 @@ extern "C"
   DLLEXPORT int32_t jsIsArray(JSContext *ctx, JSValueConst *val)
   {
     return JS_IsArray(ctx, *val);
-  }
-
-  DLLEXPORT void deleteJSValue(JSValueConst *val)
-  {
-    delete val;
   }
 
   DLLEXPORT JSValue *jsGetProperty(JSContext *ctx, JSValueConst *this_obj,
