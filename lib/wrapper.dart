@@ -3,14 +3,13 @@
  * @Author: ekibun
  * @Date: 2020-09-19 22:07:47
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-22 00:27:54
+ * @LastEditTime: 2020-09-24 13:38:08
  */
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
-import 'package:flutter/cupertino.dart';
 
 import 'ffi.dart';
 
