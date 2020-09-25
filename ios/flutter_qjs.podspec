@@ -19,6 +19,8 @@ A new flutter plugin project.
 
   # Flutter.framework does not contain a i386 slice.
   s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386' }
-  s.vendored_libraries = 'build/Debug/libffiquickjs.dylib'
+  # IOSTODO for simulators use Debug-iphonesimulator, for real devices use Debug-iphoneos
+  s.vendored_frameworks = 'build/Debug-iphoneos/ffiquickjs.framework'
+  s.static_framework = false
   s.swift_version = '5.0'
 end
