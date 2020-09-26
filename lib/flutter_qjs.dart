@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:29:09
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-21 23:59:40
+ * @LastEditTime: 2020-09-27 01:08:14
  */
 import 'dart:async';
 import 'dart:ffi';
@@ -33,7 +33,12 @@ class FlutterQjs {
         if (method.address != 0) {
           if (methodHandler == null) throw Exception("No MethodHandler");
           var argvs = jsToDart(ctx, argv);
-          return dartToJs(ctx, methodHandler(Utf8.fromUtf8(method.cast<Utf8>()), argvs));
+          return dartToJs(
+              ctx,
+              methodHandler(
+                Utf8.fromUtf8(method.cast<Utf8>()),
+                argvs,
+              ));
         }
         if (moduleHandler == null) throw Exception("No ModuleHandler");
         var ret = Utf8.toUtf8(moduleHandler(Utf8.fromUtf8(argv.cast<Utf8>())));
@@ -42,7 +47,10 @@ class FlutterQjs {
         });
         return ret;
       } catch (e, stack) {
-        var err = jsThrowInternalError(ctx, e.toString() + "\n" + stack.toString());
+        var err = jsThrowInternalError(
+          ctx,
+          e.toString() + "\n" + stack.toString(),
+        );
         if (method.address == 0) {
           jsFreeValue(ctx, err);
           return Pointer.fromAddress(0);
@@ -92,7 +100,12 @@ class FlutterQjs {
           break;
         }
       }
-      List jsPromises = runtimeOpaques[_rt].ref.where((v) => v is JSPromise).toList();
+      List jsPromises = runtimeOpaques[_rt]
+          .ref
+          .where(
+            (v) => v is JSPromise,
+          )
+          .toList();
       for (JSPromise jsPromise in jsPromises) {
         if (jsPromise.checkResolveReject()) {
           jsPromise.release();

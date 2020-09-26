@@ -68,7 +68,11 @@ class JSFunction extends JSRefValue {
   @override
   noSuchMethod(Invocation invocation) {
     if (val == null) return;
-    List<Pointer> args = invocation.positionalArguments.map((e) => dartToJs(ctx, e)).toList();
+    List<Pointer> args = invocation.positionalArguments
+        .map(
+          (e) => dartToJs(ctx, e),
+        )
+        .toList();
     Pointer jsRet = jsCall(ctx, val, null, args);
     for (Pointer jsArg in args) {
       jsFreeValue(ctx, jsArg);
@@ -109,7 +113,8 @@ String parseJSException(Pointer ctx, {Pointer e}) {
 Pointer dartToJs(Pointer ctx, dynamic val, {Map<dynamic, dynamic> cache}) {
   if (val is Future) {
     var resolvingFunc = allocate<Uint8>(count: sizeOfJSValue * 2);
-    var resolvingFunc2 = Pointer.fromAddress(resolvingFunc.address + sizeOfJSValue);
+    var resolvingFunc2 =
+        Pointer.fromAddress(resolvingFunc.address + sizeOfJSValue);
     var ret = jsNewPromiseCapability(ctx, resolvingFunc);
     var res = jsToDart(ctx, resolvingFunc);
     var rej = jsToDart(ctx, resolvingFunc2);
@@ -235,7 +240,8 @@ dynamic jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
           var jsAtom = jsPropertyEnumGetAtom(ptab.value, i);
           var jsAtomValue = jsAtomToValue(ctx, jsAtom);
           var jsProp = jsGetProperty(ctx, val, jsAtom);
-          ret[jsToDart(ctx, jsAtomValue, cache: cache)] = jsToDart(ctx, jsProp, cache: cache);
+          ret[jsToDart(ctx, jsAtomValue, cache: cache)] =
+              jsToDart(ctx, jsProp, cache: cache);
           jsFreeValue(ctx, jsAtomValue);
           jsFreeValue(ctx, jsProp);
           jsFreeAtom(ctx, jsAtom);
@@ -273,7 +279,8 @@ Pointer jsNewContextWithPromsieWrapper(Pointer rt) {
   runtimeOpaques[rt].promsieToFuture = (promise) {
     var completer = Completer();
     var wrapper = promiseWrapper.val;
-    if (wrapper == null) completer.completeError(Exception("Runtime has been released!"));
+    if (wrapper == null)
+      completer.completeError(Exception("Runtime has been released!"));
     var jsPromise = jsCall(ctx, wrapper, null, [promise]);
     runtimeOpaques[rt].ref.add(JSPromise(ctx, jsPromise, completer));
     jsFreeValue(ctx, jsPromise);

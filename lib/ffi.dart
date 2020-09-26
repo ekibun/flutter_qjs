@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-09-19 10:29:04
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-24 23:25:32
+ * @LastEditTime: 2020-09-27 01:12:16
  */
 import 'dart:ffi';
 import 'dart:io';
@@ -84,16 +84,20 @@ Pointer jsThrowInternalError(Pointer ctx, String message) {
 }
 
 /// JSValue *jsEXCEPTION()
-final Pointer Function() jsEXCEPTION =
-    qjsLib.lookup<NativeFunction<Pointer Function()>>("jsEXCEPTION").asFunction();
+final Pointer Function() jsEXCEPTION = qjsLib
+    .lookup<NativeFunction<Pointer Function()>>("jsEXCEPTION")
+    .asFunction();
 
 /// JSValue *jsUNDEFINED()
-final Pointer Function() jsUNDEFINED =
-    qjsLib.lookup<NativeFunction<Pointer Function()>>("jsUNDEFINED").asFunction();
+final Pointer Function() jsUNDEFINED = qjsLib
+    .lookup<NativeFunction<Pointer Function()>>("jsUNDEFINED")
+    .asFunction();
 
 /// JSRuntime *jsNewRuntime(JSChannel channel)
 final Pointer Function(
-  Pointer<NativeFunction<Pointer Function(Pointer ctx, Pointer method, Pointer argv)>>,
+  Pointer<
+      NativeFunction<
+          Pointer Function(Pointer ctx, Pointer method, Pointer argv)>>,
 ) _jsNewRuntime = qjsLib
     .lookup<
         NativeFunction<
@@ -209,7 +213,13 @@ Pointer jsEval(
 ) {
   var utf8input = Utf8.toUtf8(input);
   var utf8filename = Utf8.toUtf8(filename);
-  var val = _jsEval(ctx, utf8input, Utf8.strlen(utf8input), utf8filename, evalFlags);
+  var val = _jsEval(
+    ctx,
+    utf8input,
+    Utf8.strlen(utf8input),
+    utf8filename,
+    evalFlags,
+  );
   free(utf8input);
   free(utf8filename);
   runtimeOpaques[jsGetRuntime(ctx)].port.sendPort.send('eval');
@@ -532,18 +542,23 @@ final Pointer Function(
 
 /// int jsDefinePropertyValue(JSContext *ctx, JSValueConst *this_obj,
 ///                           JSAtom prop, JSValue *val, int flags)
-final int Function(Pointer ctx, Pointer thisObj, int prop, Pointer val, int flag)
-    jsDefinePropertyValue = qjsLib
-        .lookup<
-            NativeFunction<
-                Int32 Function(
-          Pointer,
-          Pointer,
-          Uint32,
-          Pointer,
-          Int32,
-        )>>("jsDefinePropertyValue")
-        .asFunction();
+final int Function(
+  Pointer ctx,
+  Pointer thisObj,
+  int prop,
+  Pointer val,
+  int flag,
+) jsDefinePropertyValue = qjsLib
+    .lookup<
+        NativeFunction<
+            Int32 Function(
+      Pointer,
+      Pointer,
+      Uint32,
+      Pointer,
+      Int32,
+    )>>("jsDefinePropertyValue")
+    .asFunction();
 
 /// void jsFreeAtom(JSContext *ctx, JSAtom v)
 final Pointer Function(
@@ -618,8 +633,9 @@ final int Function(
     .asFunction();
 
 /// uint32_t sizeOfJSValue()
-final int Function() _sizeOfJSValue =
-    qjsLib.lookup<NativeFunction<Uint32 Function()>>("sizeOfJSValue").asFunction();
+final int Function() _sizeOfJSValue = qjsLib
+    .lookup<NativeFunction<Uint32 Function()>>("sizeOfJSValue")
+    .asFunction();
 
 final sizeOfJSValue = _sizeOfJSValue();
 
@@ -664,7 +680,9 @@ Pointer jsCall(
   Pointer thisObj,
   List<Pointer> argv,
 ) {
-  Pointer jsArgs = allocate<Uint8>(count: argv.length > 0 ? sizeOfJSValue * argv.length : 1);
+  Pointer jsArgs = allocate<Uint8>(
+    count: argv.length > 0 ? sizeOfJSValue * argv.length : 1,
+  );
   for (int i = 0; i < argv.length; ++i) {
     Pointer jsArg = argv[i];
     setJSValueList(jsArgs, i, jsArg);
