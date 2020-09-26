@@ -256,15 +256,13 @@
 			inputPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks.sh",
 				"${PODS_ROOT}/../Flutter/Flutter.framework",
-				"${PODS_ROOT}/../.symlinks/plugins/flutter_qjs/ios/build/Debug-iphonesimulator/ffiquickjs.framework",
-				"${PODS_ROOT}/../.symlinks/plugins/flutter_qjs/ios/build/Debug-iphonesimulator/ffiquickjs.framework.dSYM",
+				"${PODS_ROOT}/../.symlinks/plugins/flutter_qjs/ios/build/ffiquickjs.framework",
 				"${BUILT_PRODUCTS_DIR}/flutter_qjs/flutter_qjs.framework",
 			);
 			name = "[CP] Embed Pods Frameworks";
 			outputPaths = (
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/Flutter.framework",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ffiquickjs.framework",
-				"${DWARF_DSYM_FOLDER_PATH}/ffiquickjs.framework.dSYM",
 				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/flutter_qjs.framework",
 			);
 			runOnlyForDeploymentPostprocessing = 0;

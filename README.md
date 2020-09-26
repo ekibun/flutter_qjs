@@ -11,13 +11,13 @@ A quickjs engine for flutter.
 
 ## Feature
 
-This plugin is a simple js engine for flutter using the `quickjs` project with `dart:ffi`. Plugin currently supports Windows, Linux, and Android.
+This plugin is a simple js engine for flutter using the `quickjs` project with `dart:ffi`. Plugin currently supports all the platforms except web!
 
 Event loop of `FlutterQjs` should be implemented by calling `FlutterQjs.dispatch()`. 
 
-ES6 module with `import` function is supported and can manage in dart with `setModuleHandler`.
+ES6 module with `import` function is supported and can be managed in dart with `setModuleHandler`.
 
-A global function `convert` is presented to invoke dart function. Data convertion between dart and js are implemented as follow:
+A global function `convert` is presented to invoke dart function. Data conversion between dart and js are implemented as follow:
 
 | dart | js |
 | --- | --- |
@@ -31,7 +31,7 @@ A global function `convert` is presented to invoke dart function. Data convertio
 | JSFunction | function(....args) |
 | Future | Promise |
 
-**notice:** `function` can only sent from js to dart.
+**notice:** `function` can only be sent from js to dart. `Promise` return by `evaluate` will be automatically tracked and return the resolved data.
 
 ## Getting Started
 
@@ -42,7 +42,7 @@ final engine = FlutterQjs();
 await engine.dispatch();
 ```
 
-2. Call `setMethodHandler` to implements `dart` interaction. For example, you can use `Dio` to implements http in js:
+2. Call `setMethodHandler` to implement `dart` interaction. For example, you can use `Dio` to implement http in js:
 
 ```dart
 await engine.setMethodHandler((String method, List arg) {
@@ -61,9 +61,9 @@ and in javascript, call `convert` function to get data, make sure the second mem
 convert("http", ["http://example.com/"]);
 ```
 
-3. Call `setModuleHandler` to resolve js module.
+3. Call `setModuleHandler` to resolve the js module.
 
-**important:** I cannot find a way to convert the sync ffi callback into an async function. So the assets files got by async function `rootBundle.loadString` cannot be used in this version. I will be appreciated that you can provied me a solution to make `ModuleHandler` async.
+**important:** I cannot find a way to convert the sync ffi callback into an async function. So the assets files received by async function `rootBundle.loadString` cannot be used in this version. I will appreciate it if you can provide me a solution to make `ModuleHandler` async.
 
 ```dart
 await engine.setModuleHandler((String module) {
@@ -88,6 +88,28 @@ try {
 }
 ```
 
-5. Method `recreate` can free quickjs runtime that can be recreated again when calling `evaluate`, it can be used to reset the module cache. Call `close` to stop `dispatch` when you do not need it.
+5. Method `recreate` can destroy quickjs runtime that can be recreated again if you call `evaluate`, `recreat` can be used to reset the module cache. Call `close` to stop `dispatch` when you do not need it.
 
 [This example](example/lib/main.dart) contains a complete demonstration on how to use this plugin.
+
+## For Mac & IOS developer
+
+I am new to Xcode and iOS developing, and I cannot find a better way to support both simulators and real devices without combining the binary frameworks. To reduce build size, change the `s.vendored_frameworks` in `ios/flutter_qjs.podspec` to the specific framework.
+
+For simulator, use:
+
+```podspec
+s.vendored_frameworks = `build/Debug-iphonesimulator/ffiquickjs.framework`
+```
+
+For real device, use:
+
+```podspec
+s.vendored_frameworks = `build/Debug-iphoneos/ffiquickjs.framework`
+```
+
+Two additional notes:
+
+1. quickjs built with `release` config has bug in resolving `Promise`. Please let me know if you know the solution.
+
+2. `ios/make.sh` limit the build architectures to avoid combine conflicts. Change the `make.sh` to support another architectures.

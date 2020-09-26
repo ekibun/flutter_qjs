@@ -6,9 +6,6 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/../cxx/quickjs.cmake")
 add_library(ffiquickjs SHARED ${CXX_LIB_DIR}/ffi.cpp)
 target_link_libraries(ffiquickjs PRIVATE quickjs)
 
-# IOSTODO change to your team id
-set(CMAKE_XCODE_ATTRIBUTE_DEVELOPMENT_TEAM "6SA4A2R2GU" CACHE INTERNAL "")
-
 set_target_properties(ffiquickjs PROPERTIES
     FRAMEWORK TRUE
     FRAMEWORK_VERSION A
