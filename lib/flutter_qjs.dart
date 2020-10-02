@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:29:09
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-27 01:08:14
+ * @LastEditTime: 2020-10-03 00:18:49
  */
 import 'dart:async';
 import 'dart:ffi';
@@ -61,7 +61,7 @@ class FlutterQjs {
     _ctx = jsNewContextWithPromsieWrapper(_rt);
   }
 
-  /// Set a handler to manage js call with `dart(method, ...args)` function.
+  /// Set a handler to manage js call with `channel(method, args)` function.
   setMethodHandler(JsMethodHandler handler) {
     methodHandler = handler;
   }

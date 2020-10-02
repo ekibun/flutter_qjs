@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-09-19 22:07:47
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-24 13:38:08
+ * @LastEditTime: 2020-10-02 16:37:16
  */
 import 'dart:async';
 import 'dart:ffi';
@@ -20,6 +20,11 @@ class JSRefValue implements JSRef {
     Pointer rt = jsGetRuntime(ctx);
     this.val = jsDupValue(ctx, val);
     runtimeOpaques[rt]?.ref?.add(this);
+  }
+
+  JSRefValue.fromAddress(int ctx, int val) {
+    this.ctx = Pointer.fromAddress(ctx);
+    this.val = Pointer.fromAddress(val);
   }
 
   @override
@@ -65,10 +70,11 @@ class JSPromise extends JSRefValue {
 class JSFunction extends JSRefValue {
   JSFunction(Pointer ctx, Pointer val) : super(ctx, val);
 
-  @override
-  noSuchMethod(Invocation invocation) {
+  JSFunction.fromAddress(int ctx, int val) : super.fromAddress(ctx, val);
+
+  invoke(List<dynamic> arguments) {
     if (val == null) return;
-    List<Pointer> args = invocation.positionalArguments
+    List<Pointer> args = arguments
         .map(
           (e) => dartToJs(ctx, e),
         )
@@ -84,6 +90,11 @@ class JSFunction extends JSRefValue {
       throw Exception(parseJSException(ctx));
     }
     return ret;
+  }
+
+  @override
+  noSuchMethod(Invocation invocation) {
+    return invoke(invocation.positionalArguments);
   }
 }
 

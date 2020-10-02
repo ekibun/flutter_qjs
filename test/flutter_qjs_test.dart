@@ -3,14 +3,18 @@
  * @Author: ekibun
  * @Date: 2020-09-06 13:02:46
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-24 22:55:33
+ * @LastEditTime: 2020-10-02 17:27:52
  */
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_qjs/ffi.dart';
-import 'package:flutter_qjs/flutter_qjs.dart';
+import 'package:flutter_qjs/isolate.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+dynamic myMethodHandler(method, args) {
+  print([method, args]);
+  return args;
+}
 
 void main() async {
   test('make.windows', () async {
@@ -51,28 +55,21 @@ void main() async {
     expect(result.exitCode, 0);
   }, testOn: 'mac-os');
   test('jsToDart', () async {
-    final qjs = FlutterQjs();
-    qjs.setMethodHandler((method, args) {
-      print([method, args]);
-      return args;
-    });
-    qjs.setModuleHandler((name) {
+    final qjs = IsolateQjs(myMethodHandler);
+    qjs.setModuleHandler((name) async {
       print(name);
       return "export default '${new DateTime.now()}'";
     });
-    qjs.evaluate("""
+    var value = await qjs.evaluate("""
       const a = {};
       a.a = a;
       import("test").then((module) => channel('channel', [
-          (...a)=>`hello \${a}`,
+          (...args)=>`hello \${args}!`, a,
           0.1, true, false, 1, "world", module
         ]));
-      """, "<eval>").then((value) {
-      print(value);
-    });
-    Future.delayed(Duration(seconds: 5)).then((v) {
-      qjs.close();
-    });
-    await qjs.dispatch();
+      """, "<eval>");
+    print(value);
+    print(await value[0]('world'));
+    qjs.close();
   });
 }

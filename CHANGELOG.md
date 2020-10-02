@@ -3,8 +3,12 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:16:50
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-21 23:19:02
+ * @LastEditTime: 2020-10-03 00:28:18
 -->
+## 0.1.1
+
+* run on isolate.
+
 ## 0.1.0
 
 * refactor with ffi.

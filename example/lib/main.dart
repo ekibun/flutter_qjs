@@ -3,14 +3,14 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:16:51
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-21 23:54:55
+ * @LastEditTime: 2020-10-03 00:38:41
  */
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_qjs/flutter_qjs.dart';
+import 'package:flutter_qjs/isolate.dart';
 
 import 'highlight.dart';
 
@@ -44,41 +44,43 @@ class TestPage extends StatefulWidget {
   State<StatefulWidget> createState() => _TestPageState();
 }
 
+dynamic methodHandler(String method, List arg) {
+  switch (method) {
+    case "http":
+      return Dio().get(arg[0]).then((response) => response.data);
+    case "test":
+      return arg[0]([
+        true,
+        1,
+        0.5,
+        "str",
+        {"key": "val", 0: 1},
+        Uint8List(2),
+        Int32List(2),
+        Int64List(2),
+        Float64List(2),
+        Float32List(2)
+      ]);
+    default:
+      throw Exception("No such method");
+  }
+}
+
 class _TestPageState extends State<TestPage> {
   String resp;
-  FlutterQjs engine;
+  IsolateQjs engine;
 
-  CodeInputController _controller = CodeInputController();
+  CodeInputController _controller = CodeInputController(
+      text: 'import("hello").then(({default: greet}) => greet("world"));');
 
-  _createEngine() async {
+  _ensureEngine() {
     if (engine != null) return;
-    engine = FlutterQjs();
-    engine.setMethodHandler((String method, List arg) {
-      switch (method) {
-        case "http":
-          return Dio().get(arg[0]).then((response) => response.data);
-        case "test":
-          return arg[0]([
-            true,
-            1,
-            0.5,
-            "str",
-            {"key": "val", 0: 1},
-            Uint8List(2),
-            Int32List(2),
-            Int64List(2),
-            Float64List(2),
-            Float32List(2)
-          ]);
-        default:
-          throw Exception("No such method");
-      }
+    engine = IsolateQjs(methodHandler);
+    engine.setModuleHandler((String module) async {
+      if (module == "test") return "export default '${new DateTime.now()}'";
+      return await rootBundle.loadString(
+          "js/" + module.replaceFirst(new RegExp(r".js$"), "") + ".js");
     });
-    engine.setModuleHandler((String module) {
-      if (module == "hello") return "export default '${new DateTime.now()}'";
-      return "Module Not found";
-    });
-    engine.dispatch();
   }
 
   @override
@@ -97,14 +99,9 @@ class _TestPageState extends State<TestPage> {
               child: Row(
                 children: [
                   FlatButton(
-                      child: Text("create engine"), onPressed: _createEngine),
-                  FlatButton(
                       child: Text("evaluate"),
                       onPressed: () async {
-                        if (engine == null) {
-                          print("please create engine first");
-                          return;
-                        }
+                        _ensureEngine();
                         try {
                           resp = (await engine.evaluate(
                                   _controller.text ?? '', "<eval>"))

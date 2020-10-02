@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:16:50
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-22 00:03:48
+ * @LastEditTime: 2020-10-03 00:36:36
 -->
 # flutter_qjs
 
@@ -17,7 +17,7 @@ Event loop of `FlutterQjs` should be implemented by calling `FlutterQjs.dispatch
 
 ES6 module with `import` function is supported and can be managed in dart with `setModuleHandler`.
 
-A global function `convert` is presented to invoke dart function. Data conversion between dart and js are implemented as follow:
+A global function `channel` is presented to invoke dart function. Data conversion between dart and js are implemented as follow:
 
 | dart | js |
 | --- | --- |
@@ -35,6 +35,8 @@ A global function `convert` is presented to invoke dart function. Data conversio
 
 ## Getting Started
 
+### Run on main thread
+
 1. Create a `FlutterQjs` object. Call `dispatch` to dispatch event loop.
 
 ```dart
@@ -42,7 +44,7 @@ final engine = FlutterQjs();
 await engine.dispatch();
 ```
 
-2. Call `setMethodHandler` to implement `dart` interaction. For example, you can use `Dio` to implement http in js:
+2. Call `setMethodHandler` to implement js-dart interaction. For example, you can use `Dio` to implement http in js:
 
 ```dart
 await engine.setMethodHandler((String method, List arg) {
@@ -55,15 +57,17 @@ await engine.setMethodHandler((String method, List arg) {
 });
 ```
 
-and in javascript, call `convert` function to get data, make sure the second memeber is a list:
+and in javascript, call `channel` function to get data, make sure the second parameter is a list:
 
 ```javascript
-convert("http", ["http://example.com/"]);
+channel("http", ["http://example.com/"]);
 ```
 
 3. Call `setModuleHandler` to resolve the js module.
 
-**important:** I cannot find a way to convert the sync ffi callback into an async function. So the assets files received by async function `rootBundle.loadString` cannot be used in this version. I will appreciate it if you can provide me a solution to make `ModuleHandler` async.
+~~I cannot find a way to convert the sync ffi callback into an async function. So the assets files received by async function `rootBundle.loadString` cannot be used in this version. I will appreciate it if you can provide me a solution to make `ModuleHandler` async.~~
+
+To use async function in module handler, try [Run on isolate thread](#isolate)
 
 ```dart
 await engine.setModuleHandler((String module) {
@@ -89,6 +93,56 @@ try {
 ```
 
 5. Method `recreate` can destroy quickjs runtime that can be recreated again if you call `evaluate`, `recreat` can be used to reset the module cache. Call `close` to stop `dispatch` when you do not need it.
+
+### <span id="isolate">Run on isolate thread</span>
+
+1. Create a `IsolateQjs` object, pass a handler to implement js-dart interaction. The handler is used in isolate, so the function must be a top-level function or a static method.
+
+```dart
+dynamic methodHandler(String method, List arg) {
+  switch (method) {
+    case "http":
+      return Dio().get(arg[0]).then((response) => response.data);
+    default:
+      throw Exception("No such method");
+  }
+}
+final engine = IsolateQjs(methodHandler);
+// not need engine.dispatch();
+```
+
+and in javascript, call `channel` function to get data, make sure the second parameter is a list:
+
+```javascript
+channel("http", ["http://example.com/"]);
+```
+
+2. Call `setModuleHandler` to resolve the js module. Async function such as `rootBundle.loadString` can be used now to get module. The handler is called in main thread.
+
+```dart
+await engine.setModuleHandler((String module) async {
+  return await rootBundle.loadString(
+      "js/" + module.replaceFirst(new RegExp(r".js$"), "") + ".js");
+});
+```
+
+and in javascript, call `import` function to get module:
+
+```javascript
+import("hello").then(({default: greet}) => greet("world"));
+```
+
+3. Same as run on main thread, use `evaluate` to run js script:
+
+```dart
+try {
+  print(await engine.evaluate(code ?? '', "<eval>"));
+} catch (e) {
+  print(e.toString());
+}
+```
+
+4. Method `close` (same as `recreate` in main thread) can destroy quickjs runtime that can be recreated again if you call `evaluate`.
 
 [This example](example/lib/main.dart) contains a complete demonstration on how to use this plugin.
 
