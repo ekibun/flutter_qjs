@@ -3,8 +3,12 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:16:50
  * @LastEditors: ekibun
- * @LastEditTime: 2020-10-03 00:28:18
+ * @LastEditTime: 2020-10-03 23:34:30
 -->
+## 0.1.2
+
+* fix qjs memory leak.
+
 ## 0.1.1
 
 * run on isolate.

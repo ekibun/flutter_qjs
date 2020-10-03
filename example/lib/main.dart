@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:16:51
  * @LastEditors: ekibun
- * @LastEditTime: 2020-10-03 00:38:41
+ * @LastEditTime: 2020-10-03 21:37:22
  */
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
@@ -103,8 +103,8 @@ class _TestPageState extends State<TestPage> {
                       onPressed: () async {
                         _ensureEngine();
                         try {
-                          resp = (await engine.evaluate(
-                                  _controller.text ?? '', "<eval>"))
+                          resp = (await engine.evaluate(_controller.text ?? '',
+                                  name: "<eval>"))
                               .toString();
                         } catch (e) {
                           resp = e.toString();

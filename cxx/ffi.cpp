@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-09-06 18:32:45
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-24 22:32:15
+ * @LastEditTime: 2020-10-03 23:26:14
  */
 #include "ffi.h"
 #include <functional>
@@ -226,7 +226,7 @@ extern "C"
   }
 
   DLLEXPORT int32_t jsDefinePropertyValue(JSContext *ctx, JSValueConst *this_obj,
-                                      JSAtom prop, JSValue *val, int32_t flags)
+                                          JSAtom prop, JSValue *val, int32_t flags)
   {
     return JS_DefinePropertyValue(ctx, *this_obj, prop, *val, flags);
   }
@@ -247,7 +247,7 @@ extern "C"
   }
 
   DLLEXPORT int32_t jsGetOwnPropertyNames(JSContext *ctx, JSPropertyEnum **ptab,
-                                      uint32_t *plen, JSValueConst *obj, int32_t flags)
+                                          uint32_t *plen, JSValueConst *obj, int32_t flags)
   {
     return JS_GetOwnPropertyNames(ctx, ptab, plen, *obj, flags);
   }
@@ -259,7 +259,7 @@ extern "C"
 
   DLLEXPORT uint32_t sizeOfJSValue()
   {
-    return sizeof (JSValue);
+    return sizeof(JSValue);
   }
 
   DLLEXPORT void setJSValueList(JSValue *list, uint32_t i, JSValue *val)
@@ -292,5 +292,10 @@ extern "C"
   DLLEXPORT JSValue *jsNewPromiseCapability(JSContext *ctx, JSValue *resolving_funcs)
   {
     return new JSValue(JS_NewPromiseCapability(ctx, resolving_funcs));
+  }
+
+  DLLEXPORT void jsFree(JSContext *ctx, void *ptab)
+  {
+    js_free(ctx, ptab);
   }
 }

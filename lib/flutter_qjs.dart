@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:29:09
  * @LastEditors: ekibun
- * @LastEditTime: 2020-10-03 00:18:49
+ * @LastEditTime: 2020-10-03 21:55:07
  */
 import 'dart:async';
 import 'dart:ffi';
@@ -116,9 +116,10 @@ class FlutterQjs {
   }
 
   /// Evaluate js script.
-  Future<dynamic> evaluate(String command, String name) async {
+  Future<dynamic> evaluate(String command, {String name, int evalFlags}) async {
     _ensureEngine();
-    var jsval = jsEval(_ctx, command, name, JSEvalType.GLOBAL);
+    var jsval =
+        jsEval(_ctx, command, name ?? "<eval>", evalFlags ?? JSEvalType.GLOBAL);
     if (jsIsException(jsval) != 0) {
       throw Exception(parseJSException(_ctx));
     }

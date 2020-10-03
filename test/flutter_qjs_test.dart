@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-09-06 13:02:46
  * @LastEditors: ekibun
- * @LastEditTime: 2020-10-02 17:27:52
+ * @LastEditTime: 2020-10-03 21:36:06
  */
 import 'dart:convert';
 import 'dart:io';
@@ -67,7 +67,7 @@ void main() async {
           (...args)=>`hello \${args}!`, a,
           0.1, true, false, 1, "world", module
         ]));
-      """, "<eval>");
+      """, name: "<eval>");
     print(value);
     print(await value[0]('world'));
     qjs.close();

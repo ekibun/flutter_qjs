@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:16:50
  * @LastEditors: ekibun
- * @LastEditTime: 2020-10-03 00:36:36
+ * @LastEditTime: 2020-10-03 00:44:41
 -->
 # flutter_qjs
 
@@ -67,7 +67,7 @@ channel("http", ["http://example.com/"]);
 
 ~~I cannot find a way to convert the sync ffi callback into an async function. So the assets files received by async function `rootBundle.loadString` cannot be used in this version. I will appreciate it if you can provide me a solution to make `ModuleHandler` async.~~
 
-To use async function in module handler, try [Run on isolate thread](#isolate)
+To use async function in module handler, try [Run on isolate thread](#Run-on-isolate-thread)
 
 ```dart
 await engine.setModuleHandler((String module) {
@@ -94,7 +94,7 @@ try {
 
 5. Method `recreate` can destroy quickjs runtime that can be recreated again if you call `evaluate`, `recreat` can be used to reset the module cache. Call `close` to stop `dispatch` when you do not need it.
 
-### <span id="isolate">Run on isolate thread</span>
+### Run on isolate thread
 
 1. Create a `IsolateQjs` object, pass a handler to implement js-dart interaction. The handler is used in isolate, so the function must be a top-level function or a static method.
 

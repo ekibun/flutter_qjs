@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-09-19 22:07:47
  * @LastEditors: ekibun
- * @LastEditTime: 2020-10-02 16:37:16
+ * @LastEditTime: 2020-10-03 23:27:36
  */
 import 'dart:async';
 import 'dart:ffi';
@@ -84,11 +84,12 @@ class JSFunction extends JSRefValue {
       jsFreeValue(ctx, jsArg);
     }
     bool isException = jsIsException(jsRet) != 0;
-    var ret = jsToDart(ctx, jsRet);
-    jsFreeValue(ctx, jsRet);
     if (isException) {
+      jsFreeValue(ctx, jsRet);
       throw Exception(parseJSException(ctx));
     }
+    var ret = jsToDart(ctx, jsRet);
+    jsFreeValue(ctx, jsRet);
     return ret;
   }
 
@@ -257,6 +258,7 @@ dynamic jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
           jsFreeValue(ctx, jsProp);
           jsFreeAtom(ctx, jsAtom);
         }
+        jsFree(ctx, ptab.value);
         free(ptab);
         return ret;
       }

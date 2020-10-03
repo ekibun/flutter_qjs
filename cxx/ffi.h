@@ -106,4 +106,6 @@ extern "C"
   DLLEXPORT int32_t jsExecutePendingJob(JSRuntime *rt);
 
   DLLEXPORT JSValue *jsNewPromiseCapability(JSContext *ctx, JSValue *resolving_funcs);
+
+  DLLEXPORT void jsFree(JSContext *ctx, void *ptab);
 }

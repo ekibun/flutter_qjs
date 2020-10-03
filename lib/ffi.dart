@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-09-19 10:29:04
  * @LastEditors: ekibun
- * @LastEditTime: 2020-09-27 01:12:16
+ * @LastEditTime: 2020-10-03 23:27:15
  */
 import 'dart:ffi';
 import 'dart:io';
@@ -743,4 +743,17 @@ final Pointer Function(
       Pointer,
       Pointer,
     )>>("jsNewPromiseCapability")
+    .asFunction();
+
+/// void jsFree(JSContext *ctx, void *ptab)
+final void Function(
+  Pointer ctx,
+  Pointer ptab,
+) jsFree = qjsLib
+    .lookup<
+        NativeFunction<
+            Void Function(
+      Pointer,
+      Pointer,
+    )>>("jsFree")
     .asFunction();

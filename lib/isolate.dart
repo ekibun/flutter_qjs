@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-10-02 13:49:03
  * @LastEditors: ekibun
- * @LastEditTime: 2020-10-03 00:18:40
+ * @LastEditTime: 2020-10-03 22:21:31
  */
 import 'dart:async';
 import 'dart:ffi';
@@ -123,18 +123,21 @@ void _runJsIsolate(Map spawnMessage) async {
   sendPort.send(port.sendPort);
   qjs.setMethodHandler(methodHandler);
   qjs.setModuleHandler((name) {
-    var ptr = allocate<Int64>();
+    var ptr = allocate<Pointer<Utf8>>();
+    ptr.value = Pointer.fromAddress(0);
     sendPort.send({
       'type': 'module',
       'name': name,
       'ptr': ptr.address,
     });
-    ptr.value = 0;
-    while (ptr.value == 0) sleep(Duration.zero);
-    print(ptr.value);
-    if (ptr.value == -1) throw Exception("Module Not found");
-    var strptr = Pointer<Utf8>.fromAddress(ptr.value);
-    var ret = Utf8.fromUtf8(strptr);
+    while (ptr.value.address == 0) sleep(Duration.zero);
+    if (ptr.value.address == -1) throw Exception("Module Not found");
+    var ret = Utf8.fromUtf8(ptr.value);
+    sendPort.send({
+      'type': 'release',
+      'ptr': ptr.value.address,
+    });
+    free(ptr);
     return ret;
   });
   qjs.dispatch();
@@ -144,7 +147,11 @@ void _runJsIsolate(Map spawnMessage) async {
     try {
       switch (msg['type']) {
         case 'evaluate':
-          data = await qjs.evaluate(msg['command'], msg['name']);
+          data = await qjs.evaluate(
+            msg['command'],
+            name: msg['name'],
+            evalFlags: msg['flag'],
+          );
           break;
         case 'call':
           data = JSFunction.fromAddress(
@@ -174,7 +181,7 @@ typedef JsAsyncModuleHandler = Future<String> Function(String name);
 typedef JsIsolateSpawn = void Function(SendPort sendPort);
 
 class IsolateQjs {
-  SendPort _sendPort;
+  Future<SendPort> _sendPort;
   JsMethodHandler _methodHandler;
   JsAsyncModuleHandler _moduleHandler;
 
@@ -182,7 +189,7 @@ class IsolateQjs {
   /// The function must be a top-level function or a static method
   IsolateQjs(this._methodHandler);
 
-  Future<void> _ensureEngine() async {
+  _ensureEngine() {
     if (_sendPort != null) return;
     ReceivePort port = ReceivePort();
     Isolate.spawn(
@@ -193,28 +200,30 @@ class IsolateQjs {
       },
       errorsAreFatal: true,
     );
-    var completer = Completer();
+    var completer = Completer<SendPort>();
     port.listen((msg) async {
       if (msg is SendPort && !completer.isCompleted) {
-        _sendPort = msg;
-        completer.complete();
+        completer.complete(msg);
         return;
       }
       switch (msg['type']) {
         case 'module':
-          var ptr = Pointer<Int64>.fromAddress(msg['ptr']);
+          var ptr = Pointer<Pointer>.fromAddress(msg['ptr']);
           try {
-            ptr.value = Utf8.toUtf8(await _moduleHandler(msg['name'])).address;
+            ptr.value = Utf8.toUtf8(await _moduleHandler(msg['name']));
           } catch (e) {
-            ptr.value = -1;
+            ptr.value = Pointer.fromAddress(-1);
           }
+          break;
+        case 'release':
+          free(Pointer.fromAddress(msg['ptr']));
           break;
       }
     }, onDone: () {
       close();
       if (!completer.isCompleted) completer.completeError('isolate close');
     });
-    await completer.future;
+    _sendPort = completer.future;
   }
 
   /// Set a handler to manage js module.
@@ -223,24 +232,29 @@ class IsolateQjs {
   }
 
   close() {
-    _sendPort.send({
-      'type': 'close',
+    if (_sendPort == null) return;
+    _sendPort.then((sendPort) {
+      sendPort.send({
+        'type': 'close',
+      });
     });
     _sendPort = null;
   }
 
-  Future<dynamic> evaluate(String command, String name) async {
-    await _ensureEngine();
+  Future<dynamic> evaluate(String command, {String name, int evalFlags}) async {
+    _ensureEngine();
     var evaluatePort = ReceivePort();
-    _sendPort.send({
+    var sendPort = await _sendPort;
+    sendPort.send({
       'type': 'evaluate',
       'command': command,
       'name': name,
+      'flag': evalFlags,
       'port': evaluatePort.sendPort,
     });
     var result = await evaluatePort.first;
     if (result['data'] != null)
-      return _decodeData(result['data'], _sendPort);
+      return _decodeData(result['data'], sendPort);
     else
       throw result['error'];
   }
