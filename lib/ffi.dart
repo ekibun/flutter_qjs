@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-09-19 10:29:04
  * @LastEditors: ekibun
- * @LastEditTime: 2020-10-03 23:27:15
+ * @LastEditTime: 2020-10-06 23:13:13
  */
 import 'dart:ffi';
 import 'dart:io';
@@ -478,6 +478,7 @@ String jsToCString(
   Pointer val,
 ) {
   var ptr = _jsToCString(ctx, val);
+  if (ptr.address == 0) throw Exception("JSValue cannot convert to string");
   var str = Utf8.fromUtf8(ptr);
   jsFreeCString(ctx, ptr);
   return str;

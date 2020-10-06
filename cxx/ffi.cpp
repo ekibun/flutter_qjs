@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-09-06 18:32:45
  * @LastEditors: ekibun
- * @LastEditTime: 2020-10-03 23:26:14
+ * @LastEditTime: 2020-10-07 00:03:41
  */
 #include "ffi.h"
 #include <functional>
@@ -100,6 +100,7 @@ extern "C"
 
   DLLEXPORT JSValue *jsEval(JSContext *ctx, const char *input, size_t input_len, const char *filename, int32_t eval_flags)
   {
+    JS_ResetStackTop(JS_GetRuntime(ctx));
     return new JSValue(JS_Eval(ctx, input, input_len, filename, eval_flags));
   }
 
@@ -196,6 +197,7 @@ extern "C"
 
   DLLEXPORT const char *jsToCString(JSContext *ctx, JSValueConst *val)
   {
+    JS_ResetStackTop(JS_GetRuntime(ctx));
     return JS_ToCString(ctx, *val);
   }
 
@@ -270,6 +272,7 @@ extern "C"
   DLLEXPORT JSValue *jsCall(JSContext *ctx, JSValueConst *func_obj, JSValueConst *this_obj,
                             int32_t argc, JSValueConst *argv)
   {
+    JS_ResetStackTop(JS_GetRuntime(ctx));
     return new JSValue(JS_Call(ctx, *func_obj, *this_obj, argc, argv));
   }
 
@@ -285,6 +288,7 @@ extern "C"
 
   DLLEXPORT int32_t jsExecutePendingJob(JSRuntime *rt)
   {
+    JS_ResetStackTop(rt);
     JSContext *ctx;
     return JS_ExecutePendingJob(rt, &ctx);
   }

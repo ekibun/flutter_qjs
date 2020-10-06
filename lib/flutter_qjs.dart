@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:29:09
  * @LastEditors: ekibun
- * @LastEditTime: 2020-10-03 21:55:07
+ * @LastEditTime: 2020-10-06 23:47:13
  */
 import 'dart:async';
 import 'dart:ffi';
@@ -121,6 +121,7 @@ class FlutterQjs {
     var jsval =
         jsEval(_ctx, command, name ?? "<eval>", evalFlags ?? JSEvalType.GLOBAL);
     if (jsIsException(jsval) != 0) {
+      jsFreeValue(_ctx, jsval);
       throw Exception(parseJSException(_ctx));
     }
     var ret = runtimeOpaques[_rt]?.promsieToFuture(jsval);

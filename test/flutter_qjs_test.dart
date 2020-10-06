@@ -3,16 +3,16 @@
  * @Author: ekibun
  * @Date: 2020-09-06 13:02:46
  * @LastEditors: ekibun
- * @LastEditTime: 2020-10-03 21:36:06
+ * @LastEditTime: 2020-10-07 00:11:27
  */
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter_qjs/flutter_qjs.dart';
 import 'package:flutter_qjs/isolate.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 dynamic myMethodHandler(method, args) {
-  print([method, args]);
   return args;
 }
 
@@ -57,7 +57,6 @@ void main() async {
   test('jsToDart', () async {
     final qjs = IsolateQjs(myMethodHandler);
     qjs.setModuleHandler((name) async {
-      print(name);
       return "export default '${new DateTime.now()}'";
     });
     var value = await qjs.evaluate("""
@@ -68,8 +67,19 @@ void main() async {
           0.1, true, false, 1, "world", module
         ]));
       """, name: "<eval>");
-    print(value);
-    print(await value[0]('world'));
+    expect(value[1]['a'], value[1], reason: "recursive object");
+    expect(await value[0]('world'), 'hello world!', reason: "js function call");
+    qjs.close();
+  });
+  test('stack overflow', () async {
+    final qjs = FlutterQjs();
+    try {
+      await qjs.evaluate("a=()=>a();a();", name: "<eval>");
+    } catch (e) {
+      expect(
+          e.toString(), startsWith('Exception: InternalError: stack overflow'),
+          reason: "throw stack overflow");
+    }
     qjs.close();
   });
 }
