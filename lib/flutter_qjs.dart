@@ -1,17 +1,16 @@
 /*
- * @Description: quickjs engine
+ * @Description: 
  * @Author: ekibun
- * @Date: 2020-08-08 08:29:09
+ * @Date: 2020-10-14 19:35:56
  * @LastEditors: ekibun
- * @LastEditTime: 2020-10-06 23:47:13
+ * @LastEditTime: 2020-10-20 23:57:46
  */
 import 'dart:async';
-import 'dart:ffi';
 import 'dart:isolate';
 
-import 'package:ffi/ffi.dart';
-import 'package:flutter_qjs/ffi.dart';
-import 'package:flutter_qjs/wrapper.dart';
+import 'wasm.dart' if(dart.library.ffi) 'ffi.dart';
+import 'define.dart';
+import 'wrapper.dart';
 
 /// Handle function to manage js call with `dart(method, ...args)` function.
 typedef JsMethodHandler = dynamic Function(String method, List args);
@@ -36,12 +35,12 @@ class FlutterQjs {
           return dartToJs(
               ctx,
               methodHandler(
-                Utf8.fromUtf8(method.cast<Utf8>()),
+                pointerToString(method),
                 argvs,
               ));
         }
         if (moduleHandler == null) throw Exception("No ModuleHandler");
-        var ret = Utf8.toUtf8(moduleHandler(Utf8.fromUtf8(argv.cast<Utf8>())));
+        var ret = stringToPointer(moduleHandler(pointerToString(argv)));
         Future.microtask(() {
           free(ret);
         });

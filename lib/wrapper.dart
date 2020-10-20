@@ -3,15 +3,13 @@
  * @Author: ekibun
  * @Date: 2020-09-19 22:07:47
  * @LastEditors: ekibun
- * @LastEditTime: 2020-10-03 23:27:36
+ * @LastEditTime: 2020-10-20 23:58:06
  */
 import 'dart:async';
-import 'dart:ffi';
 import 'dart:typed_data';
 
-import 'package:ffi/ffi.dart';
-
-import 'ffi.dart';
+import 'define.dart';
+import 'wasm.dart' if(dart.library.ffi) 'dart.dart';
 
 class JSRefValue implements JSRef {
   Pointer val;

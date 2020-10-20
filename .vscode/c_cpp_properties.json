@@ -18,6 +18,20 @@
             "intelliSenseMode": "msvc-x64"
         },
         {
+            "name": "wasm",
+            "includePath": [
+                "D:/emsdk/upstream/emscripten/system/include"
+            ],
+            "defines": [
+                "EMSCRIPTEN"
+            ],
+            "windowsSdkVersion": "10.0.18362.0",
+            "compilerPath": "/usr/bin/clang++",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "gcc-x64"
+        },
+        {
             "name": "Android",
             "includePath": [
                 "C:/Users/ekibun/AppData/Local/Android/Sdk/ndk/21.3.6528147/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include"

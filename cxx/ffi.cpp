@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-09-06 18:32:45
  * @LastEditors: ekibun
- * @LastEditTime: 2020-10-07 00:03:41
+ * @LastEditTime: 2020-10-07 09:08:23
  */
 #include "ffi.h"
 #include <functional>
@@ -197,7 +197,6 @@ extern "C"
 
   DLLEXPORT const char *jsToCString(JSContext *ctx, JSValueConst *val)
   {
-    JS_ResetStackTop(JS_GetRuntime(ctx));
     return JS_ToCString(ctx, *val);
   }
 

@@ -1,18 +1,17 @@
 /*
  * @Description: 
  * @Author: ekibun
- * @Date: 2020-10-02 13:49:03
+ * @Date: 2020-10-14 19:38:09
  * @LastEditors: ekibun
- * @LastEditTime: 2020-10-03 22:21:31
+ * @LastEditTime: 2020-10-20 23:57:55
  */
 import 'dart:async';
-import 'dart:ffi';
 import 'dart:io';
 import 'dart:isolate';
 
-import 'package:ffi/ffi.dart';
-import 'package:flutter_qjs/flutter_qjs.dart';
-import 'package:flutter_qjs/wrapper.dart';
+import 'wasm.dart' if(dart.library.ffi) 'ffi.dart';
+import 'flutter_qjs.dart';
+import 'wrapper.dart';
 
 class IsolateJSFunction {
   int val;
@@ -123,7 +122,7 @@ void _runJsIsolate(Map spawnMessage) async {
   sendPort.send(port.sendPort);
   qjs.setMethodHandler(methodHandler);
   qjs.setModuleHandler((name) {
-    var ptr = allocate<Pointer<Utf8>>();
+    var ptr = allocate<Pointer>();
     ptr.value = Pointer.fromAddress(0);
     sendPort.send({
       'type': 'module',
@@ -132,7 +131,7 @@ void _runJsIsolate(Map spawnMessage) async {
     });
     while (ptr.value.address == 0) sleep(Duration.zero);
     if (ptr.value.address == -1) throw Exception("Module Not found");
-    var ret = Utf8.fromUtf8(ptr.value);
+    var ret = pointerToString(ptr.value);
     sendPort.send({
       'type': 'release',
       'ptr': ptr.value.address,
@@ -210,7 +209,7 @@ class IsolateQjs {
         case 'module':
           var ptr = Pointer<Pointer>.fromAddress(msg['ptr']);
           try {
-            ptr.value = Utf8.toUtf8(await _moduleHandler(msg['name']));
+            ptr.value = stringToPointer(await _moduleHandler(msg['name']));
           } catch (e) {
             ptr.value = Pointer.fromAddress(-1);
           }

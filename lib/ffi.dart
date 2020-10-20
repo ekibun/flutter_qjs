@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-09-19 10:29:04
  * @LastEditors: ekibun
- * @LastEditTime: 2020-10-06 23:13:13
+ * @LastEditTime: 2020-10-21 00:03:45
  */
 import 'dart:ffi';
 import 'dart:io';
@@ -11,42 +11,17 @@ import 'dart:isolate';
 
 import 'package:ffi/ffi.dart';
 
-abstract class JSRef {
-  void release();
+import 'define.dart';
+
+export 'package:ffi/ffi.dart';
+export 'dart:ffi';
+
+String pointerToString(Pointer ptr){
+  return Utf8.fromUtf8(ptr.cast<Utf8>());
 }
 
-/// JS_Eval() flags
-class JSEvalType {
-  static const GLOBAL = 0 << 0;
-  static const MODULE = 1 << 0;
-}
-
-class JSProp {
-  static const CONFIGURABLE = (1 << 0);
-  static const WRITABLE = (1 << 1);
-  static const ENUMERABLE = (1 << 2);
-  static const C_W_E = (CONFIGURABLE | WRITABLE | ENUMERABLE);
-}
-
-class JSTag {
-  static const FIRST = -11; /* first negative tag */
-  static const BIG_DECIMAL = -11;
-  static const BIG_INT = -10;
-  static const BIG_FLOAT = -9;
-  static const SYMBOL = -8;
-  static const STRING = -7;
-  static const MODULE = -3; /* used internally */
-  static const FUNCTION_BYTECODE = -2; /* used internally */
-  static const OBJECT = -1;
-
-  static const INT = 0;
-  static const BOOL = 1;
-  static const NULL = 2;
-  static const UNDEFINED = 3;
-  static const UNINITIALIZED = 4;
-  static const CATCH_OFFSET = 5;
-  static const EXCEPTION = 6;
-  static const FLOAT64 = 7;
+Pointer stringToPointer(String str){
+  return Utf8.toUtf8(str);
 }
 
 final DynamicLibrary qjsLib = Platform.environment['FLUTTER_TEST'] == 'true'
