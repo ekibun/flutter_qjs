@@ -3,8 +3,13 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:16:50
  * @LastEditors: ekibun
- * @LastEditTime: 2020-10-06 23:18:19
+ * @LastEditTime: 2020-12-02 11:36:40
 -->
+
+## 0.1.4
+
+* fix crash on android x86.
+
 ## 0.1.3
 
 * fix randomly crash by stack overflow.

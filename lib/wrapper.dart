@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-09-19 22:07:47
  * @LastEditors: ekibun
- * @LastEditTime: 2020-10-03 23:27:36
+ * @LastEditTime: 2020-12-02 11:14:03
  */
 import 'dart:async';
 import 'dart:ffi';
@@ -212,7 +212,7 @@ dynamic jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
     case JSTag.STRING:
       return jsToCString(ctx, val);
     case JSTag.OBJECT:
-      Pointer<Int64> psize = allocate<Int64>();
+      Pointer<IntPtr> psize = allocate<IntPtr>();
       Pointer<Uint8> buf = jsGetArrayBuffer(ctx, psize, val);
       int size = psize.value;
       free(psize);

@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-09-19 10:29:04
  * @LastEditors: ekibun
- * @LastEditTime: 2020-10-06 23:13:13
+ * @LastEditTime: 2020-12-02 11:14:35
  */
 import 'dart:ffi';
 import 'dart:io';
@@ -199,7 +199,7 @@ final Pointer Function(
             Pointer Function(
       Pointer,
       Pointer<Utf8>,
-      Int64,
+      IntPtr,
       Pointer<Utf8>,
       Int32,
     )>>("jsEval")
@@ -330,7 +330,7 @@ final Pointer Function(
             Pointer Function(
       Pointer,
       Pointer<Uint8>,
-      Uint64,
+      IntPtr,
     )>>("jsNewArrayBufferCopy")
     .asFunction();
 
@@ -487,14 +487,14 @@ String jsToCString(
 /// uint8_t *jsGetArrayBuffer(JSContext *ctx, size_t *psize, JSValueConst *obj)
 final Pointer<Uint8> Function(
   Pointer ctx,
-  Pointer<Int64> psize,
+  Pointer<IntPtr> psize,
   Pointer val,
 ) jsGetArrayBuffer = qjsLib
     .lookup<
         NativeFunction<
             Pointer<Uint8> Function(
       Pointer,
-      Pointer<Int64>,
+      Pointer<IntPtr>,
       Pointer,
     )>>("jsGetArrayBuffer")
     .asFunction();

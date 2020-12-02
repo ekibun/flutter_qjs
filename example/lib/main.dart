@@ -3,7 +3,7 @@
  * @Author: ekibun
  * @Date: 2020-08-08 08:16:51
  * @LastEditors: ekibun
- * @LastEditTime: 2020-10-03 21:37:22
+ * @LastEditTime: 2020-12-02 11:28:06
  */
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
@@ -112,7 +112,7 @@ class _TestPageState extends State<TestPage> {
                         setState(() {});
                       }),
                   FlatButton(
-                      child: Text("close engine"),
+                      child: Text("reset engine"),
                       onPressed: () async {
                         if (engine == null) return;
                         await engine.close();
