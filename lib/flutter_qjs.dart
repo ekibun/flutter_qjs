@@ -128,4 +128,18 @@ class FlutterQjs {
     jsFreeValue(_ctx, jsval);
     return ret;
   }
+
+  /// Evaluate js script (Sync).
+  dynamic evaluateSync(String command, {String name, int evalFlags}) {
+    _ensureEngine();
+    var jsval =
+    jsEval(_ctx, command, name ?? "<eval>", evalFlags ?? JSEvalType.GLOBAL);
+    if (jsIsException(jsval) != 0) {
+      jsFreeValue(_ctx, jsval);
+      throw Exception(parseJSException(_ctx));
+    }
+    var result = jsToDart(_ctx, jsval);
+    jsFreeValue(_ctx, jsval);
+    return result;
+  }
 }
