@@ -253,7 +253,7 @@ class IsolateQjs {
       'port': evaluatePort.sendPort,
     });
     var result = await evaluatePort.first;
-    if (result['data'] != null)
+    if (result['error'] == null)
       return _decodeData(result['data'], sendPort);
     else
       throw result['error'];
