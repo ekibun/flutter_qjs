@@ -6,6 +6,12 @@
  * @LastEditTime: 2020-12-02 11:36:40
 -->
 
+## 0.2.0
+
+* breakdown change with new constructor.
+* fix make release in ios.
+* fix crash in wrapping js Promise.
+
 ## 0.1.4
 
 * fix crash on android x86.

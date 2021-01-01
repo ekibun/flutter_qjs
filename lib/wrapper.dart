@@ -130,8 +130,8 @@ Pointer dartToJs(Pointer ctx, dynamic val, {Map<dynamic, dynamic> cache}) {
     var ret = jsNewPromiseCapability(ctx, resolvingFunc);
     var res = jsToDart(ctx, resolvingFunc);
     var rej = jsToDart(ctx, resolvingFunc2);
-    jsFreeValue(ctx, resolvingFunc);
-    jsFreeValue(ctx, resolvingFunc2);
+    jsFreeValue(ctx, resolvingFunc, free: false);
+    jsFreeValue(ctx, resolvingFunc2, free: false);
     free(resolvingFunc);
     val.then((value) {
       res(value);
@@ -225,10 +225,12 @@ dynamic jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
       }
       if (jsIsFunction(ctx, val) != 0) {
         return JSFunction(ctx, val);
+      } else if (jsIsPromise(ctx, val) != 0) {
+        return runtimeOpaques[jsGetRuntime(ctx)]?.promiseToFuture(val);
       } else if (jsIsArray(ctx, val) != 0) {
         Pointer jslength = jsGetPropertyStr(ctx, val, "length");
         int length = jsToInt64(ctx, jslength);
-        List<dynamic> ret = List();
+        List<dynamic> ret = [];
         cache[valptr] = ret;
         for (int i = 0; i < length; ++i) {
           var jsAtomVal = jsNewInt64(ctx, i);
@@ -274,7 +276,8 @@ Pointer jsNewContextWithPromsieWrapper(Pointer rt) {
       ctx,
       """
         (value) => {
-          const __ret = Promise.resolve(value)
+          const __ret = {};
+          Promise.resolve(value)
             .then(v => {
               __ret.__value = v;
               __ret.__resolved = true;
@@ -286,10 +289,10 @@ Pointer jsNewContextWithPromsieWrapper(Pointer rt) {
         }
         """,
       "<future>",
-      JSEvalType.GLOBAL);
+      JSEvalFlag.GLOBAL);
   var promiseWrapper = JSRefValue(ctx, jsPromiseWrapper);
   jsFreeValue(ctx, jsPromiseWrapper);
-  runtimeOpaques[rt].promsieToFuture = (promise) {
+  runtimeOpaques[rt].promiseToFuture = (promise) {
     var completer = Completer();
     var wrapper = promiseWrapper.val;
     if (wrapper == null)

@@ -5,15 +5,41 @@
  * @LastEditors: ekibun
  * @LastEditTime: 2020-10-07 00:11:27
  */
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter_qjs/ffi.dart';
 import 'package:flutter_qjs/flutter_qjs.dart';
 import 'package:flutter_qjs/isolate.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 dynamic myMethodHandler(method, args) {
   return args;
+}
+
+Future testEvaluate(qjs) async {
+  var value = await qjs.evaluate("""
+      const a = {};
+      a.a = a;
+      import('test').then((module) => channel('channel', [
+          (...args)=>`hello \${args}!`, a,
+          Promise.reject('test Promise.reject'), Promise.resolve('test Promise.resolve'),
+          0.1, true, false, 1, "world", module
+        ]));
+      """, name: "<eval>");
+  expect(await value[0]('world'), 'hello world!', reason: "js function call");
+  expect(value[1]['a'], value[1], reason: "recursive object");
+  expect(value[2], isInstanceOf<Future>(), reason: "promise object");
+  try {
+    await value[2];
+    throw 'Future not reject';
+  } catch (e) {
+    expect(e, startsWith('test Promise.reject\n'),
+        reason: "promise object reject");
+  }
+  expect(await value[3], 'test Promise.resolve',
+      reason: "promise object resolve");
 }
 
 void main() async {
@@ -54,27 +80,56 @@ void main() async {
     stderr.write(result.stderr);
     expect(result.exitCode, 0);
   }, testOn: 'mac-os');
-  test('jsToDart', () async {
-    final qjs = IsolateQjs(myMethodHandler);
-    qjs.setModuleHandler((name) async {
-      return "export default '${new DateTime.now()}'";
-    });
-    var value = await qjs.evaluate("""
-      const a = {};
-      a.a = a;
-      import("test").then((module) => channel('channel', [
-          (...args)=>`hello \${args}!`, a,
-          0.1, true, false, 1, "world", module
-        ]));
-      """, name: "<eval>");
-    expect(value[1]['a'], value[1], reason: "recursive object");
-    expect(await value[0]('world'), 'hello world!', reason: "js function call");
+  test('module', () async {
+    final qjs = FlutterQjs(
+      moduleHandler: (name) {
+        return "export default 'test module'";
+      },
+    );
+    qjs.dispatch();
+    qjs.evaluate('''
+      import handlerData from 'test';
+      export default {
+        data: handlerData
+      };
+      ''', name: 'evalModule', evalFlags: JSEvalFlag.MODULE);
+    var result = await qjs.evaluate('import("evalModule")');
+    expect(result['default']['data'], 'test module', reason: "eval module");
     qjs.close();
+  });
+  test('jsToDart', () async {
+    await runZonedGuarded(() async {
+      final qjs = FlutterQjs(
+        methodHandler: myMethodHandler,
+        moduleHandler: (name) {
+          return "export default '${new DateTime.now()}'";
+        },
+      );
+      qjs.dispatch();
+      await testEvaluate(qjs);
+      qjs.close();
+    }, (e, stack) {
+      if (e is TestFailure) throw e;
+    });
+  });
+  test('isolate', () async {
+    await runZonedGuarded(() async {
+      final qjs = IsolateQjs(
+        methodHandler: myMethodHandler,
+        moduleHandler: (name) async {
+          return "export default '${new DateTime.now()}'";
+        },
+      );
+      await testEvaluate(qjs);
+      qjs.close();
+    }, (e, stack) {
+      if (e is TestFailure) throw e;
+    });
   });
   test('stack overflow', () async {
     final qjs = FlutterQjs();
     try {
-      await qjs.evaluate("a=()=>a();a();", name: "<eval>");
+      qjs.evaluate("a=()=>a();a();", name: "<eval>");
     } catch (e) {
       expect(
           e.toString(), startsWith('Exception: InternalError: stack overflow'),

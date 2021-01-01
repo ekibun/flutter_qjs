@@ -154,16 +154,18 @@ extern "C"
     return new JSValue(JS_NewObject(ctx));
   }
 
-  DLLEXPORT void jsFreeValue(JSContext *ctx, JSValue *v)
+  DLLEXPORT void jsFreeValue(JSContext *ctx, JSValue *v, int32_t free)
   {
     JS_FreeValue(ctx, *v);
-    delete v;
+    if (free)
+      delete v;
   }
 
-  DLLEXPORT void jsFreeValueRT(JSRuntime *rt, JSValue *v)
+  DLLEXPORT void jsFreeValueRT(JSRuntime *rt, JSValue *v, int32_t free)
   {
     JS_FreeValueRT(rt, *v);
-    delete v;
+    if (free)
+      delete v;
   }
 
   DLLEXPORT JSValue *jsDupValue(JSContext *ctx, JSValueConst *v)
@@ -213,6 +215,11 @@ extern "C"
   DLLEXPORT int32_t jsIsFunction(JSContext *ctx, JSValueConst *val)
   {
     return JS_IsFunction(ctx, *val);
+  }
+
+  DLLEXPORT int32_t jsIsPromise(JSContext *ctx, JSValueConst *val)
+  {
+    return JS_IsPromise(ctx, *val);
   }
 
   DLLEXPORT int32_t jsIsArray(JSContext *ctx, JSValueConst *val)

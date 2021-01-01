@@ -51,9 +51,9 @@ extern "C"
 
   DLLEXPORT JSValue *jsNewObject(JSContext *ctx);
 
-  DLLEXPORT void jsFreeValue(JSContext *ctx, JSValue *v);
+  DLLEXPORT void jsFreeValue(JSContext *ctx, JSValue *v, int32_t free);
 
-  DLLEXPORT void jsFreeValueRT(JSRuntime *rt, JSValue *v);
+  DLLEXPORT void jsFreeValueRT(JSRuntime *rt, JSValue *v, int32_t free);
 
   DLLEXPORT JSValue *jsDupValue(JSContext *ctx, JSValueConst *v);
 
@@ -72,6 +72,8 @@ extern "C"
   DLLEXPORT uint8_t *jsGetArrayBuffer(JSContext *ctx, size_t *psize, JSValueConst *obj);
 
   DLLEXPORT int32_t jsIsFunction(JSContext *ctx, JSValueConst *val);
+
+  DLLEXPORT int32_t jsIsPromise(JSContext *ctx, JSValueConst *val);
 
   DLLEXPORT int32_t jsIsArray(JSContext *ctx, JSValueConst *val);
 

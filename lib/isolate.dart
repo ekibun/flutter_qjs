@@ -76,8 +76,20 @@ dynamic _encodeData(dynamic data, {Map<dynamic, dynamic> cache}) {
     };
   }
   if (data is Future) {
-    // Not support
-    return {};
+    var futurePort = ReceivePort();
+    data.then((value) {
+      futurePort.first.then((port) => {
+            (port as SendPort).send({'data': _encodeData(value)})
+          });
+    }, onError: (e, stack) {
+      futurePort.first.then((port) => {
+            (port as SendPort)
+                .send({'error': e.toString() + "\n" + stack.toString()})
+          });
+    });
+    return {
+      '__js_future_port': futurePort.sendPort,
+    };
   }
   return data;
 }
@@ -104,6 +116,20 @@ dynamic _decodeData(dynamic data, SendPort port,
         return JSFunction.fromAddress(ctx, val);
       }
     }
+    if (data.containsKey('__js_future_port')) {
+      SendPort port = data['__js_future_port'];
+      var futurePort = ReceivePort();
+      port.send(futurePort.sendPort);
+      var futureCompleter = Completer();
+      futurePort.first.then((value) {
+        if (value['error'] != null) {
+          futureCompleter.completeError(value['error']);
+        } else {
+          futureCompleter.complete(value['data']);
+        }
+      });
+      return futureCompleter.future;
+    }
     var ret = {};
     cache[data] = ret;
     for (var entry in data.entries) {
@@ -116,30 +142,31 @@ dynamic _decodeData(dynamic data, SendPort port,
 }
 
 void _runJsIsolate(Map spawnMessage) async {
-  var qjs = FlutterQjs();
   SendPort sendPort = spawnMessage['port'];
   JsMethodHandler methodHandler = spawnMessage['handler'];
   ReceivePort port = ReceivePort();
   sendPort.send(port.sendPort);
-  qjs.setMethodHandler(methodHandler);
-  qjs.setModuleHandler((name) {
-    var ptr = allocate<Pointer<Utf8>>();
-    ptr.value = Pointer.fromAddress(0);
-    sendPort.send({
-      'type': 'module',
-      'name': name,
-      'ptr': ptr.address,
-    });
-    while (ptr.value.address == 0) sleep(Duration.zero);
-    if (ptr.value.address == -1) throw Exception("Module Not found");
-    var ret = Utf8.fromUtf8(ptr.value);
-    sendPort.send({
-      'type': 'release',
-      'ptr': ptr.value.address,
-    });
-    free(ptr);
-    return ret;
-  });
+  var qjs = FlutterQjs(
+    methodHandler: methodHandler,
+    moduleHandler: (name) {
+      var ptr = allocate<Pointer<Utf8>>();
+      ptr.value = Pointer.fromAddress(0);
+      sendPort.send({
+        'type': 'module',
+        'name': name,
+        'ptr': ptr.address,
+      });
+      while (ptr.value.address == 0) sleep(Duration.zero);
+      if (ptr.value.address == -1) throw Exception("Module Not found");
+      var ret = Utf8.fromUtf8(ptr.value);
+      sendPort.send({
+        'type': 'release',
+        'ptr': ptr.value.address,
+      });
+      free(ptr);
+      return ret;
+    },
+  );
   qjs.dispatch();
   await for (var msg in port) {
     var data;
@@ -160,6 +187,7 @@ void _runJsIsolate(Map spawnMessage) async {
           ).invoke(_decodeData(msg['args'], null));
           break;
         case 'close':
+          qjs.port.close();
           qjs.close();
           port.close();
           break;
@@ -182,12 +210,15 @@ typedef JsIsolateSpawn = void Function(SendPort sendPort);
 
 class IsolateQjs {
   Future<SendPort> _sendPort;
-  JsMethodHandler _methodHandler;
-  JsAsyncModuleHandler _moduleHandler;
 
   /// Set a handler to manage js call with `channel(method, args)` function.
   /// The function must be a top-level function or a static method
-  IsolateQjs(this._methodHandler);
+  JsMethodHandler methodHandler;
+
+  /// Set a handler to manage js module.
+  JsAsyncModuleHandler moduleHandler;
+
+  IsolateQjs({this.methodHandler, this.moduleHandler});
 
   _ensureEngine() {
     if (_sendPort != null) return;
@@ -196,7 +227,7 @@ class IsolateQjs {
       _runJsIsolate,
       {
         'port': port.sendPort,
-        'handler': _methodHandler,
+        'handler': methodHandler,
       },
       errorsAreFatal: true,
     );
@@ -210,7 +241,7 @@ class IsolateQjs {
         case 'module':
           var ptr = Pointer<Pointer>.fromAddress(msg['ptr']);
           try {
-            ptr.value = Utf8.toUtf8(await _moduleHandler(msg['name']));
+            ptr.value = Utf8.toUtf8(await moduleHandler(msg['name']));
           } catch (e) {
             ptr.value = Pointer.fromAddress(-1);
           }
@@ -224,11 +255,6 @@ class IsolateQjs {
       if (!completer.isCompleted) completer.completeError('isolate close');
     });
     _sendPort = completer.future;
-  }
-
-  /// Set a handler to manage js module.
-  setModuleHandler(JsAsyncModuleHandler handler) {
-    _moduleHandler = handler;
   }
 
   close() {
@@ -253,8 +279,9 @@ class IsolateQjs {
       'port': evaluatePort.sendPort,
     });
     var result = await evaluatePort.first;
-    if (result['error'] == null)
+    if (result['error'] == null){
       return _decodeData(result['data'], sendPort);
+    }
     else
       throw result['error'];
   }

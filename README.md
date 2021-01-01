@@ -19,84 +19,79 @@ ES6 module with `import` function is supported and can be managed in dart with `
 
 A global function `channel` is presented to invoke dart function. Data conversion between dart and js are implemented as follow:
 
-| dart | js |
-| --- | --- |
-| Bool | boolean |
-| Int | number |
-| Double | number |
-| String | string |
-| Uint8List | ArrayBuffer |
-| List | Array |
-| Map | Object |
-| JSFunction | function(....args) |
-| Future | Promise |
+| dart                                                | js                 |
+| --------------------------------------------------- | ------------------ |
+| Bool                                                | boolean            |
+| Int                                                 | number             |
+| Double                                              | number             |
+| String                                              | string             |
+| Uint8List                                           | ArrayBuffer        |
+| List                                                | Array              |
+| Map                                                 | Object             |
+| JSFunction(...args) <br> IsolateJSFunction(...args) | function(....args) |
+| Future                                              | Promise            |
 
-**notice:** `function` can only be sent from js to dart. `Promise` return by `evaluate` will be automatically tracked and return the resolved data.
+**notice:** `function` can only be sent from js to dart. `IsolateJSFunction` always returns asynchronously.
 
 ## Getting Started
 
 ### Run on main thread
 
-1. Create a `FlutterQjs` object. Call `dispatch` to dispatch event loop.
+1. Create a `FlutterQjs` object, pass handlers to implement js-dart interaction and resolving modules. For example, you can use `Dio` to implement http in js:
 
 ```dart
-final engine = FlutterQjs();
-await engine.dispatch();
+final engine = FlutterQjs(
+  methodHandler: (String method, List arg) {
+    switch (method) {
+      case "http":
+        return Dio().get(arg[0]).then((response) => response.data);
+      default:
+        throw Exception("No such method");
+    }
+  },
+  moduleHandler: (String module) {
+    if(module == "hello")
+      return "export default (name) => `hello \${name}!`;";
+    throw Exception("Module Not found");
+  },
+);
 ```
 
-2. Call `setMethodHandler` to implement js-dart interaction. For example, you can use `Dio` to implement http in js:
-
-```dart
-await engine.setMethodHandler((String method, List arg) {
-  switch (method) {
-    case "http":
-      return Dio().get(arg[0]).then((response) => response.data);
-    default:
-      throw Exception("No such method");
-  }
-});
-```
-
-and in javascript, call `channel` function to get data, make sure the second parameter is a list:
+in javascript, `channel` function is equiped to invoke `methodHandler`, make sure the second parameter is a list:
 
 ```javascript
 channel("http", ["http://example.com/"]);
 ```
 
-3. Call `setModuleHandler` to resolve the js module.
-
-~~I cannot find a way to convert the sync ffi callback into an async function. So the assets files received by async function `rootBundle.loadString` cannot be used in this version. I will appreciate it if you can provide me a solution to make `ModuleHandler` async.~~
-
-To use async function in module handler, try [Run on isolate thread](#Run-on-isolate-thread)
-
-```dart
-await engine.setModuleHandler((String module) {
-  if(module == "hello") return "export default (name) => `hello \${name}!`;";
-  throw Exception("Module Not found");
-});
-```
-
-and in javascript, call `import` function to get module:
+`import` function is used to get modules:
 
 ```javascript
 import("hello").then(({default: greet}) => greet("world"));
 ```
 
-4. Use `evaluate` to run js script:
+**notice:** To use async function in module handler, try [Run on isolate thread](#Run-on-isolate-thread)
+
+2. Then call `dispatch` to dispatch event loop.
+
+```dart
+engine.dispatch();
+```
+
+1. Use `evaluate` to run js script, now you can use it synchronously, or use await to resolve `Promise`:
 
 ```dart
 try {
-  print(await engine.evaluate(code ?? '', "<eval>"));
+  print(engine.evaluate(code ?? ''));
 } catch (e) {
   print(e.toString());
 }
 ```
 
-5. Method `recreate` can destroy quickjs runtime that can be recreated again if you call `evaluate`, `recreat` can be used to reset the module cache. Call `close` to stop `dispatch` when you do not need it.
+1. Method `close` can destroy quickjs runtime that can be recreated again if you call `evaluate`.
 
 ### Run on isolate thread
 
-1. Create a `IsolateQjs` object, pass a handler to implement js-dart interaction. The handler is used in isolate, so the function must be a top-level function or a static method.
+1. Create a `IsolateQjs` object, pass handlers to implement js-dart interaction and resolving modules. The `methodHandler` is used in isolate, so **the handler function must be a top-level function or a static method**. Async function such as `rootBundle.loadString` can be used now to get module:
 
 ```dart
 dynamic methodHandler(String method, List arg) {
@@ -107,32 +102,17 @@ dynamic methodHandler(String method, List arg) {
       throw Exception("No such method");
   }
 }
-final engine = IsolateQjs(methodHandler);
+final engine = IsolateQjs(
+  methodHandler: methodHandler,
+  moduleHandler: (String module) async {
+    return await rootBundle.loadString(
+        "js/" + module.replaceFirst(new RegExp(r".js$"), "") + ".js");
+  },
+);
 // not need engine.dispatch();
 ```
 
-and in javascript, call `channel` function to get data, make sure the second parameter is a list:
-
-```javascript
-channel("http", ["http://example.com/"]);
-```
-
-2. Call `setModuleHandler` to resolve the js module. Async function such as `rootBundle.loadString` can be used now to get module. The handler is called in main thread.
-
-```dart
-await engine.setModuleHandler((String module) async {
-  return await rootBundle.loadString(
-      "js/" + module.replaceFirst(new RegExp(r".js$"), "") + ".js");
-});
-```
-
-and in javascript, call `import` function to get module:
-
-```javascript
-import("hello").then(({default: greet}) => greet("world"));
-```
-
-3. Same as run on main thread, use `evaluate` to run js script:
+2. Same as run on main thread, use `evaluate` to run js script. In this way, `Promise` return by `evaluate` will be automatically tracked and return the resolved data:
 
 ```dart
 try {
@@ -142,7 +122,7 @@ try {
 }
 ```
 
-4. Method `close` (same as `recreate` in main thread) can destroy quickjs runtime that can be recreated again if you call `evaluate`.
+3. Method `close` can destroy quickjs runtime that can be recreated again if you call `evaluate`.
 
 [This example](example/lib/main.dart) contains a complete demonstration on how to use this plugin.
 

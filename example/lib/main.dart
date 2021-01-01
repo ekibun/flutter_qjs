@@ -75,12 +75,14 @@ class _TestPageState extends State<TestPage> {
 
   _ensureEngine() {
     if (engine != null) return;
-    engine = IsolateQjs(methodHandler);
-    engine.setModuleHandler((String module) async {
-      if (module == "test") return "export default '${new DateTime.now()}'";
-      return await rootBundle.loadString(
-          "js/" + module.replaceFirst(new RegExp(r".js$"), "") + ".js");
-    });
+    engine = IsolateQjs(
+      methodHandler: methodHandler,
+      moduleHandler: (String module) async {
+        if (module == "test") return "export default '${new DateTime.now()}'";
+        return await rootBundle.loadString(
+            "js/" + module.replaceFirst(new RegExp(r".js$"), "") + ".js");
+      },
+    );
   }
 
   @override

@@ -23,8 +23,14 @@ class FlutterQjs {
   Pointer _rt;
   Pointer _ctx;
   ReceivePort port = ReceivePort();
+
+  /// Set a handler to manage js call with `channel(method, args)` function.
   JsMethodHandler methodHandler;
+
+  /// Set a handler to manage js module.
   JsModuleHandler moduleHandler;
+
+  FlutterQjs({this.methodHandler, this.moduleHandler});
 
   _ensureEngine() {
     if (_rt != null) return;
@@ -61,18 +67,8 @@ class FlutterQjs {
     _ctx = jsNewContextWithPromsieWrapper(_rt);
   }
 
-  /// Set a handler to manage js call with `channel(method, args)` function.
-  setMethodHandler(JsMethodHandler handler) {
-    methodHandler = handler;
-  }
-
-  /// Set a handler to manage js module.
-  setModuleHandler(JsModuleHandler handler) {
-    moduleHandler = handler;
-  }
-
   /// Free Runtime and Context which can be recreate when evaluate again.
-  recreate() {
+  close() {
     if (_rt != null) {
       jsFreeContext(_ctx);
       jsFreeRuntime(_rt);
@@ -81,18 +77,10 @@ class FlutterQjs {
     _ctx = null;
   }
 
-  /// Close ReceivePort.
-  close() {
-    if (port != null) {
-      port.close();
-      recreate();
-    }
-    port = null;
-  }
-
   /// DispatchMessage
   Future<void> dispatch() async {
     await for (var _ in port) {
+      if (_rt == null) continue;
       while (true) {
         int err = jsExecutePendingJob(_rt);
         if (err <= 0) {
@@ -116,24 +104,14 @@ class FlutterQjs {
   }
 
   /// Evaluate js script.
-  Future<dynamic> evaluate(String command, {String name, int evalFlags}) async {
+  dynamic evaluate(String command, {String name, int evalFlags}) {
     _ensureEngine();
-    var jsval =
-        jsEval(_ctx, command, name ?? "<eval>", evalFlags ?? JSEvalType.GLOBAL);
-    if (jsIsException(jsval) != 0) {
-      jsFreeValue(_ctx, jsval);
-      throw Exception(parseJSException(_ctx));
-    }
-    var ret = runtimeOpaques[_rt]?.promsieToFuture(jsval);
-    jsFreeValue(_ctx, jsval);
-    return ret;
-  }
-
-  /// Evaluate js script (Sync).
-  dynamic evaluateSync(String command, {String name, int evalFlags}) {
-    _ensureEngine();
-    var jsval =
-    jsEval(_ctx, command, name ?? "<eval>", evalFlags ?? JSEvalType.GLOBAL);
+    var jsval = jsEval(
+      _ctx,
+      command,
+      name ?? "<eval>",
+      evalFlags ?? JSEvalFlag.GLOBAL,
+    );
     if (jsIsException(jsval) != 0) {
       jsFreeValue(_ctx, jsval);
       throw Exception(parseJSException(_ctx));

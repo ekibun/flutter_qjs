@@ -16,7 +16,7 @@ abstract class JSRef {
 }
 
 /// JS_Eval() flags
-class JSEvalType {
+class JSEvalFlag {
   static const GLOBAL = 0 << 0;
   static const MODULE = 1 << 0;
 }
@@ -110,9 +110,9 @@ typedef JSChannel = Pointer Function(Pointer ctx, Pointer method, Pointer argv);
 
 class RuntimeOpaque {
   JSChannel channel;
-  List<JSRef> ref = List();
+  List<JSRef> ref = [];
   ReceivePort port;
-  Future Function(Pointer) promsieToFuture;
+  Future Function(Pointer) promiseToFuture;
 }
 
 final Map<Pointer, RuntimeOpaque> runtimeOpaques = Map();
@@ -356,31 +356,51 @@ final Pointer Function(
     )>>("jsNewObject")
     .asFunction();
 
-/// void jsFreeValue(JSContext *ctx, JSValue *val)
+/// void jsFreeValue(JSContext *ctx, JSValue *val, int32_t free)
 final void Function(
   Pointer ctx,
   Pointer val,
-) jsFreeValue = qjsLib
+  int free,
+) _jsFreeValue = qjsLib
     .lookup<
         NativeFunction<
             Void Function(
       Pointer,
       Pointer,
+      Int32,
     )>>("jsFreeValue")
     .asFunction();
 
-/// void jsFreeValueRT(JSRuntime *rt, JSValue *v)
+void jsFreeValue(
+  Pointer ctx,
+  Pointer val, {
+  bool free = true,
+}) {
+  _jsFreeValue(ctx, val, free ? 1 : 0);
+}
+
+/// void jsFreeValue(JSRuntime *rt, JSValue *val, int32_t free)
 final void Function(
   Pointer rt,
   Pointer val,
-) jsFreeValueRT = qjsLib
+  int free,
+) _jsFreeValueRT = qjsLib
     .lookup<
         NativeFunction<
             Void Function(
       Pointer,
       Pointer,
+      Int32,
     )>>("jsFreeValueRT")
     .asFunction();
+
+void jsFreeValueRT(
+  Pointer rt,
+  Pointer val, {
+  bool free = true,
+}) {
+  _jsFreeValueRT(rt, val, free ? 1 : 0);
+}
 
 /// JSValue *jsDupValue(JSContext *ctx, JSValueConst *v)
 final Pointer Function(
@@ -510,6 +530,19 @@ final int Function(
       Pointer,
       Pointer,
     )>>("jsIsFunction")
+    .asFunction();
+
+/// int32_t jsIsPromise(JSContext *ctx, JSValueConst *val)
+final int Function(
+  Pointer ctx,
+  Pointer val,
+) jsIsPromise = qjsLib
+    .lookup<
+        NativeFunction<
+            Int32 Function(
+      Pointer,
+      Pointer,
+    )>>("jsIsPromise")
     .asFunction();
 
 /// int32_t jsIsArray(JSContext *ctx, JSValueConst *val)
