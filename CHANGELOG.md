@@ -6,6 +6,10 @@
  * @LastEditTime: 2020-12-02 11:36:40
 -->
 
+## 0.2.1
+
+* code cleanup.
+
 ## 0.2.0
 
 * breakdown change with new constructor.

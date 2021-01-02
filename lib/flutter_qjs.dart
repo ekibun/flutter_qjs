@@ -13,23 +13,28 @@ import 'package:ffi/ffi.dart';
 import 'package:flutter_qjs/ffi.dart';
 import 'package:flutter_qjs/wrapper.dart';
 
-/// Handle function to manage js call with `dart(method, ...args)` function.
+/// Handler function to manage js call.
 typedef JsMethodHandler = dynamic Function(String method, List args);
 
-/// Handle function to manage js module.
+/// Handler function to manage js module.
 typedef JsModuleHandler = String Function(String name);
 
 class FlutterQjs {
   Pointer _rt;
   Pointer _ctx;
+
+  /// Message Port for event loop. Close it to stop dispatching event loop.
   ReceivePort port = ReceivePort();
 
-  /// Set a handler to manage js call with `channel(method, args)` function.
+  /// Handler function to manage js call with `channel(method, [...args])` function.
   JsMethodHandler methodHandler;
 
-  /// Set a handler to manage js module.
+  /// Handler function to manage js module.
   JsModuleHandler moduleHandler;
 
+  /// Quickjs engine for flutter.
+  ///
+  /// Pass handlers to implement js-dart interaction and resolving modules.
   FlutterQjs({this.methodHandler, this.moduleHandler});
 
   _ensureEngine() {
@@ -77,7 +82,7 @@ class FlutterQjs {
     _ctx = null;
   }
 
-  /// DispatchMessage
+  /// Dispatch JavaScript Event loop.
   Future<void> dispatch() async {
     await for (var _ in port) {
       if (_rt == null) continue;

@@ -7,17 +7,38 @@
 -->
 # flutter_qjs
 
-A quickjs engine for flutter.
-
-## Feature
-
 This plugin is a simple js engine for flutter using the `quickjs` project with `dart:ffi`. Plugin currently supports all the platforms except web!
 
-Event loop of `FlutterQjs` should be implemented by calling `FlutterQjs.dispatch()`. 
+## Getting Started
 
-ES6 module with `import` function is supported and can be managed in dart with `setModuleHandler`.
+### Basic usage
 
-A global function `channel` is presented to invoke dart function. Data conversion between dart and js are implemented as follow:
+Firstly, create a `FlutterQjs` object, then call `dispatch` to dispatch event loop:
+
+```dart
+final engine = FlutterQjs()
+engine.dispatch();
+```
+
+Use `evaluate` method to run js script, now you can use it synchronously, or use await to resolve `Promise`:
+
+```dart
+try {
+  print(engine.evaluate(code ?? ''));
+} catch (e) {
+  print(e.toString());
+}
+```
+
+Method `close` can destroy quickjs runtime that can be recreated again if you call `evaluate`. Parameter `port` should be close to stop `dispatch` loop when you do not need it.
+
+```dart
+engine.port.close(); // stop dispatch loop
+engine.close();      // close engine
+engine = null;
+```
+
+Data conversion between dart and js are implemented as follow:
 
 | dart                                                | js                 |
 | --------------------------------------------------- | ------------------ |
@@ -31,13 +52,13 @@ A global function `channel` is presented to invoke dart function. Data conversio
 | JSFunction(...args) <br> IsolateJSFunction(...args) | function(....args) |
 | Future                                              | Promise            |
 
-**notice:** `function` can only be sent from js to dart. `IsolateJSFunction` always returns asynchronously.
+**notice:** `function` can only be sent from js to dart.
 
-## Getting Started
+### Invoke dart function
 
-### Run on main thread
+A global JavaScript function `channel` is presented to invoke dart function.
 
-1. Create a `FlutterQjs` object, pass handlers to implement js-dart interaction and resolving modules. For example, you can use `Dio` to implement http in js:
+In constructor, pass handler function to manage JavaScript call. For example, you can use `Dio` to implement http in JavaScript:
 
 ```dart
 final engine = FlutterQjs(
@@ -49,6 +70,21 @@ final engine = FlutterQjs(
         throw Exception("No such method");
     }
   },
+);
+```
+
+then, in java script you can use channel function to invoke `methodHandler`, make sure the second parameter is a list:
+
+```javascript
+channel("http", ["http://example.com/"]);
+```
+
+### Use modules
+
+ES6 module with `import` function is supported and can be managed in dart with `moduleHandler`:
+
+```dart
+final engine = FlutterQjs(
   moduleHandler: (String module) {
     if(module == "hello")
       return "export default (name) => `hello \${name}!`;";
@@ -57,41 +93,19 @@ final engine = FlutterQjs(
 );
 ```
 
-in javascript, `channel` function is equiped to invoke `methodHandler`, make sure the second parameter is a list:
-
-```javascript
-channel("http", ["http://example.com/"]);
-```
-
-`import` function is used to get modules:
+then in JavaScript, `import` function is used to get modules:
 
 ```javascript
 import("hello").then(({default: greet}) => greet("world"));
 ```
 
-**notice:** To use async function in module handler, try [Run on isolate thread](#Run-on-isolate-thread)
+**notice:** Module handler should be called only once for each module name. To reset the module cache, call `FlutterQjs.close` then `evaluate` again.
 
-2. Then call `dispatch` to dispatch event loop.
-
-```dart
-engine.dispatch();
-```
-
-1. Use `evaluate` to run js script, now you can use it synchronously, or use await to resolve `Promise`:
-
-```dart
-try {
-  print(engine.evaluate(code ?? ''));
-} catch (e) {
-  print(e.toString());
-}
-```
-
-1. Method `close` can destroy quickjs runtime that can be recreated again if you call `evaluate`.
+To use async function in module handler, try [Run on isolate thread](#Run-on-isolate-thread)
 
 ### Run on isolate thread
 
-1. Create a `IsolateQjs` object, pass handlers to implement js-dart interaction and resolving modules. The `methodHandler` is used in isolate, so **the handler function must be a top-level function or a static method**. Async function such as `rootBundle.loadString` can be used now to get module:
+Create a `IsolateQjs` object, pass handlers to implement js-dart interaction and resolving modules. The `methodHandler` is used in isolate, so **the handler function must be a top-level function or a static method**. Async function such as `rootBundle.loadString` can be used now to get modules:
 
 ```dart
 dynamic methodHandler(String method, List arg) {
@@ -112,7 +126,7 @@ final engine = IsolateQjs(
 // not need engine.dispatch();
 ```
 
-2. Same as run on main thread, use `evaluate` to run js script. In this way, `Promise` return by `evaluate` will be automatically tracked and return the resolved data:
+Same as run on main thread, use `evaluate` to run js script. In this way, `Promise` return by `evaluate` will be automatically tracked and return the resolved data:
 
 ```dart
 try {
@@ -122,11 +136,11 @@ try {
 }
 ```
 
-3. Method `close` can destroy quickjs runtime that can be recreated again if you call `evaluate`.
+Method `close` can destroy quickjs runtime that can be recreated again if you call `evaluate`.
 
 [This example](example/lib/main.dart) contains a complete demonstration on how to use this plugin.
 
-## For Mac & IOS developer
+## For macOS & iOS developer
 
 I am new to Xcode and iOS developing, and I cannot find a better way to support both simulators and real devices without combining the binary frameworks. To reduce build size, change the `s.vendored_frameworks` in `ios/flutter_qjs.podspec` to the specific framework.
 
@@ -146,4 +160,4 @@ Two additional notes:
 
 1. quickjs built with `release` config has bug in resolving `Promise`. Please let me know if you know the solution.
 
-2. `ios/make.sh` limit the build architectures to avoid combine conflicts. Change the `make.sh` to support another architectures.
+2. `ios/make.sh` limits the build architectures to avoid combining conflicts. Change the `make.sh` to support another architectures.

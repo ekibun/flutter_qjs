@@ -211,13 +211,17 @@ typedef JsIsolateSpawn = void Function(SendPort sendPort);
 class IsolateQjs {
   Future<SendPort> _sendPort;
 
-  /// Set a handler to manage js call with `channel(method, args)` function.
-  /// The function must be a top-level function or a static method
+  /// Handler to manage js call with `channel(method, [...args])` function.
+  /// The function must be a top-level function or a static method.
   JsMethodHandler methodHandler;
 
-  /// Set a handler to manage js module.
+  /// Asynchronously handler to manage js module.
   JsAsyncModuleHandler moduleHandler;
 
+  /// Quickjs engine runing on isolate thread.
+  ///
+  /// Pass handlers to implement js-dart interaction and resolving modules. The `methodHandler` is
+  /// used in isolate, so **the handler function must be a top-level function or a static method**.
   IsolateQjs({this.methodHandler, this.moduleHandler});
 
   _ensureEngine() {
@@ -257,6 +261,7 @@ class IsolateQjs {
     _sendPort = completer.future;
   }
 
+  /// Free Runtime and close isolate thread that can be recreate when evaluate again.
   close() {
     if (_sendPort == null) return;
     _sendPort.then((sendPort) {
@@ -267,6 +272,7 @@ class IsolateQjs {
     _sendPort = null;
   }
 
+  /// Evaluate js script.
   Future<dynamic> evaluate(String command, {String name, int evalFlags}) async {
     _ensureEngine();
     var evaluatePort = ReceivePort();
@@ -279,10 +285,9 @@ class IsolateQjs {
       'port': evaluatePort.sendPort,
     });
     var result = await evaluatePort.first;
-    if (result['error'] == null){
+    if (result['error'] == null) {
       return _decodeData(result['data'], sendPort);
-    }
-    else
+    } else
       throw result['error'];
   }
 }
