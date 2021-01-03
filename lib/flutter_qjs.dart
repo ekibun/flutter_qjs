@@ -23,6 +23,9 @@ class FlutterQjs {
   Pointer _rt;
   Pointer _ctx;
 
+  /// Max stack size for quickjs.
+  final int stackSize;
+
   /// Message Port for event loop. Close it to stop dispatching event loop.
   ReceivePort port = ReceivePort();
 
@@ -35,7 +38,7 @@ class FlutterQjs {
   /// Quickjs engine for flutter.
   ///
   /// Pass handlers to implement js-dart interaction and resolving modules.
-  FlutterQjs({this.methodHandler, this.moduleHandler});
+  FlutterQjs({this.methodHandler, this.moduleHandler, this.stackSize});
 
   _ensureEngine() {
     if (_rt != null) return;
@@ -69,6 +72,8 @@ class FlutterQjs {
         return err;
       }
     }, port);
+    if (this.stackSize != null && this.stackSize > 0)
+      jsSetMaxStackSize(_rt, this.stackSize);
     _ctx = jsNewContextWithPromsieWrapper(_rt);
   }
 

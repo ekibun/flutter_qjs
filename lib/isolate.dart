@@ -147,6 +147,7 @@ void _runJsIsolate(Map spawnMessage) async {
   ReceivePort port = ReceivePort();
   sendPort.send(port.sendPort);
   var qjs = FlutterQjs(
+    stackSize: spawnMessage['stackSize'],
     methodHandler: methodHandler,
     moduleHandler: (name) {
       var ptr = allocate<Pointer<Utf8>>();
@@ -211,6 +212,9 @@ typedef JsIsolateSpawn = void Function(SendPort sendPort);
 class IsolateQjs {
   Future<SendPort> _sendPort;
 
+  /// Max stack size for quickjs.
+  final int stackSize;
+
   /// Handler to manage js call with `channel(method, [...args])` function.
   /// The function must be a top-level function or a static method.
   JsMethodHandler methodHandler;
@@ -222,7 +226,7 @@ class IsolateQjs {
   ///
   /// Pass handlers to implement js-dart interaction and resolving modules. The `methodHandler` is
   /// used in isolate, so **the handler function must be a top-level function or a static method**.
-  IsolateQjs({this.methodHandler, this.moduleHandler});
+  IsolateQjs({this.methodHandler, this.moduleHandler, this.stackSize});
 
   _ensureEngine() {
     if (_sendPort != null) return;
@@ -232,6 +236,7 @@ class IsolateQjs {
       {
         'port': port.sendPort,
         'handler': methodHandler,
+        'stackSize': stackSize,
       },
       errorsAreFatal: true,
     );

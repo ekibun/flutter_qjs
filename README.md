@@ -16,7 +16,9 @@ This plugin is a simple js engine for flutter using the `quickjs` project with `
 Firstly, create a `FlutterQjs` object, then call `dispatch` to dispatch event loop:
 
 ```dart
-final engine = FlutterQjs()
+final engine = FlutterQjs(
+  stackSize: 1024 * 1024, // change stack size here.
+);
 engine.dispatch();
 ```
 

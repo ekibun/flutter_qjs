@@ -21,6 +21,8 @@ extern "C"
 
   DLLEXPORT JSRuntime *jsNewRuntime(JSChannel channel);
 
+  DLLEXPORT void jsSetMaxStackSize(JSRuntime *rt, size_t stack_size);
+
   DLLEXPORT void jsFreeRuntime(JSRuntime *rt);
 
   DLLEXPORT JSContext *jsNewContext(JSRuntime *rt);

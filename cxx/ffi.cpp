@@ -71,6 +71,11 @@ extern "C"
     return rt;
   }
 
+  DLLEXPORT void jsSetMaxStackSize(JSRuntime *rt, size_t stack_size)
+  {
+    JS_SetMaxStackSize(rt, stack_size);
+  }
+
   DLLEXPORT void jsFreeRuntime(JSRuntime *rt)
   {
     JS_SetRuntimeOpaque(rt, nullptr);

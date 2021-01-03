@@ -132,6 +132,19 @@ Pointer jsNewRuntime(
   return rt;
 }
 
+/// DLLEXPORT void jsSetMaxStackSize(JSRuntime *rt, size_t stack_size)
+final void Function(
+  Pointer,
+  int,
+) jsSetMaxStackSize = qjsLib
+    .lookup<
+        NativeFunction<
+            Void Function(
+      Pointer,
+      IntPtr,
+    )>>("jsSetMaxStackSize")
+    .asFunction();
+
 /// void jsFreeRuntime(JSRuntime *rt)
 final void Function(
   Pointer,
