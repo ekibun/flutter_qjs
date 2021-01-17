@@ -98,19 +98,15 @@ void main() async {
     qjs.close();
   });
   test('jsToDart', () async {
-    await runZonedGuarded(() async {
-      final qjs = FlutterQjs(
-        methodHandler: myMethodHandler,
-        moduleHandler: (name) {
-          return "export default '${new DateTime.now()}'";
-        },
-      );
-      qjs.dispatch();
-      await testEvaluate(qjs);
-      qjs.close();
-    }, (e, stack) {
-      if (e is TestFailure) throw e;
-    });
+    final qjs = FlutterQjs(
+      methodHandler: myMethodHandler,
+      moduleHandler: (name) {
+        return "export default '${new DateTime.now()}'";
+      },
+    );
+    qjs.dispatch();
+    await testEvaluate(qjs);
+    qjs.close();
   });
   test('isolate', () async {
     await runZonedGuarded(() async {
@@ -123,8 +119,19 @@ void main() async {
       await testEvaluate(qjs);
       qjs.close();
     }, (e, stack) {
-      if (e is TestFailure) throw e;
+      if (!e.toString().startsWith("test Promise.reject")) throw e;
     });
+  });
+  test('dart object', () async {
+    final qjs = FlutterQjs(
+      methodHandler: (method, args) {
+        return FlutterQjs();
+      },
+    );
+    qjs.dispatch();
+    var value = await qjs.evaluate("channel('channel', [])", name: "<eval>");
+    expect(value, isInstanceOf<FlutterQjs>(), reason: "dart object");
+    qjs.close();
   });
   test('stack overflow', () async {
     final qjs = FlutterQjs();

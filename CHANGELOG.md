@@ -6,6 +6,11 @@
  * @LastEditTime: 2020-12-02 11:36:40
 -->
 
+## 0.2.4
+
+* wrap dart object to js.
+* fix stack overflow when use jsCall nesting.
+
 ## 0.2.3
 
 * fix compiler error in windows release.

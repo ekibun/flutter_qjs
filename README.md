@@ -53,8 +53,9 @@ Data conversion between dart and js are implemented as follow:
 | Map                                                 | Object             |
 | JSFunction(...args) <br> IsolateJSFunction(...args) | function(....args) |
 | Future                                              | Promise            |
+| Object                                              | DartObject         |
 
-**notice:** `function` can only be sent from js to dart.
+**notice:** `function` can only be sent from js to dart. `DartObject` can only be used in `moduleHandler`.
 
 ### Invoke dart function
 

@@ -113,6 +113,7 @@ class RuntimeOpaque {
   List<JSRef> ref = [];
   ReceivePort port;
   Future Function(Pointer) promiseToFuture;
+  Pointer Function(Object) objectWrapper;
 }
 
 final Map<Pointer, RuntimeOpaque> runtimeOpaques = Map();
