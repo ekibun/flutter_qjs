@@ -113,13 +113,14 @@ class RuntimeOpaque {
   List<JSRef> ref = [];
   ReceivePort port;
   Future Function(Pointer) promiseToFuture;
-  Pointer Function(Object) objectWrapper;
+  int dartObjectClassId;
 }
 
 final Map<Pointer, RuntimeOpaque> runtimeOpaques = Map();
 
 Pointer channelDispacher(Pointer ctx, Pointer method, Pointer argv) {
-  return runtimeOpaques[jsGetRuntime(ctx)].channel(ctx, method, argv);
+  Pointer rt = method.address == 0 ? ctx : jsGetRuntime(ctx);
+  return runtimeOpaques[rt]?.channel(ctx, method, argv);
 }
 
 Pointer jsNewRuntime(
@@ -517,6 +518,60 @@ String jsToCString(
   jsFreeCString(ctx, ptr);
   return str;
 }
+
+/// DLLEXPORT uint32_t jsNewClass(JSContext *ctx, const char *name)
+final int Function(
+  Pointer ctx,
+  Pointer<Utf8> name,
+) _jsNewClass = qjsLib
+    .lookup<
+        NativeFunction<
+            Uint32 Function(
+      Pointer,
+      Pointer<Utf8>,
+    )>>("jsNewClass")
+    .asFunction();
+
+int jsNewClass(
+  Pointer ctx,
+  String name,
+) {
+  var utf8name = Utf8.toUtf8(name);
+  var val = _jsNewClass(
+    ctx,
+    utf8name,
+  );
+  free(utf8name);
+  return val;
+}
+
+/// DLLEXPORT JSValue *jsNewObjectClass(JSContext *ctx, uint32_t QJSClassId, void *opaque)
+final Pointer Function(
+  Pointer ctx,
+  int classId,
+  int opaque,
+) jsNewObjectClass = qjsLib
+    .lookup<
+        NativeFunction<
+            Pointer Function(
+      Pointer,
+      Uint32,
+      IntPtr,
+    )>>("jsNewObjectClass")
+    .asFunction();
+
+/// DLLEXPORT void *jsGetObjectOpaque(JSValue *obj, uint32_t classid)
+final int Function(
+  Pointer obj,
+  int classid,
+) jsGetObjectOpaque = qjsLib
+    .lookup<
+        NativeFunction<
+            IntPtr Function(
+      Pointer,
+      Uint32,
+    )>>("jsGetObjectOpaque")
+    .asFunction();
 
 /// uint8_t *jsGetArrayBuffer(JSContext *ctx, size_t *psize, JSValueConst *obj)
 final Pointer<Uint8> Function(

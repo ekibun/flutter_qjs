@@ -44,15 +44,16 @@ class DartObject implements JSRef {
     runtimeOpaques[jsGetRuntime(ctx)]?.ref?.add(this);
   }
 
-  static DartObject fromAddress(Pointer ctx, int val) {
-    return runtimeOpaques[jsGetRuntime(ctx)]?.ref?.firstWhere(
+  static DartObject fromAddress(Pointer rt, int val) {
+    return runtimeOpaques[rt]?.ref?.firstWhere(
           (e) => identityHashCode(e) == val,
-          orElse: null,
+          orElse: () => null,
         );
   }
 
   @override
   void release() {
+    obj = null;
     ctx = null;
   }
 }
@@ -216,7 +217,14 @@ Pointer dartToJs(Pointer ctx, dynamic val, {Map<dynamic, dynamic> cache}) {
     }
     return ret;
   }
-  return runtimeOpaques[jsGetRuntime(ctx)]?.objectWrapper(val) ?? jsUNDEFINED();
+  int dartObjectClassId =
+      runtimeOpaques[jsGetRuntime(ctx)]?.dartObjectClassId ?? 0;
+  if (dartObjectClassId == 0) return jsUNDEFINED();
+  return jsNewObjectClass(
+    ctx,
+    dartObjectClassId,
+    identityHashCode(DartObject(ctx, val)),
+  );
 }
 
 dynamic jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
@@ -233,6 +241,13 @@ dynamic jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
     case JSTag.STRING:
       return jsToCString(ctx, val);
     case JSTag.OBJECT:
+      final rt = jsGetRuntime(ctx);
+      final dartObjectClassId = runtimeOpaques[rt].dartObjectClassId;
+      if (dartObjectClassId != 0) {
+        final dartObject = DartObject.fromAddress(
+            rt, jsGetObjectOpaque(val, dartObjectClassId));
+        if (dartObject != null) return dartObject.obj;
+      }
       Pointer<IntPtr> psize = allocate<IntPtr>();
       Pointer<Uint8> buf = jsGetArrayBuffer(ctx, psize, val);
       int size = psize.value;
@@ -247,7 +262,7 @@ dynamic jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
       if (jsIsFunction(ctx, val) != 0) {
         return JSFunction(ctx, val);
       } else if (jsIsPromise(ctx, val) != 0) {
-        return runtimeOpaques[jsGetRuntime(ctx)]?.promiseToFuture(val);
+        return runtimeOpaques[rt]?.promiseToFuture(val);
       } else if (jsIsArray(ctx, val) != 0) {
         Pointer jslength = jsGetPropertyStr(ctx, val, "length");
         int length = jsToInt64(ctx, jslength);
@@ -283,10 +298,6 @@ dynamic jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
         }
         jsFree(ctx, ptab.value);
         free(ptab);
-        final objHash = ret["__dart_obj_hash__"];
-        if (objHash is int) {
-          return DartObject.fromAddress(ctx, objHash)?.obj ?? ret;
-        }
         return ret;
       }
       break;
@@ -318,23 +329,9 @@ Pointer jsNewContextWithPromsieWrapper(Pointer rt) {
         """,
       "<future>",
       JSEvalFlag.GLOBAL);
-  var jsObjectWrapper = jsEval(
-      ctx,
-      """
-        (objHash, type) => {
-            const ret = {
-              "__dart_obj_hash__": objHash,
-            };
-            ret.__proto__.toString = ()=>  "" + type;
-            return ret;
-        };
-        """,
-      "<future>",
-      JSEvalFlag.GLOBAL);
+  runtimeOpaque.dartObjectClassId = jsNewClass(ctx, "DartObject");
   final promiseWrapper = JSRefValue(ctx, jsPromiseWrapper);
   jsFreeValue(ctx, jsPromiseWrapper);
-  final objectWrapper = JSRefValue(ctx, jsObjectWrapper);
-  jsFreeValue(ctx, jsObjectWrapper);
   runtimeOpaque.promiseToFuture = (promise) {
     var completer = Completer();
     var wrapper = promiseWrapper.val;
@@ -345,16 +342,5 @@ Pointer jsNewContextWithPromsieWrapper(Pointer rt) {
     jsFreeValue(ctx, jsPromise);
     return wrapPromise.completer.future;
   };
-  runtimeOpaque.objectWrapper = (obj) {
-    var jsObjHash = jsNewInt64(ctx, identityHashCode(DartObject(ctx, obj)));
-    var jsTypeString = jsNewString(ctx, obj.toString());
-    var wrapper = objectWrapper.val;
-    if (wrapper == null) throw Exception("Runtime has been released!");
-    var ret = jsCall(ctx, wrapper, null, [jsObjHash, jsTypeString]);
-    jsFreeValue(ctx, jsObjHash);
-    jsFreeValue(ctx, jsTypeString);
-    return ret;
-  };
-
   return ctx;
 }

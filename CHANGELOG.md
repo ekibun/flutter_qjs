@@ -6,6 +6,10 @@
  * @LastEditTime: 2020-12-02 11:36:40
 -->
 
+## 0.2.5
+
+* remove dart object when jsfree.
+
 ## 0.2.4
 
 * wrap dart object to js.

@@ -8,6 +8,11 @@
 
 extern "C"
 {
+  struct ObjectOpaque
+  {
+    JSContext *ctx;
+    void *opaque;
+  };
 
   typedef void *JSChannel(JSContext *ctx, const char *method, void *argv);
 
@@ -20,6 +25,12 @@ extern "C"
   DLLEXPORT JSValue *jsNULL();
 
   DLLEXPORT JSRuntime *jsNewRuntime(JSChannel channel);
+
+  DLLEXPORT uint32_t jsNewClass(JSContext *ctx, const char *name);
+
+  DLLEXPORT void *jsGetObjectOpaque(JSValue *obj, uint32_t classid);
+
+  DLLEXPORT JSValue *jsNewObjectClass(JSContext *ctx, uint32_t QJSClassId, void *opaque);
 
   DLLEXPORT void jsSetMaxStackSize(JSRuntime *rt, size_t stack_size);
 

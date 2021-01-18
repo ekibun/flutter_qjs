@@ -1,6 +1,6 @@
 name: flutter_qjs
 description: This plugin is a simple js engine for flutter using the `quickjs` project. Plugin currently supports all the platforms except web!
-version: 0.2.4
+version: 0.2.5
 homepage: https://github.com/ekibun/flutter_qjs
 
 environment:

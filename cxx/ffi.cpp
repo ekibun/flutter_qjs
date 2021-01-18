@@ -39,7 +39,7 @@ extern "C"
   {
     JSRuntime *rt = JS_GetRuntime(ctx);
     JSChannel *channel = (JSChannel *)JS_GetRuntimeOpaque(rt);
-    const char *str = (char *)channel(ctx, (char *)0, (void *)module_name);
+    const char *str = (char *)channel(ctx, module_name, nullptr);
     if (str == 0)
       return NULL;
     JSValue func_val = JS_Eval(ctx, str, strlen(str), module_name, JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
@@ -69,6 +69,50 @@ extern "C"
     JS_SetRuntimeOpaque(rt, (void *)channel);
     JS_SetModuleLoaderFunc(rt, nullptr, js_module_loader, nullptr);
     return rt;
+  }
+
+  DLLEXPORT uint32_t jsNewClass(JSContext *ctx, const char *name)
+  {
+    JSClassID QJSClassId = 0;
+    JS_NewClassID(&QJSClassId);
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    if (!JS_IsRegisteredClass(rt, QJSClassId))
+    {
+      JSClassDef def{
+          name,
+          // destructor
+          [](JSRuntime *rt, JSValue obj) noexcept {
+            JSClassID classid = JS_GetClassID(obj);
+            ObjectOpaque *opaque = (ObjectOpaque *)JS_GetOpaque(obj, classid);
+            JSChannel *channel = (JSChannel *)JS_GetRuntimeOpaque(rt);
+            channel((JSContext *)rt, nullptr, (void *)opaque->opaque);
+            delete opaque;
+          }};
+      int e = JS_NewClass(rt, QJSClassId, &def);
+      if (e < 0)
+      {
+        JS_ThrowInternalError(ctx, "Cant register class %s", name);
+        return 0;
+      }
+    }
+    return QJSClassId;
+  }
+
+  DLLEXPORT void *jsGetObjectOpaque(JSValue *obj, uint32_t classid)
+  {
+    ObjectOpaque *opaque = (ObjectOpaque *)JS_GetOpaque(*obj, classid);
+    if(opaque == nullptr) return nullptr;
+    return opaque->opaque;
+  }
+
+  DLLEXPORT JSValue *jsNewObjectClass(JSContext *ctx, uint32_t QJSClassId, void *opaque)
+  {
+    auto jsobj = new JSValue(JS_NewObjectClass(ctx, QJSClassId));
+    if (JS_IsException(*jsobj))
+      return jsobj;
+    ObjectOpaque *objOpaque = new ObjectOpaque{ctx, opaque};
+    JS_SetOpaque(*jsobj, objOpaque);
+    return jsobj;
   }
 
   DLLEXPORT void jsSetMaxStackSize(JSRuntime *rt, size_t stack_size)

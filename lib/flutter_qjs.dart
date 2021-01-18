@@ -44,7 +44,14 @@ class FlutterQjs {
     if (_rt != null) return;
     _rt = jsNewRuntime((ctx, method, argv) {
       try {
-        if (method.address != 0) {
+        if (method.address == 0) {
+          Pointer rt = ctx;
+          DartObject obj = DartObject.fromAddress(rt, argv.address);
+          obj?.release();
+          runtimeOpaques[rt]?.ref?.remove(obj);
+          return Pointer.fromAddress(0);
+        }
+        if (argv.address != 0 && method.address != 0) {
           if (methodHandler == null) throw Exception("No MethodHandler");
           var argvs = jsToDart(ctx, argv);
           return dartToJs(
@@ -55,7 +62,8 @@ class FlutterQjs {
               ));
         }
         if (moduleHandler == null) throw Exception("No ModuleHandler");
-        var ret = Utf8.toUtf8(moduleHandler(Utf8.fromUtf8(argv.cast<Utf8>())));
+        var ret =
+            Utf8.toUtf8(moduleHandler(Utf8.fromUtf8(method.cast<Utf8>())));
         Future.microtask(() {
           free(ret);
         });
