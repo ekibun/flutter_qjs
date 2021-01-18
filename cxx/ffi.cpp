@@ -251,7 +251,11 @@ extern "C"
 
   DLLEXPORT const char *jsToCString(JSContext *ctx, JSValueConst *val)
   {
-    return JS_ToCString(ctx, *val);
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    uint8_t *stack_top = JS_SetStackTop(rt, 0);
+    const char *ret = JS_ToCString(ctx, *val);
+    JS_SetStackTop(rt, stack_top);
+    return ret;
   }
 
   DLLEXPORT void jsFreeCString(JSContext *ctx, const char *ptr)
