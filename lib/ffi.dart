@@ -59,8 +59,6 @@ final DynamicLibrary qjsLib = Platform.environment['FLUTTER_TEST'] == 'true'
         ? DynamicLibrary.open("flutter_qjs_plugin.dll")
         : Platform.isAndroid
             ? DynamicLibrary.open("libqjs.so")
-            : Platform.isIOS
-                ? DynamicLibrary.open("ffiquickjs.framework/ffiquickjs")
                 : DynamicLibrary.process());
 
 /// JSValue *jsThrowInternalError(JSContext *ctx, char *message)

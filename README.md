@@ -142,25 +142,3 @@ try {
 Method `close` can destroy quickjs runtime that can be recreated again if you call `evaluate`.
 
 [This example](example/lib/main.dart) contains a complete demonstration on how to use this plugin.
-
-## For macOS & iOS developer
-
-I am new to Xcode and iOS developing, and I cannot find a better way to support both simulators and real devices without combining the binary frameworks. To reduce build size, change the `s.vendored_frameworks` in `ios/flutter_qjs.podspec` to the specific framework.
-
-For simulator, use:
-
-```podspec
-s.vendored_frameworks = `build/Debug-iphonesimulator/ffiquickjs.framework`
-```
-
-For real device, use:
-
-```podspec
-s.vendored_frameworks = `build/Debug-iphoneos/ffiquickjs.framework`
-```
-
-Two additional notes:
-
-1. quickjs built with `release` config has bug in resolving `Promise`. Please let me know if you know the solution.
-
-2. `ios/make.sh` limits the build architectures to avoid combining conflicts. Change the `make.sh` to support another architectures.

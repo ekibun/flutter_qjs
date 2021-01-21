@@ -8,4 +8,4 @@ build/
 .idea/
 .vscode/settings.json
 
-publish.cmd
+ios/cxx
