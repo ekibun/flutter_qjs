@@ -78,10 +78,12 @@ class JSPromise extends JSRefValue {
       return true;
     }
     if (status["__rejected"] == true) {
+      final err = jsGetPropertyStr(ctx, val, "__error");
       completer.completeError(parseJSException(
         ctx,
-        e: jsGetPropertyStr(ctx, val, "__error"),
+        perr: err,
       ));
+      jsFreeValue(ctx, err);
       return true;
     }
     return false;
@@ -129,8 +131,9 @@ Pointer jsGetPropertyStr(Pointer ctx, Pointer val, String prop) {
   return jsProp;
 }
 
-String parseJSException(Pointer ctx, {Pointer e}) {
-  e = e ?? jsGetException(ctx);
+String parseJSException(Pointer ctx, {Pointer perr}) {
+  final e = perr ?? jsGetException(ctx);
+
   var err = jsToCString(ctx, e);
   if (jsValueGetTag(e) == JSTag.OBJECT) {
     Pointer stack = jsGetPropertyStr(ctx, e, "stack");
@@ -139,7 +142,7 @@ String parseJSException(Pointer ctx, {Pointer e}) {
     }
     jsFreeValue(ctx, stack);
   }
-  jsFreeValue(ctx, e);
+  if (perr == null) jsFreeValue(ctx, e);
   return err;
 }
 

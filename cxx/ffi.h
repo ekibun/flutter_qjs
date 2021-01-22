@@ -8,12 +8,6 @@
 
 extern "C"
 {
-  struct ObjectOpaque
-  {
-    JSContext *ctx;
-    void *opaque;
-  };
-
   typedef void *JSChannel(JSContext *ctx, const char *method, void *argv);
 
   DLLEXPORT JSValue *jsThrowInternalError(JSContext *ctx, char *message);

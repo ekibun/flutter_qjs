@@ -143,12 +143,17 @@ dynamic _decodeData(dynamic data, SendPort port,
 
 void _runJsIsolate(Map spawnMessage) async {
   SendPort sendPort = spawnMessage['port'];
-  JsMethodHandler methodHandler = spawnMessage['handler'];
   ReceivePort port = ReceivePort();
   sendPort.send(port.sendPort);
   var qjs = FlutterQjs(
     stackSize: spawnMessage['stackSize'],
-    methodHandler: methodHandler,
+    hostPromiseRejectionHandler: (reason) {
+      sendPort.send({
+        'type': 'hostPromiseRejection',
+        'reason': reason,
+      });
+    },
+    methodHandler: spawnMessage['handler'],
     moduleHandler: (name) {
       var ptr = allocate<Pointer<Utf8>>();
       ptr.value = Pointer.fromAddress(0);
@@ -222,11 +227,19 @@ class IsolateQjs {
   /// Asynchronously handler to manage js module.
   JsAsyncModuleHandler moduleHandler;
 
+  /// Handler function to manage js module.
+  JsHostPromiseRejectionHandler hostPromiseRejectionHandler;
+
   /// Quickjs engine runing on isolate thread.
   ///
   /// Pass handlers to implement js-dart interaction and resolving modules. The `methodHandler` is
   /// used in isolate, so **the handler function must be a top-level function or a static method**.
-  IsolateQjs({this.methodHandler, this.moduleHandler, this.stackSize});
+  IsolateQjs({
+    this.methodHandler,
+    this.moduleHandler,
+    this.stackSize,
+    this.hostPromiseRejectionHandler,
+  });
 
   _ensureEngine() {
     if (_sendPort != null) return;
@@ -247,6 +260,21 @@ class IsolateQjs {
         return;
       }
       switch (msg['type']) {
+        case 'hostPromiseRejection':
+          try {
+            final errStr = msg['reason'];
+            if (hostPromiseRejectionHandler != null) {
+              hostPromiseRejectionHandler(errStr);
+            } else {
+              print("unhandled promise rejection: $errStr");
+            }
+          } catch (e, stack) {
+            print("host Promise Rejection Handler error: " +
+                e.toString() +
+                "\n" +
+                stack.toString());
+          }
+          break;
         case 'module':
           var ptr = Pointer<Pointer>.fromAddress(msg['ptr']);
           try {

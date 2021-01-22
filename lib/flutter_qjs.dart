@@ -19,6 +19,9 @@ typedef JsMethodHandler = dynamic Function(String method, List args);
 /// Handler function to manage js module.
 typedef JsModuleHandler = String Function(String name);
 
+/// Handler to manage unhandled promise rejection.
+typedef JsHostPromiseRejectionHandler = void Function(String reason);
+
 class FlutterQjs {
   Pointer _rt;
   Pointer _ctx;
@@ -35,10 +38,17 @@ class FlutterQjs {
   /// Handler function to manage js module.
   JsModuleHandler moduleHandler;
 
+  /// Handler function to manage js module.
+  JsHostPromiseRejectionHandler hostPromiseRejectionHandler;
+
   /// Quickjs engine for flutter.
   ///
   /// Pass handlers to implement js-dart interaction and resolving modules.
-  FlutterQjs({this.methodHandler, this.moduleHandler, this.stackSize});
+  FlutterQjs(
+      {this.methodHandler,
+      this.moduleHandler,
+      this.stackSize,
+      this.hostPromiseRejectionHandler});
 
   _ensureEngine() {
     if (_rt != null) return;
@@ -51,14 +61,22 @@ class FlutterQjs {
           runtimeOpaques[rt]?.ref?.remove(obj);
           return Pointer.fromAddress(0);
         }
-        if (argv.address != 0 && method.address != 0) {
+        if (argv.address != 0) {
+          if (method.address == ctx.address) {
+            final errStr = parseJSException(ctx, perr: argv);
+            if (hostPromiseRejectionHandler != null) {
+              hostPromiseRejectionHandler(errStr);
+            } else {
+              print("unhandled promise rejection: $errStr");
+            }
+            return Pointer.fromAddress(0);
+          }
           if (methodHandler == null) throw Exception("No MethodHandler");
-          var argvs = jsToDart(ctx, argv);
           return dartToJs(
               ctx,
               methodHandler(
                 Utf8.fromUtf8(method.cast<Utf8>()),
-                argvs,
+                jsToDart(ctx, argv),
               ));
         }
         if (moduleHandler == null) throw Exception("No ModuleHandler");
@@ -69,11 +87,20 @@ class FlutterQjs {
         });
         return ret;
       } catch (e, stack) {
+        final errStr = e.toString() + "\n" + stack.toString();
+        if (method.address == 0) {
+          print("DartObject release error: " + errStr);
+          return Pointer.fromAddress(0);
+        }
+        if (method.address == ctx.address) {
+          print("host Promise Rejection Handler error: " + errStr);
+          return Pointer.fromAddress(0);
+        }
         var err = jsThrowInternalError(
           ctx,
-          e.toString() + "\n" + stack.toString(),
+          errStr,
         );
-        if (method.address == 0) {
+        if (argv.address == 0) {
           jsFreeValue(ctx, err);
           return Pointer.fromAddress(0);
         }

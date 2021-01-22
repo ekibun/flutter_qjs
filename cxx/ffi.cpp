@@ -63,10 +63,22 @@ extern "C"
     return ret;
   }
 
+  void js_promise_rejection_tracker(JSContext *ctx, JSValueConst promise,
+                                    JSValueConst reason,
+                                    JS_BOOL is_handled, void *opaque)
+  {
+    if (is_handled)
+      return;
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    JSChannel *channel = (JSChannel *)JS_GetRuntimeOpaque(rt);
+    channel(ctx, (char *)ctx, &reason);
+  }
+
   DLLEXPORT JSRuntime *jsNewRuntime(JSChannel channel)
   {
     JSRuntime *rt = JS_NewRuntime();
     JS_SetRuntimeOpaque(rt, (void *)channel);
+    JS_SetHostPromiseRejectionTracker(rt, js_promise_rejection_tracker, nullptr);
     JS_SetModuleLoaderFunc(rt, nullptr, js_module_loader, nullptr);
     return rt;
   }
@@ -83,10 +95,9 @@ extern "C"
           // destructor
           [](JSRuntime *rt, JSValue obj) noexcept {
             JSClassID classid = JS_GetClassID(obj);
-            ObjectOpaque *opaque = (ObjectOpaque *)JS_GetOpaque(obj, classid);
+            void *opaque = JS_GetOpaque(obj, classid);
             JSChannel *channel = (JSChannel *)JS_GetRuntimeOpaque(rt);
-            channel((JSContext *)rt, nullptr, (void *)opaque->opaque);
-            delete opaque;
+            channel((JSContext *)rt, nullptr, opaque);
           }};
       int e = JS_NewClass(rt, QJSClassId, &def);
       if (e < 0)
@@ -100,9 +111,7 @@ extern "C"
 
   DLLEXPORT void *jsGetObjectOpaque(JSValue *obj, uint32_t classid)
   {
-    ObjectOpaque *opaque = (ObjectOpaque *)JS_GetOpaque(*obj, classid);
-    if(opaque == nullptr) return nullptr;
-    return opaque->opaque;
+    return JS_GetOpaque(*obj, classid);
   }
 
   DLLEXPORT JSValue *jsNewObjectClass(JSContext *ctx, uint32_t QJSClassId, void *opaque)
@@ -110,8 +119,7 @@ extern "C"
     auto jsobj = new JSValue(JS_NewObjectClass(ctx, QJSClassId));
     if (JS_IsException(*jsobj))
       return jsobj;
-    ObjectOpaque *objOpaque = new ObjectOpaque{ctx, opaque};
-    JS_SetOpaque(*jsobj, objOpaque);
+    JS_SetOpaque(*jsobj, opaque);
     return jsobj;
   }
 

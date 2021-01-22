@@ -100,6 +100,7 @@ void main() async {
       moduleHandler: (name) {
         return "export default '${new DateTime.now()}'";
       },
+      hostPromiseRejectionHandler: (_) {},
     );
     qjs.dispatch();
     await testEvaluate(qjs);
@@ -112,6 +113,7 @@ void main() async {
         moduleHandler: (name) async {
           return "export default '${new DateTime.now()}'";
         },
+        hostPromiseRejectionHandler: (_) {},
       );
       await testEvaluate(qjs);
       qjs.close();
@@ -139,6 +141,24 @@ void main() async {
           e.toString(), startsWith('Exception: InternalError: stack overflow'),
           reason: "throw stack overflow");
     }
+    qjs.close();
+  });
+  test('host promise rejection', () async {
+    final completer = Completer();
+    final qjs = FlutterQjs(
+      hostPromiseRejectionHandler: (reason) {
+        completer.complete(reason);
+      },
+    );
+    qjs.dispatch();
+    qjs.evaluate(
+        "(() => { Promise.resolve().then(() => { throw 'unhandle' }) })()",
+        name: "<eval>");
+    Future.delayed(Duration(seconds: 10)).then((value) {
+      if (!completer.isCompleted) completer.completeError("not host reject");
+    });
+    expect(await completer.future, "unhandle",
+        reason: "host promise rejection");
     qjs.close();
   });
 }
