@@ -9,3 +9,4 @@ build/
 .vscode/settings.json
 
 ios/cxx
+macos/cxx

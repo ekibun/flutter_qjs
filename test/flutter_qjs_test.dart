@@ -43,10 +43,11 @@ Future testEvaluate(qjs) async {
 }
 
 void main() async {
-  test('make.windows', () async {
+  test('make', () async {
     final utf8Encoding = Encoding.getByName('utf-8');
-    final cmakePath =
-        "C:/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe";
+    final cmakePath = Platform.isWindows
+        ? "C:/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe"
+        : "cmake";
     final buildDir = "./build";
     var result = Process.runSync(
       cmakePath,
@@ -69,17 +70,7 @@ void main() async {
     stdout.write(result.stdout);
     stderr.write(result.stderr);
     expect(result.exitCode, 0);
-  }, testOn: 'windows');
-  test('make.macos', () async {
-    var result = Process.runSync(
-      "sh",
-      ['./make.sh'],
-      workingDirectory: 'macos',
-    );
-    stdout.write(result.stdout);
-    stderr.write(result.stderr);
-    expect(result.exitCode, 0);
-  }, testOn: 'mac-os');
+  });
   test('module', () async {
     final qjs = FlutterQjs(
       moduleHandler: (name) {
