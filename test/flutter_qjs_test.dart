@@ -45,9 +45,12 @@ Future testEvaluate(qjs) async {
 void main() async {
   test('make', () async {
     final utf8Encoding = Encoding.getByName('utf-8');
-    final cmakePath = Platform.isWindows
-        ? "C:/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe"
-        : "cmake";
+    var cmakePath = "cmake";
+    if (Platform.isWindows) {
+      var vsDir = Directory("C:/Program Files (x86)/Microsoft Visual Studio/");
+      vsDir = (vsDir.listSync().firstWhere((e) => e is Directory) as Directory).listSync().last;
+      cmakePath = vsDir.path + "/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe";
+    }
     final buildDir = "./build";
     var result = Process.runSync(
       cmakePath,
