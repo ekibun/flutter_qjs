@@ -54,7 +54,7 @@ final DynamicLibrary qjsLib = Platform.environment['FLUTTER_TEST'] == 'true'
         ? DynamicLibrary.open("test/build/Debug/ffiquickjs.dll")
         : Platform.isMacOS
             ? DynamicLibrary.open("test/build/libffiquickjs.dylib")
-            : DynamicLibrary.process())
+            : DynamicLibrary.open("test/build/libffiquickjs.so"))
     : (Platform.isWindows
         ? DynamicLibrary.open("flutter_qjs_plugin.dll")
         : Platform.isAndroid
