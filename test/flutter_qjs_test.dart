@@ -48,8 +48,11 @@ void main() async {
     var cmakePath = "cmake";
     if (Platform.isWindows) {
       var vsDir = Directory("C:/Program Files (x86)/Microsoft Visual Studio/");
-      vsDir = (vsDir.listSync().firstWhere((e) => e is Directory) as Directory).listSync().last;
-      cmakePath = vsDir.path + "/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe";
+      vsDir = (vsDir.listSync().firstWhere((e) => e is Directory) as Directory)
+          .listSync()
+          .last as Directory;
+      cmakePath = vsDir.path +
+          "/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe";
     }
     final buildDir = "./build";
     var result = Process.runSync(

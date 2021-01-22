@@ -6,6 +6,10 @@
  * @LastEditTime: 2020-12-02 11:36:40
 -->
 
+## 0.2.7
+
+* fix error in ios build.
+
 ## 0.2.6
 
 * fix stack overflow in jsToCString.

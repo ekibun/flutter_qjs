@@ -7,6 +7,9 @@
 -->
 # flutter_qjs
 
+![Pub](https://img.shields.io/pub/v/flutter_qjs.svg)
+![Test](https://github.com/ekibun/flutter_qjs/workflows/Test/badge.svg)
+
 This plugin is a simple js engine for flutter using the `quickjs` project with `dart:ffi`. Plugin currently supports all the platforms except web!
 
 ## Getting Started
