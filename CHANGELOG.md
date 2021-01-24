@@ -6,6 +6,11 @@
  * @LastEditTime: 2020-12-02 11:36:40
 -->
 
+## 0.3.0
+
+* breakdown change to remove `channel`.
+* convert dart function to js.
+
 ## 0.2.7
 
 * fix error in ios build.

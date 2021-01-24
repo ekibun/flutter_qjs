@@ -13,6 +13,8 @@ import 'package:ffi/ffi.dart';
 import 'package:flutter_qjs/ffi.dart';
 import 'package:flutter_qjs/wrapper.dart';
 
+import 'isolate.dart';
+
 /// Handler function to manage js module.
 typedef JsModuleHandler = String Function(String name);
 
@@ -44,11 +46,10 @@ class FlutterQjs {
     this.hostPromiseRejectionHandler,
   });
 
-  setToGlobalObject(dynamic key, dynamic val) {
-    _ensureEngine();
-    final globalObject = jsGetGlobalObject(_ctx);
-    definePropertyValue(_ctx, globalObject, key, val);
-    jsFreeValue(_ctx, globalObject);
+  static applyFunction(Function func, List args, dynamic thisVal) {
+    final passThis =
+        RegExp("{.*thisVal.*}").hasMatch(func.runtimeType.toString());
+    return Function.apply(func, args, passThis ? {#thisVal: thisVal} : null);
   }
 
   _ensureEngine() {
@@ -68,13 +69,11 @@ class FlutterQjs {
                   )));
             }
             final thisVal = jsToDart(ctx, pdata.elementAt(0).value);
-            Function func = jsToDart(ctx, pdata.elementAt(3).value);
-            final passThis =
-                RegExp("{.*thisVal.*}").hasMatch(func.runtimeType.toString());
-            return dartToJs(
-              ctx,
-              Function.apply(func, args, passThis ? {#thisVal: thisVal} : null),
-            );
+            final func = jsToDart(ctx, pdata.elementAt(3).value);
+            final ret = func is QjsInvokable
+                ? func.invoke(args, thisVal)
+                : applyFunction(func, args, thisVal);
+            return dartToJs(ctx, ret);
           case JSChannelType.MODULE:
             if (moduleHandler == null) throw Exception("No ModuleHandler");
             var ret = Utf8.toUtf8(moduleHandler(

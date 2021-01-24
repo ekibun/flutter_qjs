@@ -73,7 +73,7 @@ class _TestPageState extends State<TestPage> {
   CodeInputController _controller = CodeInputController(
       text: 'import("hello").then(({default: greet}) => greet("world"));');
 
-  _ensureEngine() {
+  _ensureEngine() async {
     if (engine != null) return;
     engine = IsolateQjs(
       moduleHandler: (String module) async {
@@ -82,7 +82,9 @@ class _TestPageState extends State<TestPage> {
             "js/" + module.replaceFirst(new RegExp(r".js$"), "") + ".js");
       },
     );
-    engine.setToGlobalObject("channel", methodHandler);
+    final setToGlobalObject =
+        await engine.evaluate("(key, val) => this[key] = val;");
+    setToGlobalObject("channel", methodHandler);
   }
 
   @override
@@ -103,7 +105,7 @@ class _TestPageState extends State<TestPage> {
                   FlatButton(
                       child: Text("evaluate"),
                       onPressed: () async {
-                        _ensureEngine();
+                        await _ensureEngine();
                         try {
                           resp = (await engine.evaluate(_controller.text ?? '',
                                   name: "<eval>"))

@@ -186,17 +186,6 @@ final Pointer Function(
     )>>("jsNewCFunction")
     .asFunction();
 
-/// JSValue *jsGetGlobalObject(JSContext *ctx)
-final Pointer Function(
-  Pointer ctx,
-) jsGetGlobalObject = qjsLib
-    .lookup<
-        NativeFunction<
-            Pointer Function(
-      Pointer,
-    )>>("jsGetGlobalObject")
-    .asFunction();
-
 /// JSContext *jsNewContext(JSRuntime *rt)
 final Pointer Function(
   Pointer rt,

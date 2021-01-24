@@ -14,13 +14,13 @@ import 'package:ffi/ffi.dart';
 import 'package:flutter_qjs/flutter_qjs.dart';
 import 'package:flutter_qjs/wrapper.dart';
 
-class IsolateJSFunction {
+class IsolateJSFunction implements QjsInvokable {
   int val;
   int ctx;
   SendPort port;
   IsolateJSFunction(this.ctx, this.val, this.port);
 
-  Future<dynamic> invoke(List<dynamic> arguments) async {
+  Future invoke(List arguments, [thisVal]) async {
     if (0 == val ?? 0) return;
     var evaluatePort = ReceivePort();
     port.send({
@@ -28,9 +28,11 @@ class IsolateJSFunction {
       'ctx': ctx,
       'val': val,
       'args': _encodeData(arguments),
+      'this': _encodeData(thisVal),
       'port': evaluatePort.sendPort,
     });
     var result = await evaluatePort.first;
+    evaluatePort.close();
     if (result['data'] != null)
       return _decodeData(result['data'], port);
     else
@@ -39,7 +41,63 @@ class IsolateJSFunction {
 
   @override
   noSuchMethod(Invocation invocation) {
-    return invoke(invocation.positionalArguments);
+    return invoke(
+      invocation.positionalArguments,
+      invocation.namedArguments[#thisVal],
+    );
+  }
+}
+
+class IsolateFunction implements QjsInvokable {
+  SendPort _port;
+  SendPort func;
+  IsolateFunction(this.func, this._port);
+
+  static IsolateFunction bind(Function func, SendPort port) {
+    final funcPort = ReceivePort();
+    funcPort.listen((msg) async {
+      var data;
+      SendPort msgPort = msg['port'];
+      try {
+        List args = _decodeData(msg['args'], port);
+        Map thisVal = _decodeData(msg['this'], port);
+        data = await FlutterQjs.applyFunction(func, args, thisVal);
+        if (msgPort != null)
+          msgPort.send({
+            'data': _encodeData(data),
+          });
+      } catch (e, stack) {
+        if (msgPort != null)
+          msgPort.send({
+            'error': e.toString() + "\n" + stack.toString(),
+          });
+      }
+    });
+    return IsolateFunction(funcPort.sendPort, port);
+  }
+
+  Future invoke(List positionalArguments, [thisVal]) async {
+    if (func == null) return;
+    var evaluatePort = ReceivePort();
+    func.send({
+      'args': _encodeData(positionalArguments),
+      'this': _encodeData(thisVal),
+      'port': evaluatePort.sendPort,
+    });
+    var result = await evaluatePort.first;
+    evaluatePort.close();
+    if (result['data'] != null)
+      return _decodeData(result['data'], _port);
+    else
+      throw result['error'];
+  }
+
+  @override
+  noSuchMethod(Invocation invocation) {
+    return invoke(
+      invocation.positionalArguments,
+      invocation.namedArguments[#thisVal],
+    );
   }
 }
 
@@ -75,17 +133,24 @@ dynamic _encodeData(dynamic data, {Map<dynamic, dynamic> cache}) {
       '__js_function_val': data.val,
     };
   }
+  if (data is IsolateFunction) {
+    return {
+      '__js_function_port': data.func,
+    };
+  }
   if (data is Future) {
     var futurePort = ReceivePort();
     data.then((value) {
-      futurePort.first.then((port) => {
-            (port as SendPort).send({'data': _encodeData(value)})
-          });
+      futurePort.first.then((port) {
+        futurePort.close();
+        (port as SendPort).send({'data': _encodeData(value)});
+      });
     }, onError: (e, stack) {
-      futurePort.first.then((port) => {
-            (port as SendPort)
-                .send({'error': e.toString() + "\n" + stack.toString()})
-          });
+      futurePort.first.then((port) {
+        futurePort.close();
+        (port as SendPort)
+            .send({'error': e.toString() + "\n" + stack.toString()});
+      });
     });
     return {
       '__js_future_port': futurePort.sendPort,
@@ -116,12 +181,17 @@ dynamic _decodeData(dynamic data, SendPort port,
         return JSFunction.fromAddress(ctx, val);
       }
     }
+    if (data.containsKey('__js_function_port')) {
+      return IsolateFunction(data['__js_function_port'], port);
+    }
     if (data.containsKey('__js_future_port')) {
       SendPort port = data['__js_future_port'];
       var futurePort = ReceivePort();
       port.send(futurePort.sendPort);
       var futureCompleter = Completer();
+      futureCompleter.future.catchError((e) {});
       futurePort.first.then((value) {
+        futurePort.close();
         if (value['error'] != null) {
           futureCompleter.completeError(value['error']);
         } else {
@@ -172,8 +242,7 @@ void _runJsIsolate(Map spawnMessage) async {
       return ret;
     },
   );
-  qjs.dispatch();
-  await for (var msg in port) {
+  port.listen((msg) async {
     var data;
     SendPort msgPort = msg['port'];
     try {
@@ -189,10 +258,10 @@ void _runJsIsolate(Map spawnMessage) async {
           data = JSFunction.fromAddress(
             msg['ctx'],
             msg['val'],
-          ).invoke(_decodeData(msg['args'], null));
-          break;
-        case 'setToGlobalObject':
-          qjs.setToGlobalObject(msg['key'], msg['val']);
+          ).invoke(
+            _decodeData(msg['args'], null),
+            _decodeData(msg['this'], null),
+          );
           break;
         case 'close':
           qjs.port.close();
@@ -210,7 +279,8 @@ void _runJsIsolate(Map spawnMessage) async {
           'error': e.toString() + "\n" + stack.toString(),
         });
     }
-  }
+  });
+  await qjs.dispatch();
 }
 
 typedef JsAsyncModuleHandler = Future<String> Function(String name);
@@ -290,6 +360,12 @@ class IsolateQjs {
     _sendPort = completer.future;
   }
 
+  /// Create isolate function
+  Future<IsolateFunction> bind(Function func) async {
+    _ensureEngine();
+    return IsolateFunction.bind(func, await _sendPort);
+  }
+
   /// Free Runtime and close isolate thread that can be recreate when evaluate again.
   close() {
     if (_sendPort == null) return;
@@ -299,23 +375,6 @@ class IsolateQjs {
       });
     });
     _sendPort = null;
-  }
-
-  setToGlobalObject(dynamic key, dynamic val) async {
-    _ensureEngine();
-    var evaluatePort = ReceivePort();
-    var sendPort = await _sendPort;
-    sendPort.send({
-      'type': 'setToGlobalObject',
-      'key': key,
-      'val': val,
-      'port': evaluatePort.sendPort,
-    });
-    var result = await evaluatePort.first;
-    if (result['error'] == null) {
-      return;
-    } else
-      throw result['error'];
   }
 
   /// Evaluate js script.
@@ -331,6 +390,7 @@ class IsolateQjs {
       'port': evaluatePort.sendPort,
     });
     var result = await evaluatePort.first;
+    evaluatePort.close();
     if (result['error'] == null) {
       return _decodeData(result['data'], sendPort);
     } else

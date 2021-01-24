@@ -12,6 +12,7 @@ import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 
 import 'ffi.dart';
+import 'isolate.dart';
 
 class JSRefValue implements JSRef {
   Pointer val;
@@ -37,6 +38,14 @@ class JSRefValue implements JSRef {
   }
 }
 
+abstract class QjsReleasable {
+  void release();
+}
+
+abstract class QjsInvokable {
+  dynamic invoke(List positionalArguments, [dynamic thisVal]);
+}
+
 class DartObject implements JSRef {
   Object obj;
   Pointer ctx;
@@ -53,6 +62,7 @@ class DartObject implements JSRef {
 
   @override
   void release() {
+    if (obj is QjsReleasable) (obj as QjsReleasable).release();
     obj = null;
     ctx = null;
   }
@@ -90,19 +100,19 @@ class JSPromise extends JSRefValue {
   }
 }
 
-class JSFunction extends JSRefValue {
+class JSFunction extends JSRefValue implements QjsInvokable {
   JSFunction(Pointer ctx, Pointer val) : super(ctx, val);
 
   JSFunction.fromAddress(int ctx, int val) : super.fromAddress(ctx, val);
 
-  invoke(List<dynamic> arguments) {
+  invoke(List<dynamic> arguments, [dynamic thisVal]) {
     if (val == null) return;
     List<Pointer> args = arguments
         .map(
           (e) => dartToJs(ctx, e),
         )
         .toList();
-    Pointer jsRet = jsCall(ctx, val, null, args);
+    Pointer jsRet = jsCall(ctx, val, dartToJs(ctx, thisVal), args);
     for (Pointer jsArg in args) {
       jsFreeValue(ctx, jsArg);
     }
@@ -118,7 +128,10 @@ class JSFunction extends JSRefValue {
 
   @override
   noSuchMethod(Invocation invocation) {
-    return invoke(invocation.positionalArguments);
+    return invoke(
+      invocation.positionalArguments,
+      invocation.namedArguments[#thisVal],
+    );
   }
 }
 
@@ -228,7 +241,7 @@ Pointer dartToJs(Pointer ctx, dynamic val, {Map<dynamic, dynamic> cache}) {
     dartObjectClassId,
     identityHashCode(DartObject(ctx, val)),
   );
-  if (val is Function) {
+  if (val is Function || val is IsolateFunction) {
     final ret = jsNewCFunction(ctx, dartObject);
     jsFreeValue(ctx, dartObject);
     return ret;
@@ -343,6 +356,7 @@ Pointer jsNewContextWithPromsieWrapper(Pointer rt) {
   jsFreeValue(ctx, jsPromiseWrapper);
   runtimeOpaque.promiseToFuture = (promise) {
     var completer = Completer();
+    completer.future.catchError((e) {});
     var wrapper = promiseWrapper.val;
     if (wrapper == null)
       completer.completeError(Exception("Runtime has been released!"));

@@ -14,32 +14,42 @@ import 'package:flutter_qjs/flutter_qjs.dart';
 import 'package:flutter_qjs/isolate.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-dynamic myMethodHandler(List args, {String thisVal}) {
-  return [thisVal, ...args];
+dynamic myFunction(String args, {String thisVal}) {
+  return [thisVal, args];
 }
 
 Future testEvaluate(qjs) async {
-  final value = await qjs.evaluate("""
-      const a = {};
-      a.a = a;
-      import('test').then((module) => channel.call('this', [
-          (...args)=>`hello \${args}!`, a,
-          Promise.reject('test Promise.reject'), Promise.resolve('test Promise.resolve'),
-          0.1, true, false, 1, "world", module
-        ]));
-      """, name: "<eval>");
-  expect(value[0], 'this', reason: "js function this");
-  expect(await value[1]('world'), 'hello world!', reason: "js function call");
-  expect(value[2]['a'], value[2], reason: "recursive object");
-  expect(value[3], isInstanceOf<Future>(), reason: "promise object");
+  final testWrap = await qjs.evaluate("(a) => a", name: "<testWrap>");
+  final primities = [0, 1, 0.1, true, false, "str"];
+  final wrapPrimities = await testWrap(primities);
+  for (var i = 0; i < primities.length; i++) {
+    expect(wrapPrimities[i], primities[i], reason: "wrap primities");
+  }
+  final a = {};
+  a["a"] = a;
+  final wrapA = await testWrap(a);
+  expect(wrapA['a'], wrapA, reason: "recursive object");
+  final testThis = await qjs.evaluate(
+    "(func) => func.call('this', 'arg')",
+    name: "<testThis>",
+  );
+  final funcRet = await testThis(myFunction);
+  expect(funcRet[0], 'this', reason: "js function this");
+  expect(funcRet[1], 'arg', reason: "js function argument");
+  final promises = await testWrap(await qjs.evaluate(
+    "[Promise.reject('test Promise.reject'), Promise.resolve('test Promise.resolve')]",
+    name: "<promises>",
+  ));
+  for (final promise in promises)
+    expect(promise, isInstanceOf<Future>(), reason: "promise object");
   try {
-    await value[3];
+    await promises[0];
     throw 'Future not reject';
   } catch (e) {
     expect(e, startsWith('test Promise.reject\n'),
         reason: "promise object reject");
   }
-  expect(await value[4], 'test Promise.resolve',
+  expect(await promises[1], 'test Promise.resolve',
       reason: "promise object resolve");
 }
 
@@ -95,41 +105,37 @@ void main() async {
     expect(result['default']['data'], 'test module', reason: "eval module");
     qjs.close();
   });
-  test('jsToDart', () async {
+  test('data conversion', () async {
     final qjs = FlutterQjs(
       moduleHandler: (name) {
         return "export default '${new DateTime.now()}'";
       },
       hostPromiseRejectionHandler: (_) {},
     );
-    qjs.setToGlobalObject("channel", myMethodHandler);
     qjs.dispatch();
     await testEvaluate(qjs);
     qjs.close();
   });
-  test('isolate', () async {
-    await runZonedGuarded(() async {
-      final qjs = IsolateQjs(
-        moduleHandler: (name) async {
-          return "export default '${new DateTime.now()}'";
-        },
-        hostPromiseRejectionHandler: (_) {},
-      );
-      await qjs.setToGlobalObject("channel", myMethodHandler);
-      await testEvaluate(qjs);
-      qjs.close();
-    }, (e, stack) {
-      if (!e.toString().startsWith("test Promise.reject")) throw e;
-    });
+  test('isolate conversion', () async {
+    final qjs = IsolateQjs(
+      moduleHandler: (name) async {
+        return "export default '${new DateTime.now()}'";
+      },
+      hostPromiseRejectionHandler: (_) {},
+    );
+    await testEvaluate(qjs);
+    qjs.close();
   });
-  test('dart object', () async {
-    final qjs = FlutterQjs();
-    qjs.setToGlobalObject("channel", () {
-      return FlutterQjs();
-    });
-    qjs.dispatch();
-    var value = await qjs.evaluate("channel()", name: "<eval>");
-    expect(value, isInstanceOf<FlutterQjs>(), reason: "dart object");
+  test('isolate bind function', () async {
+    final qjs = IsolateQjs();
+    var localVar;
+    final testFunc = await qjs.evaluate("(func)=>func('ret')", name: "<eval>");
+    final testFuncRet = await testFunc(await qjs.bind((args) {
+      localVar = 'test';
+      return args;
+    }));
+    expect(localVar, 'test', reason: "bind function");
+    expect(testFuncRet, 'ret', reason: "bind function args return");
     qjs.close();
   });
   test('stack overflow', () async {
