@@ -13,9 +13,6 @@ import 'package:ffi/ffi.dart';
 import 'package:flutter_qjs/ffi.dart';
 import 'package:flutter_qjs/wrapper.dart';
 
-/// Handler function to manage js call.
-typedef JsMethodHandler = dynamic Function(String method, List args);
-
 /// Handler function to manage js module.
 typedef JsModuleHandler = String Function(String name);
 
@@ -32,9 +29,6 @@ class FlutterQjs {
   /// Message Port for event loop. Close it to stop dispatching event loop.
   ReceivePort port = ReceivePort();
 
-  /// Handler function to manage js call with `channel(method, [...args])` function.
-  JsMethodHandler methodHandler;
-
   /// Handler function to manage js module.
   JsModuleHandler moduleHandler;
 
@@ -44,55 +38,75 @@ class FlutterQjs {
   /// Quickjs engine for flutter.
   ///
   /// Pass handlers to implement js-dart interaction and resolving modules.
-  FlutterQjs(
-      {this.methodHandler,
-      this.moduleHandler,
-      this.stackSize,
-      this.hostPromiseRejectionHandler});
+  FlutterQjs({
+    this.moduleHandler,
+    this.stackSize,
+    this.hostPromiseRejectionHandler,
+  });
+
+  setToGlobalObject(dynamic key, dynamic val) {
+    _ensureEngine();
+    final globalObject = jsGetGlobalObject(_ctx);
+    definePropertyValue(_ctx, globalObject, key, val);
+    jsFreeValue(_ctx, globalObject);
+  }
 
   _ensureEngine() {
     if (_rt != null) return;
-    _rt = jsNewRuntime((ctx, method, argv) {
+    _rt = jsNewRuntime((ctx, type, ptr) {
       try {
-        if (method.address == 0) {
-          Pointer rt = ctx;
-          DartObject obj = DartObject.fromAddress(rt, argv.address);
-          obj?.release();
-          runtimeOpaques[rt]?.ref?.remove(obj);
-          return Pointer.fromAddress(0);
-        }
-        if (argv.address != 0) {
-          if (method.address == ctx.address) {
-            final errStr = parseJSException(ctx, perr: argv);
+        switch (type) {
+          case JSChannelType.METHON:
+            final pdata = ptr.cast<Pointer>();
+            final argc = pdata.elementAt(1).value.cast<Int32>().value;
+            List args = [];
+            for (var i = 0; i < argc; i++) {
+              args.add(jsToDart(
+                  ctx,
+                  Pointer.fromAddress(
+                    pdata.elementAt(2).value.address + sizeOfJSValue * i,
+                  )));
+            }
+            final thisVal = jsToDart(ctx, pdata.elementAt(0).value);
+            Function func = jsToDart(ctx, pdata.elementAt(3).value);
+            final passThis =
+                RegExp("{.*thisVal.*}").hasMatch(func.runtimeType.toString());
+            return dartToJs(
+              ctx,
+              Function.apply(func, args, passThis ? {#thisVal: thisVal} : null),
+            );
+          case JSChannelType.MODULE:
+            if (moduleHandler == null) throw Exception("No ModuleHandler");
+            var ret = Utf8.toUtf8(moduleHandler(
+              Utf8.fromUtf8(ptr.cast<Utf8>()),
+            ));
+            Future.microtask(() {
+              free(ret);
+            });
+            return ret;
+          case JSChannelType.PROMISE_TRACK:
+            final errStr = parseJSException(ctx, perr: ptr);
             if (hostPromiseRejectionHandler != null) {
               hostPromiseRejectionHandler(errStr);
             } else {
               print("unhandled promise rejection: $errStr");
             }
             return Pointer.fromAddress(0);
-          }
-          if (methodHandler == null) throw Exception("No MethodHandler");
-          return dartToJs(
-              ctx,
-              methodHandler(
-                Utf8.fromUtf8(method.cast<Utf8>()),
-                jsToDart(ctx, argv),
-              ));
+          case JSChannelType.FREE_OBJECT:
+            Pointer rt = ctx;
+            DartObject obj = DartObject.fromAddress(rt, ptr.address);
+            obj?.release();
+            runtimeOpaques[rt]?.ref?.remove(obj);
+            return Pointer.fromAddress(0);
         }
-        if (moduleHandler == null) throw Exception("No ModuleHandler");
-        var ret =
-            Utf8.toUtf8(moduleHandler(Utf8.fromUtf8(method.cast<Utf8>())));
-        Future.microtask(() {
-          free(ret);
-        });
-        return ret;
+        throw Exception("call channel with wrong type");
       } catch (e, stack) {
         final errStr = e.toString() + "\n" + stack.toString();
-        if (method.address == 0) {
+        if (type == JSChannelType.FREE_OBJECT) {
           print("DartObject release error: " + errStr);
           return Pointer.fromAddress(0);
         }
-        if (method.address == ctx.address) {
+        if (type == JSChannelType.MODULE) {
           print("host Promise Rejection Handler error: " + errStr);
           return Pointer.fromAddress(0);
         }
@@ -100,7 +114,7 @@ class FlutterQjs {
           ctx,
           errStr,
         );
-        if (argv.address == 0) {
+        if (type == JSChannelType.MODULE) {
           jsFreeValue(ctx, err);
           return Pointer.fromAddress(0);
         }

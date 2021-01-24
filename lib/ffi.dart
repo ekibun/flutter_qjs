@@ -21,6 +21,13 @@ class JSEvalFlag {
   static const MODULE = 1 << 0;
 }
 
+class JSChannelType {
+  static const METHON = 0;
+  static const MODULE = 1;
+  static const PROMISE_TRACK = 2;
+  static const FREE_OBJECT = 3;
+}
+
 class JSProp {
   static const CONFIGURABLE = (1 << 0);
   static const WRITABLE = (1 << 1);
@@ -91,11 +98,13 @@ final Pointer Function() jsUNDEFINED = qjsLib
     .lookup<NativeFunction<Pointer Function()>>("jsUNDEFINED")
     .asFunction();
 
+typedef JSChannel = Pointer Function(Pointer ctx, int method, Pointer argv);
+typedef JSChannelNative = Pointer Function(
+    Pointer ctx, IntPtr method, Pointer argv);
+
 /// JSRuntime *jsNewRuntime(JSChannel channel)
 final Pointer Function(
-  Pointer<
-      NativeFunction<
-          Pointer Function(Pointer ctx, Pointer method, Pointer argv)>>,
+  Pointer<NativeFunction<JSChannelNative>>,
 ) _jsNewRuntime = qjsLib
     .lookup<
         NativeFunction<
@@ -103,8 +112,6 @@ final Pointer Function(
       Pointer,
     )>>("jsNewRuntime")
     .asFunction();
-
-typedef JSChannel = Pointer Function(Pointer ctx, Pointer method, Pointer argv);
 
 class RuntimeOpaque {
   JSChannel channel;
@@ -116,9 +123,9 @@ class RuntimeOpaque {
 
 final Map<Pointer, RuntimeOpaque> runtimeOpaques = Map();
 
-Pointer channelDispacher(Pointer ctx, Pointer method, Pointer argv) {
-  Pointer rt = method.address == 0 ? ctx : jsGetRuntime(ctx);
-  return runtimeOpaques[rt]?.channel(ctx, method, argv);
+Pointer channelDispacher(Pointer ctx, int type, Pointer argv) {
+  Pointer rt = type == JSChannelType.FREE_OBJECT ? ctx : jsGetRuntime(ctx);
+  return runtimeOpaques[rt]?.channel(ctx, type, argv);
 }
 
 Pointer jsNewRuntime(
@@ -165,6 +172,30 @@ void jsFreeRuntime(
   runtimeOpaques.remove(rt);
   _jsFreeRuntime(rt);
 }
+
+/// JSValue *jsNewCFunction(JSContext *ctx, JSValue *funcData)
+final Pointer Function(
+  Pointer ctx,
+  Pointer funcData,
+) jsNewCFunction = qjsLib
+    .lookup<
+        NativeFunction<
+            Pointer Function(
+      Pointer,
+      Pointer,
+    )>>("jsNewCFunction")
+    .asFunction();
+
+/// JSValue *jsGetGlobalObject(JSContext *ctx)
+final Pointer Function(
+  Pointer ctx,
+) jsGetGlobalObject = qjsLib
+    .lookup<
+        NativeFunction<
+            Pointer Function(
+      Pointer,
+    )>>("jsGetGlobalObject")
+    .asFunction();
 
 /// JSContext *jsNewContext(JSRuntime *rt)
 final Pointer Function(

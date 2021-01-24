@@ -45,44 +45,36 @@ engine = null;
 
 Data conversion between dart and js are implemented as follow:
 
-| dart                                                | js                 |
-| --------------------------------------------------- | ------------------ |
-| Bool                                                | boolean            |
-| Int                                                 | number             |
-| Double                                              | number             |
-| String                                              | string             |
-| Uint8List                                           | ArrayBuffer        |
-| List                                                | Array              |
-| Map                                                 | Object             |
-| JSFunction(...args) <br> IsolateJSFunction(...args) | function(....args) |
-| Future                                              | Promise            |
-| Object                                              | DartObject         |
+| dart      | js                 |
+| --------- | ------------------ |
+| Bool      | boolean            |
+| Int       | number             |
+| Double    | number             |
+| String    | string             |
+| Uint8List | ArrayBuffer        |
+| List      | Array              |
+| Map       | Object             |
+| Function  | function(....args) |
+| Future    | Promise            |
+| Object    | DartObject         |
 
-**notice:** `function` can only be sent from js to dart. `DartObject` can only be used in `moduleHandler`.
+**notice:** Dart function parameter `thisVal` is used to store `this` in js.
 
-### Invoke dart function
+### Set into global object
 
-A global JavaScript function `channel` is presented to invoke dart function.
-
-In constructor, pass handler function to manage JavaScript call. For example, you can use `Dio` to implement http in JavaScript:
+Method `setToGlobalObject` is presented to set dart object into global object.
+For example, you can pass a function implement http in JavaScript with `Dio`:
 
 ```dart
-final engine = FlutterQjs(
-  methodHandler: (String method, List arg) {
-    switch (method) {
-      case "http":
-        return Dio().get(arg[0]).then((response) => response.data);
-      default:
-        throw Exception("No such method");
-    }
-  },
-);
+engine.setToGlobalObject("http", (String url) {
+  return Dio().get(url).then((response) => response.data);
+});
 ```
 
-then, in java script you can use channel function to invoke `methodHandler`, make sure the second parameter is a list:
+then, in java script you can use `http` function to invoke dart function:
 
 ```javascript
-channel("http", ["http://example.com/"]);
+http("http://example.com/");
 ```
 
 ### Use modules
@@ -111,7 +103,9 @@ To use async function in module handler, try [Run on isolate thread](#Run-on-iso
 
 ### Run on isolate thread
 
-Create a `IsolateQjs` object, pass handlers to implement js-dart interaction and resolving modules. The `methodHandler` is used in isolate, so **the handler function must be a top-level function or a static method**. Async function such as `rootBundle.loadString` can be used now to get modules:
+Create a `IsolateQjs` object, pass handlers to resolving modules. Async function such as `rootBundle.loadString` can be used now to get modules:
+
+The `methodHandler` is used in isolate, so **the handler function must be a top-level function or a static method**.
 
 ```dart
 dynamic methodHandler(String method, List arg) {
@@ -130,6 +124,16 @@ final engine = IsolateQjs(
   },
 );
 // not need engine.dispatch();
+```
+
+Method `setToGlobalObject` is still here to set dart object into global object. Use `await` to make sure it is finished.
+**Make sure the object that can pass through isolate**, For example, a top level function:
+
+```dart
+dynamic http(String url) {
+  return Dio().get(url).then((response) => response.data);
+}
+await engine.setToGlobalObject("http", http);
 ```
 
 Same as run on main thread, use `evaluate` to run js script. In this way, `Promise` return by `evaluate` will be automatically tracked and return the resolved data:

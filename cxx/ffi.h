@@ -8,7 +8,14 @@
 
 extern "C"
 {
-  typedef void *JSChannel(JSContext *ctx, const char *method, void *argv);
+  enum JSChannelType {
+    JSChannelType_METHON = 0,
+    JSChannelType_MODULE = 1,
+    JSChannelType_PROMISE_TRACK = 2,
+    JSChannelType_FREE_OBJECT = 3,
+  };
+
+  typedef void *JSChannel(JSContext *ctx, size_t type, void *argv);
 
   DLLEXPORT JSValue *jsThrowInternalError(JSContext *ctx, char *message);
 
@@ -29,6 +36,10 @@ extern "C"
   DLLEXPORT void jsSetMaxStackSize(JSRuntime *rt, size_t stack_size);
 
   DLLEXPORT void jsFreeRuntime(JSRuntime *rt);
+
+  DLLEXPORT JSValue *jsNewCFunction(JSContext *ctx, JSValue *funcData);
+
+  DLLEXPORT JSValue *jsGetGlobalObject(JSContext *ctx);
 
   DLLEXPORT JSContext *jsNewContext(JSRuntime *rt);
 

@@ -146,6 +146,26 @@ String parseJSException(Pointer ctx, {Pointer perr}) {
   return err;
 }
 
+void definePropertyValue(
+  Pointer ctx,
+  Pointer obj,
+  dynamic key,
+  dynamic val, {
+  Map<dynamic, dynamic> cache,
+}) {
+  var jsAtomVal = dartToJs(ctx, key, cache: cache);
+  var jsAtom = jsValueToAtom(ctx, jsAtomVal);
+  jsDefinePropertyValue(
+    ctx,
+    obj,
+    jsAtom,
+    dartToJs(ctx, val, cache: cache),
+    JSProp.C_W_E,
+  );
+  jsFreeAtom(ctx, jsAtom);
+  jsFreeValue(ctx, jsAtomVal);
+}
+
 Pointer dartToJs(Pointer ctx, dynamic val, {Map<dynamic, dynamic> cache}) {
   if (val == null) return jsUNDEFINED();
   if (val is Future) {
@@ -188,17 +208,7 @@ Pointer dartToJs(Pointer ctx, dynamic val, {Map<dynamic, dynamic> cache}) {
     Pointer ret = jsNewArray(ctx);
     cache[val] = ret;
     for (int i = 0; i < val.length; ++i) {
-      var jsAtomVal = jsNewInt64(ctx, i);
-      var jsAtom = jsValueToAtom(ctx, jsAtomVal);
-      jsDefinePropertyValue(
-        ctx,
-        ret,
-        jsAtom,
-        dartToJs(ctx, val[i], cache: cache),
-        JSProp.C_W_E,
-      );
-      jsFreeAtom(ctx, jsAtom);
-      jsFreeValue(ctx, jsAtomVal);
+      definePropertyValue(ctx, ret, i, val[i], cache: cache);
     }
     return ret;
   }
@@ -206,28 +216,24 @@ Pointer dartToJs(Pointer ctx, dynamic val, {Map<dynamic, dynamic> cache}) {
     Pointer ret = jsNewObject(ctx);
     cache[val] = ret;
     for (MapEntry<dynamic, dynamic> entry in val.entries) {
-      var jsAtomVal = dartToJs(ctx, entry.key, cache: cache);
-      var jsAtom = jsValueToAtom(ctx, jsAtomVal);
-      jsDefinePropertyValue(
-        ctx,
-        ret,
-        jsAtom,
-        dartToJs(ctx, entry.value, cache: cache),
-        JSProp.C_W_E,
-      );
-      jsFreeAtom(ctx, jsAtom);
-      jsFreeValue(ctx, jsAtomVal);
+      definePropertyValue(ctx, ret, entry.key, entry.value, cache: cache);
     }
     return ret;
   }
   int dartObjectClassId =
       runtimeOpaques[jsGetRuntime(ctx)]?.dartObjectClassId ?? 0;
   if (dartObjectClassId == 0) return jsUNDEFINED();
-  return jsNewObjectClass(
+  var dartObject = jsNewObjectClass(
     ctx,
     dartObjectClassId,
     identityHashCode(DartObject(ctx, val)),
   );
+  if (val is Function) {
+    final ret = jsNewCFunction(ctx, dartObject);
+    jsFreeValue(ctx, dartObject);
+    return ret;
+  }
+  return dartObject;
 }
 
 dynamic jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {

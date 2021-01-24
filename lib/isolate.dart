@@ -153,7 +153,6 @@ void _runJsIsolate(Map spawnMessage) async {
         'reason': reason,
       });
     },
-    methodHandler: spawnMessage['handler'],
     moduleHandler: (name) {
       var ptr = allocate<Pointer<Utf8>>();
       ptr.value = Pointer.fromAddress(0);
@@ -192,6 +191,9 @@ void _runJsIsolate(Map spawnMessage) async {
             msg['val'],
           ).invoke(_decodeData(msg['args'], null));
           break;
+        case 'setToGlobalObject':
+          qjs.setToGlobalObject(msg['key'], msg['val']);
+          break;
         case 'close':
           qjs.port.close();
           qjs.close();
@@ -220,10 +222,6 @@ class IsolateQjs {
   /// Max stack size for quickjs.
   final int stackSize;
 
-  /// Handler to manage js call with `channel(method, [...args])` function.
-  /// The function must be a top-level function or a static method.
-  JsMethodHandler methodHandler;
-
   /// Asynchronously handler to manage js module.
   JsAsyncModuleHandler moduleHandler;
 
@@ -235,7 +233,6 @@ class IsolateQjs {
   /// Pass handlers to implement js-dart interaction and resolving modules. The `methodHandler` is
   /// used in isolate, so **the handler function must be a top-level function or a static method**.
   IsolateQjs({
-    this.methodHandler,
     this.moduleHandler,
     this.stackSize,
     this.hostPromiseRejectionHandler,
@@ -248,7 +245,6 @@ class IsolateQjs {
       _runJsIsolate,
       {
         'port': port.sendPort,
-        'handler': methodHandler,
         'stackSize': stackSize,
       },
       errorsAreFatal: true,
@@ -303,6 +299,23 @@ class IsolateQjs {
       });
     });
     _sendPort = null;
+  }
+
+  setToGlobalObject(dynamic key, dynamic val) async {
+    _ensureEngine();
+    var evaluatePort = ReceivePort();
+    var sendPort = await _sendPort;
+    sendPort.send({
+      'type': 'setToGlobalObject',
+      'key': key,
+      'val': val,
+      'port': evaluatePort.sendPort,
+    });
+    var result = await evaluatePort.first;
+    if (result['error'] == null) {
+      return;
+    } else
+      throw result['error'];
   }
 
   /// Evaluate js script.

@@ -39,7 +39,7 @@ extern "C"
   {
     JSRuntime *rt = JS_GetRuntime(ctx);
     JSChannel *channel = (JSChannel *)JS_GetRuntimeOpaque(rt);
-    const char *str = (char *)channel(ctx, module_name, nullptr);
+    const char *str = (char *)channel(ctx, JSChannelType_MODULE, (void *)module_name);
     if (str == 0)
       return NULL;
     JSValue func_val = JS_Eval(ctx, str, strlen(str), module_name, JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
@@ -51,16 +51,16 @@ extern "C"
     return m;
   }
 
-  JSValue js_channel(JSContext *ctx, JSValueConst this_val, int32_t argc, JSValueConst *argv)
+  JSValue js_channel(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, int magic, JSValue *func_data)
   {
     JSRuntime *rt = JS_GetRuntime(ctx);
     JSChannel *channel = (JSChannel *)JS_GetRuntimeOpaque(rt);
-    const char *str = JS_ToCString(ctx, argv[0]);
-    JS_DupValue(ctx, *(argv + 1));
-    JSValue ret = *(JSValue *)channel(ctx, str, argv + 1);
-    JS_FreeValue(ctx, *(argv + 1));
-    JS_FreeCString(ctx, str);
-    return ret;
+    void *data[4];
+    data[0] = &this_val;
+    data[1] = &argc;
+    data[2] = argv;
+    data[3] = func_data;
+    return *(JSValue *)channel(ctx, JSChannelType_METHON, data);
   }
 
   void js_promise_rejection_tracker(JSContext *ctx, JSValueConst promise,
@@ -71,7 +71,7 @@ extern "C"
       return;
     JSRuntime *rt = JS_GetRuntime(ctx);
     JSChannel *channel = (JSChannel *)JS_GetRuntimeOpaque(rt);
-    channel(ctx, (char *)ctx, &reason);
+    channel(ctx, JSChannelType_PROMISE_TRACK, &reason);
   }
 
   DLLEXPORT JSRuntime *jsNewRuntime(JSChannel channel)
@@ -97,7 +97,9 @@ extern "C"
             JSClassID classid = JS_GetClassID(obj);
             void *opaque = JS_GetOpaque(obj, classid);
             JSChannel *channel = (JSChannel *)JS_GetRuntimeOpaque(rt);
-            channel((JSContext *)rt, nullptr, opaque);
+            if (channel == nullptr)
+              return;
+            channel((JSContext *)rt, JSChannelType_FREE_OBJECT, opaque);
           }};
       int e = JS_NewClass(rt, QJSClassId, &def);
       if (e < 0)
@@ -134,14 +136,19 @@ extern "C"
     JS_FreeRuntime(rt);
   }
 
+  DLLEXPORT JSValue *jsNewCFunction(JSContext *ctx, JSValue *funcData)
+  {
+    return new JSValue(JS_NewCFunctionData(ctx, js_channel, 0, 0, 1, funcData));
+  }
+
+  DLLEXPORT JSValue *jsGetGlobalObject(JSContext *ctx)
+  {
+    return new JSValue(JS_GetGlobalObject(ctx));
+  }
+
   DLLEXPORT JSContext *jsNewContext(JSRuntime *rt)
   {
     JSContext *ctx = JS_NewContext(rt);
-    JSAtom atom = JS_NewAtom(ctx, "channel");
-    JSValue globalObject = JS_GetGlobalObject(ctx);
-    JS_SetProperty(ctx, globalObject, atom, JS_NewCFunction(ctx, js_channel, "channel", 2));
-    JS_FreeValue(ctx, globalObject);
-    JS_FreeAtom(ctx, atom);
     return ctx;
   }
 
