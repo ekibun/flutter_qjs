@@ -35,7 +35,7 @@ void _runJsIsolate(Map spawnMessage) async {
         'ptr': ptr.address,
       });
       while (ptr.value.address == 0) sleep(Duration.zero);
-      if (ptr.value.address == -1) throw Exception('Module Not found');
+      if (ptr.value.address == -1) throw JSError('Module Not found');
       var ret = Utf8.fromUtf8(ptr.value);
       sendPort.send({
         'type': 'release',
@@ -76,10 +76,10 @@ void _runJsIsolate(Map spawnMessage) async {
         msgPort.send({
           'data': encodeData(data),
         });
-    } catch (e, stack) {
+    } catch (e) {
       if (msgPort != null)
         msgPort.send({
-          'error': e.toString() + '\n' + stack.toString(),
+          'error': encodeData(e),
         });
     }
   });
@@ -137,11 +137,8 @@ class IsolateQjs {
             } else {
               print('unhandled promise rejection: $errStr');
             }
-          } catch (e, stack) {
-            print('host Promise Rejection Handler error: ' +
-                e.toString() +
-                '\n' +
-                stack.toString());
+          } catch (e) {
+            print('host Promise Rejection Handler error: $e');
           }
           break;
         case 'module':
@@ -197,6 +194,6 @@ class IsolateQjs {
     if (result.containsKey('data')) {
       return decodeData(result['data'], sendPort);
     } else
-      throw result['error'];
+      throw decodeData(result['error'], sendPort);
   }
 }

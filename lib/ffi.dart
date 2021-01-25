@@ -67,25 +67,18 @@ final DynamicLibrary _qjsLib = Platform.environment['FLUTTER_TEST'] == 'true'
             ? DynamicLibrary.open('libqjs.so')
             : DynamicLibrary.process());
 
-/// JSValue *jsThrowInternalError(JSContext *ctx, char *message)
+/// DLLEXPORT JSValue *jsThrow(JSContext *ctx, JSValue *obj)
 final Pointer Function(
   Pointer ctx,
-  Pointer<Utf8> message,
-) _jsThrowInternalError = _qjsLib
+  Pointer obj,
+) jsThrow = _qjsLib
     .lookup<
         NativeFunction<
             Pointer Function(
       Pointer,
-      Pointer<Utf8>,
-    )>>('jsThrowInternalError')
+      Pointer,
+    )>>('jsThrow')
     .asFunction();
-
-Pointer jsThrowInternalError(Pointer ctx, String message) {
-  var utf8message = Utf8.toUtf8(message);
-  var val = _jsThrowInternalError(ctx, utf8message);
-  free(utf8message);
-  return val;
-}
 
 /// JSValue *jsEXCEPTION()
 final Pointer Function() jsEXCEPTION = _qjsLib
@@ -117,6 +110,7 @@ class RuntimeOpaque {
   List<JSRef> ref = [];
   ReceivePort port;
   int dartObjectClassId;
+  int jsExceptionClassId;
 }
 
 final Map<Pointer, RuntimeOpaque> runtimeOpaques = Map();
@@ -164,10 +158,11 @@ final void Function(
 void jsFreeRuntime(
   Pointer rt,
 ) {
-  runtimeOpaques[rt]?.ref?.forEach((val) {
-    val.release();
-  });
-  runtimeOpaques.remove(rt);
+  while (0 < runtimeOpaques[rt]?.ref?.length ?? 0) {
+    final ref = runtimeOpaques[rt]?.ref?.first;
+    ref.release();
+    runtimeOpaques[rt]?.ref?.remove(ref);
+  }
   _jsFreeRuntime(rt);
 }
 
@@ -200,6 +195,7 @@ Pointer jsNewContext(Pointer rt) {
   final runtimeOpaque = runtimeOpaques[rt];
   if (runtimeOpaque == null) throw Exception('Runtime has been released!');
   runtimeOpaque.dartObjectClassId = jsNewClass(ctx, 'DartObject');
+  runtimeOpaque.jsExceptionClassId = jsNewClass(ctx, 'JSException');
   return ctx;
 }
 
@@ -649,6 +645,30 @@ final int Function(
       Pointer,
       Pointer,
     )>>('jsIsArray')
+    .asFunction();
+
+/// DLLEXPORT int32_t jsIsError(JSContext *ctx, JSValueConst *val);
+final int Function(
+  Pointer ctx,
+  Pointer val,
+) jsIsError = _qjsLib
+    .lookup<
+        NativeFunction<
+            Int32 Function(
+      Pointer,
+      Pointer,
+    )>>('jsIsError')
+    .asFunction();
+
+/// DLLEXPORT JSValue *jsNewError(JSContext *ctx);
+final Pointer Function(
+  Pointer ctx,
+) jsNewError = _qjsLib
+    .lookup<
+        NativeFunction<
+            Pointer Function(
+      Pointer,
+    )>>('jsNewError')
     .asFunction();
 
 /// JSValue *jsGetProperty(JSContext *ctx, JSValueConst *this_obj,

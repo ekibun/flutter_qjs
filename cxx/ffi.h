@@ -17,7 +17,7 @@ extern "C"
 
   typedef void *JSChannel(JSContext *ctx, size_t type, void *argv);
 
-  DLLEXPORT JSValue *jsThrowInternalError(JSContext *ctx, char *message);
+  DLLEXPORT JSValue *jsThrow(JSContext *ctx, JSValue *obj);
 
   DLLEXPORT JSValue *jsEXCEPTION();
 
@@ -94,6 +94,10 @@ extern "C"
   DLLEXPORT int32_t jsIsPromise(JSContext *ctx, JSValueConst *val);
 
   DLLEXPORT int32_t jsIsArray(JSContext *ctx, JSValueConst *val);
+
+  DLLEXPORT int32_t jsIsError(JSContext *ctx, JSValueConst *val);
+
+  DLLEXPORT JSValue *jsNewError(JSContext *ctx);
 
   DLLEXPORT JSValue *jsGetProperty(JSContext *ctx, JSValueConst *this_obj,
                                    JSAtom prop);

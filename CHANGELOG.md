@@ -9,6 +9,7 @@
 ## 0.3.2
 
 * fix Promise reject cannot get Exception string.
+* wrap JSError.
 
 ## 0.3.1
 

@@ -12,6 +12,7 @@ import 'dart:io';
 import 'package:flutter_qjs/flutter_qjs.dart';
 import 'package:flutter_qjs/isolate.dart';
 import 'package:flutter_qjs/ffi.dart';
+import 'package:flutter_qjs/wrapper.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 dynamic myFunction(String args, {thisVal}) {
@@ -30,6 +31,10 @@ Future testEvaluate(qjs) async {
   for (var i = 0; i < primities.length; i++) {
     expect(wrapPrimities[i], primities[i], reason: "wrap primities");
   }
+  final jsError = JSError("test Error");
+  final wrapJsError = await testWrap(jsError);
+  expect(jsError.message, (wrapJsError as JSError).message,
+      reason: "wrap JSError");
   final wrapFunction = await testWrap(testWrap);
   final testEqual = await qjs.evaluate(
     "(a, b) => a === b",
@@ -60,8 +65,7 @@ Future testEvaluate(qjs) async {
     await promises[0];
     throw 'Future not reject';
   } catch (e) {
-    expect(e, startsWith('test Promise.reject\n'),
-        reason: "promise object reject");
+    expect(e, 'test Promise.reject', reason: "promise object reject");
   }
   expect(await promises[1], 'test Promise.resolve',
       reason: "promise object resolve");
@@ -156,9 +160,8 @@ void main() async {
     final qjs = FlutterQjs();
     try {
       qjs.evaluate("a=()=>a();a();", name: "<eval>");
-    } catch (e) {
-      expect(
-          e.toString(), startsWith('InternalError: stack overflow'),
+    } on JSError catch (e) {
+      expect(e.message, 'InternalError: stack overflow',
           reason: "throw stack overflow");
     }
     qjs.close();

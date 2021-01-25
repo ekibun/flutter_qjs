@@ -13,9 +13,9 @@
 extern "C"
 {
 
-  DLLEXPORT JSValue *jsThrowInternalError(JSContext *ctx, char *message)
+  DLLEXPORT JSValue *jsThrow(JSContext *ctx, JSValue *obj)
   {
-    return new JSValue(JS_ThrowInternalError(ctx, "%s", message));
+    return new JSValue(JS_Throw(ctx, *obj));
   }
 
   DLLEXPORT JSValue *jsEXCEPTION()
@@ -291,6 +291,16 @@ extern "C"
   DLLEXPORT int32_t jsIsArray(JSContext *ctx, JSValueConst *val)
   {
     return JS_IsArray(ctx, *val);
+  }
+
+  DLLEXPORT int32_t jsIsError(JSContext *ctx, JSValueConst *val)
+  {
+    return JS_IsError(ctx, *val);
+  }
+
+  DLLEXPORT JSValue *jsNewError(JSContext *ctx)
+  {
+    return new JSValue(JS_NewError(ctx));
   }
 
   DLLEXPORT JSValue *jsGetProperty(JSContext *ctx, JSValueConst *this_obj,

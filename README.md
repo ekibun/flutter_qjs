@@ -56,6 +56,7 @@ Data conversion between dart and js are implemented as follow:
 | Map                     | Object             |
 | Function<br>JSInvokable | function(....args) |
 | Future                  | Promise            |
+| JSError                 | Error              |
 | Object                  | DartObject         |
 
 **notice:** `JSInvokable` does not extend `Function`, but can be used same as `Function`.

@@ -12,6 +12,37 @@ import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'ffi.dart';
 
+class JSError {
+  String message;
+  String stack;
+  JSError(message, [stack]) {
+    if (message is JSError) {
+      this.message = message.message;
+      this.stack = message.stack;
+    } else {
+      this.message = message.toString();
+      this.stack = (stack ?? StackTrace.current).toString();
+    }
+  }
+  @override
+  String toString() {
+    return stack == null ? message.toString() : "$message\n$stack";
+  }
+
+  static JSError decode(Map obj) {
+    if (obj.containsKey('__js_error'))
+      return JSError(obj['__js_error'], obj['__js_error_stack']);
+    return null;
+  }
+
+  Map encode() {
+    return {
+      '__js_error': message,
+      '__js_error_stack': stack,
+    };
+  }
+}
+
 abstract class JSInvokable {
   dynamic invoke(List args, [dynamic thisVal]);
 
@@ -32,19 +63,19 @@ abstract class JSInvokable {
   }
 }
 
-class NativeJSInvokable extends JSInvokable {
-  dynamic Function(Pointer ctx, Pointer thisVal, List<Pointer> args) _func;
-  NativeJSInvokable(this._func);
+// class NativeJSInvokable extends JSInvokable {
+//   dynamic Function(Pointer ctx, Pointer thisVal, List<Pointer> args) _func;
+//   NativeJSInvokable(this._func);
 
-  @override
-  dynamic invoke(List args, [dynamic thisVal]) {
-    throw UnimplementedError('use invokeNative instead.');
-  }
+//   @override
+//   dynamic invoke(List args, [dynamic thisVal]) {
+//     throw UnimplementedError('use invokeNative instead.');
+//   }
 
-  invokeNative(Pointer ctx, Pointer thisVal, List<Pointer> args) {
-    _func(ctx, thisVal, args);
-  }
-}
+//   invokeNative(Pointer ctx, Pointer thisVal, List<Pointer> args) {
+//     _func(ctx, thisVal, args);
+//   }
+// }
 
 class _DartFunction extends JSInvokable {
   Function _func;
@@ -181,7 +212,7 @@ class IsolateJSFunction extends JSInvokable {
     if (result.containsKey('data'))
       return decodeData(result['data'], port);
     else
-      throw result['error'];
+      throw decodeData(result['error'], port);
   }
 }
 
@@ -205,10 +236,10 @@ class IsolateFunction extends JSInvokable implements DartReleasable {
           msgPort.send({
             'data': encodeData(data),
           });
-      } catch (e, stack) {
+      } catch (e) {
         if (msgPort != null)
           msgPort.send({
-            'error': e.toString() + '\n' + stack.toString(),
+            'error': encodeData(e),
           });
       }
     });
@@ -229,7 +260,7 @@ class IsolateFunction extends JSInvokable implements DartReleasable {
     if (result.containsKey('data'))
       return decodeData(result['data'], _port);
     else
-      throw result['error'];
+      throw decodeData(result['error'], _port);
   }
 
   @override
@@ -242,6 +273,7 @@ class IsolateFunction extends JSInvokable implements DartReleasable {
 
 dynamic encodeData(dynamic data, {Map<dynamic, dynamic> cache}) {
   if (cache == null) cache = Map();
+  if (data is JSError) return data.encode();
   if (cache.containsKey(data)) return cache[data];
   if (data is List) {
     var ret = [];
@@ -285,11 +317,10 @@ dynamic encodeData(dynamic data, {Map<dynamic, dynamic> cache}) {
         futurePort.close();
         (port as SendPort).send({'data': encodeData(value)});
       });
-    }, onError: (e, stack) {
+    }, onError: (e) {
       futurePort.first.then((port) {
         futurePort.close();
-        (port as SendPort)
-            .send({'error': e.toString() + '\n' + stack.toString()});
+        (port as SendPort).send({'error': encodeData(e)});
       });
     });
     return {
@@ -311,6 +342,8 @@ dynamic decodeData(dynamic data, SendPort port, {Map<dynamic, dynamic> cache}) {
     return ret;
   }
   if (data is Map) {
+    final jsException = JSError.decode(data);
+    if (jsException != null) return jsException;
     if (data.containsKey('__js_obj_val')) {
       int ctx = data['__js_obj_ctx'];
       int val = data['__js_obj_val'];
@@ -340,9 +373,9 @@ dynamic decodeData(dynamic data, SendPort port, {Map<dynamic, dynamic> cache}) {
       futurePort.first.then((value) {
         futurePort.close();
         if (value['error'] != null) {
-          futureCompleter.completeError(value['error']);
+          futureCompleter.completeError(decodeData(value['error'], port));
         } else {
-          futureCompleter.complete(value['data']);
+          futureCompleter.complete(decodeData(value['data'], port));
         }
       });
       return futureCompleter.future;
@@ -358,16 +391,13 @@ dynamic decodeData(dynamic data, SendPort port, {Map<dynamic, dynamic> cache}) {
   return data;
 }
 
-String parseJSException(Pointer ctx, [Pointer perr]) {
+dynamic parseJSException(Pointer ctx, [Pointer perr]) {
   final e = perr ?? jsGetException(ctx);
-
-  var err = jsToCString(ctx, e);
-  if (jsValueGetTag(e) == JSTag.OBJECT) {
-    Pointer stack = jsGetPropertyValue(ctx, e, 'stack');
-    if (jsToBool(ctx, stack) != 0) {
-      err += '\n' + jsToCString(ctx, stack);
-    }
-    jsFreeValue(ctx, stack);
+  var err;
+  try {
+    err = jsToDart(ctx, e);
+  } catch (exception) {
+    err = exception;
   }
   if (perr == null) jsFreeValue(ctx, e);
   return err;
@@ -409,6 +439,13 @@ Pointer jsGetPropertyValue(
 
 Pointer dartToJs(Pointer ctx, dynamic val, {Map<dynamic, dynamic> cache}) {
   if (val == null) return jsUNDEFINED();
+  if (val is JSError) {
+    final ret = jsNewError(ctx);
+    definePropertyValue(ctx, ret, "name", "");
+    definePropertyValue(ctx, ret, "message", val.message);
+    definePropertyValue(ctx, ret, "stack", val.stack);
+    return ret;
+  }
   if (val is JSObject) return jsDupValue(ctx, val._val);
   if (val is Future) {
     var resolvingFunc = allocate<Uint8>(count: sizeOfJSValue * 2);
@@ -422,8 +459,8 @@ Pointer dartToJs(Pointer ctx, dynamic val, {Map<dynamic, dynamic> cache}) {
     free(resolvingFunc);
     val.then((value) {
       res(value);
-    }, onError: (e, stack) {
-      rej(e.toString() + '\n' + stack.toString());
+    }, onError: (e) {
+      rej(e);
     });
     return ret;
   }
@@ -511,6 +548,15 @@ dynamic jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
       }
       if (jsIsFunction(ctx, val) != 0) {
         return JSFunction(ctx, val);
+      } else if (jsIsError(ctx, val) != 0) {
+        final err = jsToCString(ctx, val);
+        final pstack = jsGetPropertyValue(ctx, val, 'stack');
+        var stack;
+        if (jsToBool(ctx, pstack) != 0) {
+          stack = jsToCString(ctx, pstack);
+        }
+        jsFreeValue(ctx, pstack);
+        return JSError(err, stack);
       } else if (jsIsPromise(ctx, val) != 0) {
         Pointer jsPromiseThen = jsGetPropertyValue(ctx, val, 'then');
         JSFunction promiseThen = jsToDart(ctx, jsPromiseThen, cache: cache);
@@ -521,11 +567,9 @@ dynamic jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
           (v) {
             if (!completer.isCompleted) completer.complete(v);
           },
-          NativeJSInvokable((ctx, thisVal, args) {
-            if (!completer.isCompleted)
-              completer
-                  .completeError(parseJSException(ctx, args[0]));
-          }),
+          (e) {
+            if (!completer.isCompleted) completer.completeError(e);
+          },
         ], JSObject.fromAddress(ctx, val));
         bool isException = jsIsException(jsRet) != 0;
         jsFreeValue(ctx, jsRet);
