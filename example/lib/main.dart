@@ -6,9 +6,7 @@
  * @LastEditTime: 2020-12-02 11:28:06
  */
 import 'package:flutter/material.dart';
-import 'dart:typed_data';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_qjs/isolate.dart';
 
@@ -44,28 +42,6 @@ class TestPage extends StatefulWidget {
   State<StatefulWidget> createState() => _TestPageState();
 }
 
-dynamic methodHandler(String method, List arg) {
-  switch (method) {
-    case "http":
-      return Dio().get(arg[0]).then((response) => response.data);
-    case "test":
-      return arg[0]([
-        true,
-        1,
-        0.5,
-        "str",
-        {"key": "val", 0: 1},
-        Uint8List(2),
-        Int32List(2),
-        Int64List(2),
-        Float64List(2),
-        Float32List(2)
-      ]);
-    default:
-      throw Exception("No such method");
-  }
-}
-
 class _TestPageState extends State<TestPage> {
   String resp;
   IsolateQjs engine;
@@ -82,9 +58,6 @@ class _TestPageState extends State<TestPage> {
             "js/" + module.replaceFirst(new RegExp(r".js$"), "") + ".js");
       },
     );
-    final setToGlobalObject =
-        await engine.evaluate("(key, val) => this[key] = val;");
-    setToGlobalObject("channel", methodHandler);
   }
 
   @override

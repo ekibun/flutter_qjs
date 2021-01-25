@@ -10,10 +10,8 @@ import 'dart:ffi';
 import 'dart:isolate';
 
 import 'package:ffi/ffi.dart';
-import 'package:flutter_qjs/ffi.dart';
-import 'package:flutter_qjs/wrapper.dart';
-
-import 'isolate.dart';
+import 'ffi.dart';
+import 'wrapper.dart';
 
 /// Handler function to manage js module.
 typedef JsModuleHandler = String Function(String name);
@@ -21,6 +19,7 @@ typedef JsModuleHandler = String Function(String name);
 /// Handler to manage unhandled promise rejection.
 typedef JsHostPromiseRejectionHandler = void Function(String reason);
 
+/// Quickjs engine for flutter.
 class FlutterQjs {
   Pointer _rt;
   Pointer _ctx;
@@ -37,20 +36,11 @@ class FlutterQjs {
   /// Handler function to manage js module.
   JsHostPromiseRejectionHandler hostPromiseRejectionHandler;
 
-  /// Quickjs engine for flutter.
-  ///
-  /// Pass handlers to implement js-dart interaction and resolving modules.
   FlutterQjs({
     this.moduleHandler,
     this.stackSize,
     this.hostPromiseRejectionHandler,
   });
-
-  static applyFunction(Function func, List args, dynamic thisVal) {
-    final passThis =
-        RegExp("{.*thisVal.*}").hasMatch(func.runtimeType.toString());
-    return Function.apply(func, args, passThis ? {#thisVal: thisVal} : null);
-  }
 
   _ensureEngine() {
     if (_rt != null) return;
@@ -69,10 +59,8 @@ class FlutterQjs {
                   )));
             }
             final thisVal = jsToDart(ctx, pdata.elementAt(0).value);
-            final func = jsToDart(ctx, pdata.elementAt(3).value);
-            final ret = func is QjsInvokable
-                ? func.invoke(args, thisVal)
-                : applyFunction(func, args, thisVal);
+            JSInvokable func = jsToDart(ctx, pdata.elementAt(3).value);
+            final ret = func.invoke(args, thisVal);
             return dartToJs(ctx, ret);
           case JSChannelType.MODULE:
             if (moduleHandler == null) throw Exception("No ModuleHandler");
@@ -122,7 +110,7 @@ class FlutterQjs {
     }, port);
     if (this.stackSize != null && this.stackSize > 0)
       jsSetMaxStackSize(_rt, this.stackSize);
-    _ctx = jsNewContextWithPromsieWrapper(_rt);
+    _ctx = jsNewContext(_rt);
   }
 
   /// Free Runtime and Context which can be recreate when evaluate again.
@@ -144,18 +132,6 @@ class FlutterQjs {
         if (err <= 0) {
           if (err < 0) print(parseJSException(_ctx));
           break;
-        }
-      }
-      List jsPromises = runtimeOpaques[_rt]
-          .ref
-          .where(
-            (v) => v is JSPromise,
-          )
-          .toList();
-      for (JSPromise jsPromise in jsPromises) {
-        if (jsPromise.checkResolveReject()) {
-          jsPromise.release();
-          runtimeOpaques[_rt].ref.remove(jsPromise);
         }
       }
     }

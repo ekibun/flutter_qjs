@@ -9,32 +9,46 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_qjs/ffi.dart';
 import 'package:flutter_qjs/flutter_qjs.dart';
 import 'package:flutter_qjs/isolate.dart';
+import 'package:flutter_qjs/ffi.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-dynamic myFunction(String args, {String thisVal}) {
+dynamic myFunction(String args, {thisVal}) {
   return [thisVal, args];
 }
 
 Future testEvaluate(qjs) async {
-  final testWrap = await qjs.evaluate("(a) => a", name: "<testWrap>");
+  final testWrap = await qjs.evaluate(
+    "(a) => a",
+    name: "<testWrap>",
+  );
+  final wrapNull = await testWrap(null);
+  expect(wrapNull, null, reason: "wrap null");
   final primities = [0, 1, 0.1, true, false, "str"];
   final wrapPrimities = await testWrap(primities);
   for (var i = 0; i < primities.length; i++) {
     expect(wrapPrimities[i], primities[i], reason: "wrap primities");
   }
+  final wrapFunction = await testWrap(testWrap);
+  final testEqual = await qjs.evaluate(
+    "(a, b) => a === b",
+    name: "<testEqual>",
+  );
+  expect(await testEqual(wrapFunction, testWrap), true,
+      reason: "wrap function");
+
+  expect(wrapNull, null, reason: "wrap null");
   final a = {};
   a["a"] = a;
   final wrapA = await testWrap(a);
   expect(wrapA['a'], wrapA, reason: "recursive object");
   final testThis = await qjs.evaluate(
-    "(func) => func.call('this', 'arg')",
+    "(function (func, arg) { return func.call(this, arg) })",
     name: "<testThis>",
   );
-  final funcRet = await testThis(myFunction);
-  expect(funcRet[0], 'this', reason: "js function this");
+  final funcRet = await testThis(myFunction, 'arg', thisVal: {'name': 'this'});
+  expect(funcRet[0]['name'], 'this', reason: "js function this");
   expect(funcRet[1], 'arg', reason: "js function argument");
   final promises = await testWrap(await qjs.evaluate(
     "[Promise.reject('test Promise.reject'), Promise.resolve('test Promise.resolve')]",

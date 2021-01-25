@@ -15,7 +15,6 @@ abstract class JSRef {
   void release();
 }
 
-/// JS_Eval() flags
 class JSEvalFlag {
   static const GLOBAL = 0 << 0;
   static const MODULE = 1 << 0;
@@ -56,7 +55,7 @@ class JSTag {
   static const FLOAT64 = 7;
 }
 
-final DynamicLibrary qjsLib = Platform.environment['FLUTTER_TEST'] == 'true'
+final DynamicLibrary _qjsLib = Platform.environment['FLUTTER_TEST'] == 'true'
     ? (Platform.isWindows
         ? DynamicLibrary.open("test/build/Debug/ffiquickjs.dll")
         : Platform.isMacOS
@@ -72,7 +71,7 @@ final DynamicLibrary qjsLib = Platform.environment['FLUTTER_TEST'] == 'true'
 final Pointer Function(
   Pointer ctx,
   Pointer<Utf8> message,
-) _jsThrowInternalError = qjsLib
+) _jsThrowInternalError = _qjsLib
     .lookup<
         NativeFunction<
             Pointer Function(
@@ -89,12 +88,12 @@ Pointer jsThrowInternalError(Pointer ctx, String message) {
 }
 
 /// JSValue *jsEXCEPTION()
-final Pointer Function() jsEXCEPTION = qjsLib
+final Pointer Function() jsEXCEPTION = _qjsLib
     .lookup<NativeFunction<Pointer Function()>>("jsEXCEPTION")
     .asFunction();
 
 /// JSValue *jsUNDEFINED()
-final Pointer Function() jsUNDEFINED = qjsLib
+final Pointer Function() jsUNDEFINED = _qjsLib
     .lookup<NativeFunction<Pointer Function()>>("jsUNDEFINED")
     .asFunction();
 
@@ -105,7 +104,7 @@ typedef JSChannelNative = Pointer Function(
 /// JSRuntime *jsNewRuntime(JSChannel channel)
 final Pointer Function(
   Pointer<NativeFunction<JSChannelNative>>,
-) _jsNewRuntime = qjsLib
+) _jsNewRuntime = _qjsLib
     .lookup<
         NativeFunction<
             Pointer Function(
@@ -117,7 +116,6 @@ class RuntimeOpaque {
   JSChannel channel;
   List<JSRef> ref = [];
   ReceivePort port;
-  Future Function(Pointer) promiseToFuture;
   int dartObjectClassId;
 }
 
@@ -143,7 +141,7 @@ Pointer jsNewRuntime(
 final void Function(
   Pointer,
   int,
-) jsSetMaxStackSize = qjsLib
+) jsSetMaxStackSize = _qjsLib
     .lookup<
         NativeFunction<
             Void Function(
@@ -155,7 +153,7 @@ final void Function(
 /// void jsFreeRuntime(JSRuntime *rt)
 final void Function(
   Pointer,
-) _jsFreeRuntime = qjsLib
+) _jsFreeRuntime = _qjsLib
     .lookup<
         NativeFunction<
             Void Function(
@@ -177,7 +175,7 @@ void jsFreeRuntime(
 final Pointer Function(
   Pointer ctx,
   Pointer funcData,
-) jsNewCFunction = qjsLib
+) jsNewCFunction = _qjsLib
     .lookup<
         NativeFunction<
             Pointer Function(
@@ -189,7 +187,7 @@ final Pointer Function(
 /// JSContext *jsNewContext(JSRuntime *rt)
 final Pointer Function(
   Pointer rt,
-) jsNewContext = qjsLib
+) _jsNewContext = _qjsLib
     .lookup<
         NativeFunction<
             Pointer Function(
@@ -197,10 +195,18 @@ final Pointer Function(
     )>>("jsNewContext")
     .asFunction();
 
+Pointer jsNewContext(Pointer rt) {
+  var ctx = _jsNewContext(rt);
+  final runtimeOpaque = runtimeOpaques[rt];
+  if (runtimeOpaque == null) throw Exception("Runtime has been released!");
+  runtimeOpaque.dartObjectClassId = jsNewClass(ctx, "DartObject");
+  return ctx;
+}
+
 /// void jsFreeContext(JSContext *ctx)
 final void Function(
   Pointer,
-) jsFreeContext = qjsLib
+) jsFreeContext = _qjsLib
     .lookup<
         NativeFunction<
             Void Function(
@@ -211,7 +217,7 @@ final void Function(
 /// JSRuntime *jsGetRuntime(JSContext *ctx)
 final Pointer Function(
   Pointer,
-) jsGetRuntime = qjsLib
+) jsGetRuntime = _qjsLib
     .lookup<
         NativeFunction<
             Pointer Function(
@@ -226,7 +232,7 @@ final Pointer Function(
   int inputLen,
   Pointer<Utf8> filename,
   int evalFlags,
-) _jsEval = qjsLib
+) _jsEval = _qjsLib
     .lookup<
         NativeFunction<
             Pointer Function(
@@ -262,7 +268,7 @@ Pointer jsEval(
 /// DLLEXPORT int32_t jsValueGetTag(JSValue *val)
 final int Function(
   Pointer val,
-) jsValueGetTag = qjsLib
+) jsValueGetTag = _qjsLib
     .lookup<
         NativeFunction<
             Int32 Function(
@@ -273,7 +279,7 @@ final int Function(
 /// void *jsValueGetPtr(JSValue *val)
 final Pointer Function(
   Pointer val,
-) jsValueGetPtr = qjsLib
+) jsValueGetPtr = _qjsLib
     .lookup<
         NativeFunction<
             Pointer Function(
@@ -284,7 +290,7 @@ final Pointer Function(
 /// DLLEXPORT bool jsTagIsFloat64(int32_t tag)
 final int Function(
   int val,
-) jsTagIsFloat64 = qjsLib
+) jsTagIsFloat64 = _qjsLib
     .lookup<
         NativeFunction<
             Int32 Function(
@@ -296,7 +302,7 @@ final int Function(
 final Pointer Function(
   Pointer ctx,
   int val,
-) jsNewBool = qjsLib
+) jsNewBool = _qjsLib
     .lookup<
         NativeFunction<
             Pointer Function(
@@ -309,7 +315,7 @@ final Pointer Function(
 final Pointer Function(
   Pointer ctx,
   int val,
-) jsNewInt64 = qjsLib
+) jsNewInt64 = _qjsLib
     .lookup<
         NativeFunction<
             Pointer Function(
@@ -322,7 +328,7 @@ final Pointer Function(
 final Pointer Function(
   Pointer ctx,
   double val,
-) jsNewFloat64 = qjsLib
+) jsNewFloat64 = _qjsLib
     .lookup<
         NativeFunction<
             Pointer Function(
@@ -335,7 +341,7 @@ final Pointer Function(
 final Pointer Function(
   Pointer ctx,
   Pointer<Utf8> str,
-) _jsNewString = qjsLib
+) _jsNewString = _qjsLib
     .lookup<
         NativeFunction<
             Pointer Function(
@@ -357,7 +363,7 @@ final Pointer Function(
   Pointer ctx,
   Pointer<Uint8> buf,
   int len,
-) jsNewArrayBufferCopy = qjsLib
+) jsNewArrayBufferCopy = _qjsLib
     .lookup<
         NativeFunction<
             Pointer Function(
@@ -370,7 +376,7 @@ final Pointer Function(
 /// JSValue *jsNewArray(JSContext *ctx)
 final Pointer Function(
   Pointer ctx,
-) jsNewArray = qjsLib
+) jsNewArray = _qjsLib
     .lookup<
         NativeFunction<
             Pointer Function(
@@ -381,7 +387,7 @@ final Pointer Function(
 /// JSValue *jsNewObject(JSContext *ctx)
 final Pointer Function(
   Pointer ctx,
-) jsNewObject = qjsLib
+) jsNewObject = _qjsLib
     .lookup<
         NativeFunction<
             Pointer Function(
@@ -394,7 +400,7 @@ final void Function(
   Pointer ctx,
   Pointer val,
   int free,
-) _jsFreeValue = qjsLib
+) _jsFreeValue = _qjsLib
     .lookup<
         NativeFunction<
             Void Function(
@@ -417,7 +423,7 @@ final void Function(
   Pointer rt,
   Pointer val,
   int free,
-) _jsFreeValueRT = qjsLib
+) _jsFreeValueRT = _qjsLib
     .lookup<
         NativeFunction<
             Void Function(
@@ -439,7 +445,7 @@ void jsFreeValueRT(
 final Pointer Function(
   Pointer ctx,
   Pointer val,
-) jsDupValue = qjsLib
+) jsDupValue = _qjsLib
     .lookup<
         NativeFunction<
             Pointer Function(
@@ -452,7 +458,7 @@ final Pointer Function(
 final Pointer Function(
   Pointer rt,
   Pointer val,
-) jsDupValueRT = qjsLib
+) jsDupValueRT = _qjsLib
     .lookup<
         NativeFunction<
             Pointer Function(
@@ -465,7 +471,7 @@ final Pointer Function(
 final int Function(
   Pointer ctx,
   Pointer val,
-) jsToBool = qjsLib
+) jsToBool = _qjsLib
     .lookup<
         NativeFunction<
             Int32 Function(
@@ -478,7 +484,7 @@ final int Function(
 final int Function(
   Pointer ctx,
   Pointer val,
-) jsToInt64 = qjsLib
+) jsToInt64 = _qjsLib
     .lookup<
         NativeFunction<
             Int64 Function(
@@ -491,7 +497,7 @@ final int Function(
 final double Function(
   Pointer ctx,
   Pointer val,
-) jsToFloat64 = qjsLib
+) jsToFloat64 = _qjsLib
     .lookup<
         NativeFunction<
             Double Function(
@@ -504,7 +510,7 @@ final double Function(
 final Pointer<Utf8> Function(
   Pointer ctx,
   Pointer val,
-) _jsToCString = qjsLib
+) _jsToCString = _qjsLib
     .lookup<
         NativeFunction<
             Pointer<Utf8> Function(
@@ -517,7 +523,7 @@ final Pointer<Utf8> Function(
 final void Function(
   Pointer ctx,
   Pointer<Utf8> val,
-) jsFreeCString = qjsLib
+) jsFreeCString = _qjsLib
     .lookup<
         NativeFunction<
             Void Function(
@@ -541,7 +547,7 @@ String jsToCString(
 final int Function(
   Pointer ctx,
   Pointer<Utf8> name,
-) _jsNewClass = qjsLib
+) _jsNewClass = _qjsLib
     .lookup<
         NativeFunction<
             Uint32 Function(
@@ -568,7 +574,7 @@ final Pointer Function(
   Pointer ctx,
   int classId,
   int opaque,
-) jsNewObjectClass = qjsLib
+) jsNewObjectClass = _qjsLib
     .lookup<
         NativeFunction<
             Pointer Function(
@@ -582,7 +588,7 @@ final Pointer Function(
 final int Function(
   Pointer obj,
   int classid,
-) jsGetObjectOpaque = qjsLib
+) jsGetObjectOpaque = _qjsLib
     .lookup<
         NativeFunction<
             IntPtr Function(
@@ -596,7 +602,7 @@ final Pointer<Uint8> Function(
   Pointer ctx,
   Pointer<IntPtr> psize,
   Pointer val,
-) jsGetArrayBuffer = qjsLib
+) jsGetArrayBuffer = _qjsLib
     .lookup<
         NativeFunction<
             Pointer<Uint8> Function(
@@ -610,7 +616,7 @@ final Pointer<Uint8> Function(
 final int Function(
   Pointer ctx,
   Pointer val,
-) jsIsFunction = qjsLib
+) jsIsFunction = _qjsLib
     .lookup<
         NativeFunction<
             Int32 Function(
@@ -623,7 +629,7 @@ final int Function(
 final int Function(
   Pointer ctx,
   Pointer val,
-) jsIsPromise = qjsLib
+) jsIsPromise = _qjsLib
     .lookup<
         NativeFunction<
             Int32 Function(
@@ -636,7 +642,7 @@ final int Function(
 final int Function(
   Pointer ctx,
   Pointer val,
-) jsIsArray = qjsLib
+) jsIsArray = _qjsLib
     .lookup<
         NativeFunction<
             Int32 Function(
@@ -651,7 +657,7 @@ final Pointer Function(
   Pointer ctx,
   Pointer thisObj,
   int prop,
-) jsGetProperty = qjsLib
+) jsGetProperty = _qjsLib
     .lookup<
         NativeFunction<
             Pointer Function(
@@ -669,7 +675,7 @@ final int Function(
   int prop,
   Pointer val,
   int flag,
-) jsDefinePropertyValue = qjsLib
+) jsDefinePropertyValue = _qjsLib
     .lookup<
         NativeFunction<
             Int32 Function(
@@ -685,7 +691,7 @@ final int Function(
 final Pointer Function(
   Pointer ctx,
   int v,
-) jsFreeAtom = qjsLib
+) jsFreeAtom = _qjsLib
     .lookup<
         NativeFunction<
             Pointer Function(
@@ -698,7 +704,7 @@ final Pointer Function(
 final int Function(
   Pointer ctx,
   Pointer val,
-) jsValueToAtom = qjsLib
+) jsValueToAtom = _qjsLib
     .lookup<
         NativeFunction<
             Uint32 Function(
@@ -711,7 +717,7 @@ final int Function(
 final Pointer Function(
   Pointer ctx,
   int val,
-) jsAtomToValue = qjsLib
+) jsAtomToValue = _qjsLib
     .lookup<
         NativeFunction<
             Pointer Function(
@@ -728,7 +734,7 @@ final int Function(
   Pointer<Uint32> plen,
   Pointer obj,
   int flags,
-) jsGetOwnPropertyNames = qjsLib
+) jsGetOwnPropertyNames = _qjsLib
     .lookup<
         NativeFunction<
             Int32 Function(
@@ -744,7 +750,7 @@ final int Function(
 final int Function(
   Pointer ptab,
   int i,
-) jsPropertyEnumGetAtom = qjsLib
+) jsPropertyEnumGetAtom = _qjsLib
     .lookup<
         NativeFunction<
             Uint32 Function(
@@ -754,7 +760,7 @@ final int Function(
     .asFunction();
 
 /// uint32_t sizeOfJSValue()
-final int Function() _sizeOfJSValue = qjsLib
+final int Function() _sizeOfJSValue = _qjsLib
     .lookup<NativeFunction<Uint32 Function()>>("sizeOfJSValue")
     .asFunction();
 
@@ -765,7 +771,7 @@ final void Function(
   Pointer list,
   int i,
   Pointer val,
-) setJSValueList = qjsLib
+) setJSValueList = _qjsLib
     .lookup<
         NativeFunction<
             Void Function(
@@ -783,7 +789,7 @@ final Pointer Function(
   Pointer thisObj,
   int argc,
   Pointer argv,
-) _jsCall = qjsLib
+) _jsCall = _qjsLib
     .lookup<
         NativeFunction<
             Pointer Function(
@@ -823,7 +829,7 @@ Pointer jsCall(
 /// int jsIsException(JSValueConst *val)
 final int Function(
   Pointer val,
-) jsIsException = qjsLib
+) jsIsException = _qjsLib
     .lookup<
         NativeFunction<
             Int32 Function(
@@ -834,7 +840,7 @@ final int Function(
 /// JSValue *jsGetException(JSContext *ctx)
 final Pointer Function(
   Pointer ctx,
-) jsGetException = qjsLib
+) jsGetException = _qjsLib
     .lookup<
         NativeFunction<
             Pointer Function(
@@ -845,7 +851,7 @@ final Pointer Function(
 /// int jsExecutePendingJob(JSRuntime *rt)
 final int Function(
   Pointer ctx,
-) jsExecutePendingJob = qjsLib
+) jsExecutePendingJob = _qjsLib
     .lookup<
         NativeFunction<
             Int32 Function(
@@ -857,7 +863,7 @@ final int Function(
 final Pointer Function(
   Pointer ctx,
   Pointer resolvingFuncs,
-) jsNewPromiseCapability = qjsLib
+) jsNewPromiseCapability = _qjsLib
     .lookup<
         NativeFunction<
             Pointer Function(
@@ -870,7 +876,7 @@ final Pointer Function(
 final void Function(
   Pointer ctx,
   Pointer ptab,
-) jsFree = qjsLib
+) jsFree = _qjsLib
     .lookup<
         NativeFunction<
             Void Function(

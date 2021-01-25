@@ -6,6 +6,11 @@
  * @LastEditTime: 2020-12-02 11:36:40
 -->
 
+## 0.3.1
+
+* code clean up.
+* fix isolate wrap error.
+
 ## 0.3.0
 
 * breakdown change to remove `channel`.

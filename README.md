@@ -45,20 +45,31 @@ engine = null;
 
 Data conversion between dart and js are implemented as follow:
 
-| dart      | js                 |
-| --------- | ------------------ |
-| Bool      | boolean            |
-| Int       | number             |
-| Double    | number             |
-| String    | string             |
-| Uint8List | ArrayBuffer        |
-| List      | Array              |
-| Map       | Object             |
-| Function  | function(....args) |
-| Future    | Promise            |
-| Object    | DartObject         |
+| dart                    | js                 |
+| ----------------------- | ------------------ |
+| Bool                    | boolean            |
+| Int                     | number             |
+| Double                  | number             |
+| String                  | string             |
+| Uint8List               | ArrayBuffer        |
+| List                    | Array              |
+| Map                     | Object             |
+| Function<br>JSInvokable | function(....args) |
+| Future                  | Promise            |
+| Object                  | DartObject         |
 
-**notice:** Dart function parameter `thisVal` is used to store `this` in js.
+**notice:** `JSInvokable` does not extend `Function`, but can be used same as `Function`.
+Dart function uses named argument `thisVal` to manage js function `this`:
+
+```dart
+func(arg1, arg2, {thisVal});
+```
+
+or use `invoke` method to pass list parameters:
+
+```dart
+(func as JSInvokable).invoke([arg1, arg2], thisVal);
+```
 
 ### Use modules
 
@@ -119,10 +130,11 @@ try {
 
 Method `close` can destroy quickjs runtime that can be recreated again if you call `evaluate`.
 
-**notice:** Make sure arguments passed to `IsolateJSFunction` are avaliable for isolate, such as primities and top level function. Method `bind` can help to pass instance function to isolate:
+**notice:** Make sure arguments passed to `IsolateJSFunction` are avaliable for isolate, such as primities and top level function.
+Method `bind` can help to pass instance function to isolate:
 
 ```dart
-await setToGlobalObject("func", await engine.bind(() {
+await setToGlobalObject("func", await engine.bind(({thisVal}) {
   // DO SOMETHING
 }))
 ```
@@ -131,8 +143,8 @@ await setToGlobalObject("func", await engine.bind(() {
 
 ## Breaking change in v0.3.0
 
-`channel` function is no longer utilized by default.
-Use js function to set to global:
+`channel` function is no longer included by default.
+Use js function to set dart object globally:
 
 ```dart
 final setToGlobalObject = await engine.evaluate("(key, val) => this[key] = val;");

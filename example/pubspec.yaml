@@ -22,7 +22,6 @@ dependencies:
 
   highlight: 0.6.0
   flutter_highlight: 0.6.0
-  dio: 3.0.10
 
 dev_dependencies:
   flutter_test:

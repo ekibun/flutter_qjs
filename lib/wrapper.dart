@@ -7,123 +7,20 @@
  */
 import 'dart:async';
 import 'dart:ffi';
+import 'dart:isolate';
 import 'dart:typed_data';
-
 import 'package:ffi/ffi.dart';
-
 import 'ffi.dart';
-import 'isolate.dart';
 
-class JSRefValue implements JSRef {
-  Pointer val;
-  Pointer ctx;
-  JSRefValue(this.ctx, Pointer val) {
-    Pointer rt = jsGetRuntime(ctx);
-    this.val = jsDupValue(ctx, val);
-    runtimeOpaques[rt]?.ref?.add(this);
-  }
+abstract class JSInvokable {
+  dynamic invoke(List args, [dynamic thisVal]);
 
-  JSRefValue.fromAddress(int ctx, int val) {
-    this.ctx = Pointer.fromAddress(ctx);
-    this.val = Pointer.fromAddress(val);
-  }
-
-  @override
-  void release() {
-    if (val != null) {
-      jsFreeValue(ctx, val);
-    }
-    val = null;
-    ctx = null;
-  }
-}
-
-abstract class QjsReleasable {
-  void release();
-}
-
-abstract class QjsInvokable {
-  dynamic invoke(List positionalArguments, [dynamic thisVal]);
-}
-
-class DartObject implements JSRef {
-  Object obj;
-  Pointer ctx;
-  DartObject(this.ctx, this.obj) {
-    runtimeOpaques[jsGetRuntime(ctx)]?.ref?.add(this);
-  }
-
-  static DartObject fromAddress(Pointer rt, int val) {
-    return runtimeOpaques[rt]?.ref?.firstWhere(
-          (e) => identityHashCode(e) == val,
-          orElse: () => null,
-        );
-  }
-
-  @override
-  void release() {
-    if (obj is QjsReleasable) (obj as QjsReleasable).release();
-    obj = null;
-    ctx = null;
-  }
-}
-
-class JSPromise extends JSRefValue {
-  Completer completer;
-  JSPromise(Pointer ctx, Pointer val, this.completer) : super(ctx, val);
-
-  @override
-  void release() {
-    super.release();
-    if (!completer.isCompleted) {
-      completer.completeError("Promise cannot resolve");
-    }
-  }
-
-  bool checkResolveReject() {
-    if (val == null || completer.isCompleted) return true;
-    var status = jsToDart(ctx, val);
-    if (status["__resolved"] == true) {
-      completer.complete(status["__value"]);
-      return true;
-    }
-    if (status["__rejected"] == true) {
-      final err = jsGetPropertyStr(ctx, val, "__error");
-      completer.completeError(parseJSException(
-        ctx,
-        perr: err,
-      ));
-      jsFreeValue(ctx, err);
-      return true;
-    }
-    return false;
-  }
-}
-
-class JSFunction extends JSRefValue implements QjsInvokable {
-  JSFunction(Pointer ctx, Pointer val) : super(ctx, val);
-
-  JSFunction.fromAddress(int ctx, int val) : super.fromAddress(ctx, val);
-
-  invoke(List<dynamic> arguments, [dynamic thisVal]) {
-    if (val == null) return;
-    List<Pointer> args = arguments
-        .map(
-          (e) => dartToJs(ctx, e),
-        )
-        .toList();
-    Pointer jsRet = jsCall(ctx, val, dartToJs(ctx, thisVal), args);
-    for (Pointer jsArg in args) {
-      jsFreeValue(ctx, jsArg);
-    }
-    bool isException = jsIsException(jsRet) != 0;
-    if (isException) {
-      jsFreeValue(ctx, jsRet);
-      throw Exception(parseJSException(ctx));
-    }
-    var ret = jsToDart(ctx, jsRet);
-    jsFreeValue(ctx, jsRet);
-    return ret;
+  static dynamic wrap(dynamic func) {
+    return func is JSInvokable
+        ? func
+        : func is Function
+            ? _DartFunction(func)
+            : func;
   }
 
   @override
@@ -135,13 +32,316 @@ class JSFunction extends JSRefValue implements QjsInvokable {
   }
 }
 
-Pointer jsGetPropertyStr(Pointer ctx, Pointer val, String prop) {
-  var jsAtomVal = jsNewString(ctx, prop);
-  var jsAtom = jsValueToAtom(ctx, jsAtomVal);
-  Pointer jsProp = jsGetProperty(ctx, val, jsAtom);
-  jsFreeAtom(ctx, jsAtom);
-  jsFreeValue(ctx, jsAtomVal);
-  return jsProp;
+class _DartFunction extends JSInvokable {
+  Function _func;
+  _DartFunction(this._func);
+
+  @override
+  invoke(List args, [thisVal]) {
+    /// wrap this into function
+    final passThis =
+        RegExp("{.*thisVal.*}").hasMatch(_func.runtimeType.toString());
+    return Function.apply(_func, args, passThis ? {#thisVal: thisVal} : null);
+  }
+}
+
+abstract class DartReleasable {
+  void release();
+}
+
+class DartObject implements JSRef {
+  Object _obj;
+  Pointer _ctx;
+  DartObject(this._ctx, this._obj) {
+    runtimeOpaques[jsGetRuntime(_ctx)]?.ref?.add(this);
+  }
+
+  static DartObject fromAddress(Pointer rt, int val) {
+    return runtimeOpaques[rt]?.ref?.firstWhere(
+          (e) => identityHashCode(e) == val,
+          orElse: () => null,
+        );
+  }
+
+  @override
+  void release() {
+    if (_obj is DartReleasable) {
+      (_obj as DartReleasable).release();
+    }
+    _obj = null;
+    _ctx = null;
+  }
+}
+
+class JSObject implements JSRef {
+  Pointer _val;
+  Pointer _ctx;
+
+  /// Create
+  JSObject(this._ctx, Pointer _val) {
+    Pointer rt = jsGetRuntime(_ctx);
+    this._val = jsDupValue(_ctx, _val);
+    runtimeOpaques[rt]?.ref?.add(this);
+  }
+
+  JSObject.fromAddress(Pointer ctx, Pointer val) {
+    this._ctx = ctx;
+    this._val = val;
+  }
+
+  @override
+  void release() {
+    if (_val != null) {
+      jsFreeValue(_ctx, _val);
+    }
+    _val = null;
+    _ctx = null;
+  }
+}
+
+class JSFunction extends JSObject implements JSInvokable {
+  JSFunction(Pointer ctx, Pointer val) : super(ctx, val);
+
+  JSFunction.fromAddress(Pointer ctx, Pointer val)
+      : super.fromAddress(ctx, val);
+
+  @override
+  invoke(List<dynamic> arguments, [dynamic thisVal]) {
+    Pointer jsRet = _invoke(arguments, thisVal);
+    if (jsRet == null) return;
+    bool isException = jsIsException(jsRet) != 0;
+    if (isException) {
+      jsFreeValue(_ctx, jsRet);
+      throw Exception(parseJSException(_ctx));
+    }
+    var ret = jsToDart(_ctx, jsRet);
+    jsFreeValue(_ctx, jsRet);
+    return ret;
+  }
+
+  Pointer _invoke(List<dynamic> arguments, [dynamic thisVal]) {
+    if (_val == null) return null;
+    List<Pointer> args = arguments
+        .map(
+          (e) => dartToJs(_ctx, e),
+        )
+        .toList();
+    Pointer jsThis = dartToJs(_ctx, thisVal);
+    Pointer jsRet = jsCall(_ctx, _val, jsThis, args);
+    jsFreeValue(_ctx, jsThis);
+    for (Pointer jsArg in args) {
+      jsFreeValue(_ctx, jsArg);
+    }
+    return jsRet;
+  }
+
+  @override
+  noSuchMethod(Invocation invocation) {
+    return invoke(
+      invocation.positionalArguments,
+      invocation.namedArguments[#thisVal],
+    );
+  }
+}
+
+class IsolateJSFunction extends JSInvokable {
+  int _val;
+  int _ctx;
+  SendPort port;
+  IsolateJSFunction(this._ctx, this._val, this.port);
+
+  @override
+  Future invoke(List arguments, [thisVal]) async {
+    if (0 == _val ?? 0) return;
+    var evaluatePort = ReceivePort();
+    port.send({
+      'type': 'call',
+      'ctx': _ctx,
+      'val': _val,
+      'args': encodeData(arguments),
+      'this': encodeData(thisVal),
+      'port': evaluatePort.sendPort,
+    });
+    Map result = await evaluatePort.first;
+    evaluatePort.close();
+    if (result.containsKey('data'))
+      return decodeData(result['data'], port);
+    else
+      throw result['error'];
+  }
+}
+
+class IsolateFunction extends JSInvokable implements DartReleasable {
+  SendPort _port;
+  SendPort func;
+  IsolateFunction(this.func, this._port);
+
+  static IsolateFunction bind(Function func, SendPort port) {
+    final JSInvokable invokable = JSInvokable.wrap(func);
+    final funcPort = ReceivePort();
+    funcPort.listen((msg) async {
+      if (msg == "close") return funcPort.close();
+      var data;
+      SendPort msgPort = msg['port'];
+      try {
+        List args = decodeData(msg['args'], port);
+        Map thisVal = decodeData(msg['this'], port);
+        data = await invokable.invoke(args, thisVal);
+        if (msgPort != null)
+          msgPort.send({
+            'data': encodeData(data),
+          });
+      } catch (e, stack) {
+        if (msgPort != null)
+          msgPort.send({
+            'error': e.toString() + "\n" + stack.toString(),
+          });
+      }
+    });
+    return IsolateFunction(funcPort.sendPort, port);
+  }
+
+  @override
+  Future invoke(List positionalArguments, [thisVal]) async {
+    if (func == null) return;
+    var evaluatePort = ReceivePort();
+    func.send({
+      'args': encodeData(positionalArguments),
+      'this': encodeData(thisVal),
+      'port': evaluatePort.sendPort,
+    });
+    Map result = await evaluatePort.first;
+    evaluatePort.close();
+    if (result.containsKey('data'))
+      return decodeData(result['data'], _port);
+    else
+      throw result['error'];
+  }
+
+  @override
+  void release() {
+    if (func == null) return;
+    func.send("close");
+    func = null;
+  }
+}
+
+dynamic encodeData(dynamic data, {Map<dynamic, dynamic> cache}) {
+  if (cache == null) cache = Map();
+  if (cache.containsKey(data)) return cache[data];
+  if (data is List) {
+    var ret = [];
+    cache[data] = ret;
+    for (int i = 0; i < data.length; ++i) {
+      ret.add(encodeData(data[i], cache: cache));
+    }
+    return ret;
+  }
+  if (data is Map) {
+    var ret = {};
+    cache[data] = ret;
+    for (var entry in data.entries) {
+      ret[encodeData(entry.key, cache: cache)] =
+          encodeData(entry.value, cache: cache);
+    }
+    return ret;
+  }
+  if (data is JSObject) {
+    return {
+      '__js_function': data is JSFunction,
+      '__js_obj_ctx': data._ctx.address,
+      '__js_obj_val': data._val.address,
+    };
+  }
+  if (data is IsolateJSFunction) {
+    return {
+      '__js_obj_ctx': data._ctx,
+      '__js_obj_val': data._val,
+    };
+  }
+  if (data is IsolateFunction) {
+    return {
+      '__js_function_port': data.func,
+    };
+  }
+  if (data is Future) {
+    var futurePort = ReceivePort();
+    data.then((value) {
+      futurePort.first.then((port) {
+        futurePort.close();
+        (port as SendPort).send({'data': encodeData(value)});
+      });
+    }, onError: (e, stack) {
+      futurePort.first.then((port) {
+        futurePort.close();
+        (port as SendPort)
+            .send({'error': e.toString() + "\n" + stack.toString()});
+      });
+    });
+    return {
+      '__js_future_port': futurePort.sendPort,
+    };
+  }
+  return data;
+}
+
+dynamic decodeData(dynamic data, SendPort port, {Map<dynamic, dynamic> cache}) {
+  if (cache == null) cache = Map();
+  if (cache.containsKey(data)) return cache[data];
+  if (data is List) {
+    var ret = [];
+    cache[data] = ret;
+    for (int i = 0; i < data.length; ++i) {
+      ret.add(decodeData(data[i], port, cache: cache));
+    }
+    return ret;
+  }
+  if (data is Map) {
+    if (data.containsKey('__js_obj_val')) {
+      int ctx = data['__js_obj_ctx'];
+      int val = data['__js_obj_val'];
+      if (data['__js_function'] == false) {
+        return JSObject.fromAddress(
+          Pointer.fromAddress(ctx),
+          Pointer.fromAddress(val),
+        );
+      } else if (port != null) {
+        return IsolateJSFunction(ctx, val, port);
+      } else {
+        return JSFunction.fromAddress(
+          Pointer.fromAddress(ctx),
+          Pointer.fromAddress(val),
+        );
+      }
+    }
+    if (data.containsKey('__js_function_port')) {
+      return IsolateFunction(data['__js_function_port'], port);
+    }
+    if (data.containsKey('__js_future_port')) {
+      SendPort port = data['__js_future_port'];
+      var futurePort = ReceivePort();
+      port.send(futurePort.sendPort);
+      var futureCompleter = Completer();
+      futureCompleter.future.catchError((e) {});
+      futurePort.first.then((value) {
+        futurePort.close();
+        if (value['error'] != null) {
+          futureCompleter.completeError(value['error']);
+        } else {
+          futureCompleter.complete(value['data']);
+        }
+      });
+      return futureCompleter.future;
+    }
+    var ret = {};
+    cache[data] = ret;
+    for (var entry in data.entries) {
+      ret[decodeData(entry.key, port, cache: cache)] =
+          decodeData(entry.value, port, cache: cache);
+    }
+    return ret;
+  }
+  return data;
 }
 
 String parseJSException(Pointer ctx, {Pointer perr}) {
@@ -149,7 +349,7 @@ String parseJSException(Pointer ctx, {Pointer perr}) {
 
   var err = jsToCString(ctx, e);
   if (jsValueGetTag(e) == JSTag.OBJECT) {
-    Pointer stack = jsGetPropertyStr(ctx, e, "stack");
+    Pointer stack = jsGetPropertyValue(ctx, e, "stack");
     if (jsToBool(ctx, stack) != 0) {
       err += '\n' + jsToCString(ctx, stack);
     }
@@ -179,8 +379,23 @@ void definePropertyValue(
   jsFreeValue(ctx, jsAtomVal);
 }
 
+Pointer jsGetPropertyValue(
+  Pointer ctx,
+  Pointer obj,
+  dynamic key, {
+  Map<dynamic, dynamic> cache,
+}) {
+  var jsAtomVal = dartToJs(ctx, key, cache: cache);
+  var jsAtom = jsValueToAtom(ctx, jsAtomVal);
+  var jsProp = jsGetProperty(ctx, obj, jsAtom);
+  jsFreeAtom(ctx, jsAtom);
+  jsFreeValue(ctx, jsAtomVal);
+  return jsProp;
+}
+
 Pointer dartToJs(Pointer ctx, dynamic val, {Map<dynamic, dynamic> cache}) {
   if (val == null) return jsUNDEFINED();
+  if (val is JSObject) return jsDupValue(ctx, val._val);
   if (val is Future) {
     var resolvingFunc = allocate<Uint8>(count: sizeOfJSValue * 2);
     var resolvingFunc2 =
@@ -214,9 +429,6 @@ Pointer dartToJs(Pointer ctx, dynamic val, {Map<dynamic, dynamic> cache}) {
   if (cache.containsKey(val)) {
     return jsDupValue(ctx, cache[val]);
   }
-  if (val is JSFunction) {
-    return jsDupValue(ctx, val.val);
-  }
   if (val is List) {
     Pointer ret = jsNewArray(ctx);
     cache[val] = ret;
@@ -233,15 +445,17 @@ Pointer dartToJs(Pointer ctx, dynamic val, {Map<dynamic, dynamic> cache}) {
     }
     return ret;
   }
+  // wrap Function to JSInvokable
+  final valWrap = JSInvokable.wrap(val);
   int dartObjectClassId =
       runtimeOpaques[jsGetRuntime(ctx)]?.dartObjectClassId ?? 0;
   if (dartObjectClassId == 0) return jsUNDEFINED();
   var dartObject = jsNewObjectClass(
     ctx,
     dartObjectClassId,
-    identityHashCode(DartObject(ctx, val)),
+    identityHashCode(DartObject(ctx, valWrap)),
   );
-  if (val is Function || val is IsolateFunction) {
+  if (valWrap is JSInvokable) {
     final ret = jsNewCFunction(ctx, dartObject);
     jsFreeValue(ctx, dartObject);
     return ret;
@@ -268,7 +482,7 @@ dynamic jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
       if (dartObjectClassId != 0) {
         final dartObject = DartObject.fromAddress(
             rt, jsGetObjectOpaque(val, dartObjectClassId));
-        if (dartObject != null) return dartObject.obj;
+        if (dartObject != null) return dartObject._obj;
       }
       Pointer<IntPtr> psize = allocate<IntPtr>();
       Pointer<Uint8> buf = jsGetArrayBuffer(ctx, psize, val);
@@ -284,18 +498,30 @@ dynamic jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
       if (jsIsFunction(ctx, val) != 0) {
         return JSFunction(ctx, val);
       } else if (jsIsPromise(ctx, val) != 0) {
-        return runtimeOpaques[rt]?.promiseToFuture(val);
+        Pointer jsPromiseThen = jsGetPropertyValue(ctx, val, "then");
+        JSFunction promiseThen = jsToDart(ctx, jsPromiseThen, cache: cache);
+        jsFreeValue(ctx, jsPromiseThen);
+        var completer = Completer();
+        completer.future.catchError((e) {});
+        final jsRet = promiseThen._invoke([
+          (v) {
+            if (!completer.isCompleted) completer.complete(v);
+          },
+          (e) {
+            if (!completer.isCompleted) completer.completeError(e);
+          },
+        ], JSObject.fromAddress(ctx, val));
+        bool isException = jsIsException(jsRet) != 0;
+        jsFreeValue(ctx, jsRet);
+        if (isException) throw Exception(parseJSException(ctx));
+        return completer.future;
       } else if (jsIsArray(ctx, val) != 0) {
-        Pointer jslength = jsGetPropertyStr(ctx, val, "length");
+        Pointer jslength = jsGetPropertyValue(ctx, val, "length");
         int length = jsToInt64(ctx, jslength);
         List<dynamic> ret = [];
         cache[valptr] = ret;
         for (int i = 0; i < length; ++i) {
-          var jsAtomVal = jsNewInt64(ctx, i);
-          var jsAtom = jsValueToAtom(ctx, jsAtomVal);
-          var jsProp = jsGetProperty(ctx, val, jsAtom);
-          jsFreeAtom(ctx, jsAtom);
-          jsFreeValue(ctx, jsAtomVal);
+          var jsProp = jsGetPropertyValue(ctx, val, i);
           ret.add(jsToDart(ctx, jsProp, cache: cache));
           jsFreeValue(ctx, jsProp);
         }
@@ -326,44 +552,4 @@ dynamic jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
     default:
   }
   return null;
-}
-
-Pointer jsNewContextWithPromsieWrapper(Pointer rt) {
-  var ctx = jsNewContext(rt);
-  final runtimeOpaque = runtimeOpaques[rt];
-  if (runtimeOpaque == null) throw Exception("Runtime has been released!");
-
-  var jsPromiseWrapper = jsEval(
-      ctx,
-      """
-        (value) => {
-          const __ret = {};
-          Promise.resolve(value)
-            .then(v => {
-              __ret.__value = v;
-              __ret.__resolved = true;
-            }).catch(e => {
-              __ret.__error = e;
-              __ret.__rejected = true;
-            });
-          return __ret;
-        }
-        """,
-      "<future>",
-      JSEvalFlag.GLOBAL);
-  runtimeOpaque.dartObjectClassId = jsNewClass(ctx, "DartObject");
-  final promiseWrapper = JSRefValue(ctx, jsPromiseWrapper);
-  jsFreeValue(ctx, jsPromiseWrapper);
-  runtimeOpaque.promiseToFuture = (promise) {
-    var completer = Completer();
-    completer.future.catchError((e) {});
-    var wrapper = promiseWrapper.val;
-    if (wrapper == null)
-      completer.completeError(Exception("Runtime has been released!"));
-    var jsPromise = jsCall(ctx, wrapper, null, [promise]);
-    var wrapPromise = JSPromise(ctx, jsPromise, completer);
-    jsFreeValue(ctx, jsPromise);
-    return wrapPromise.completer.future;
-  };
-  return ctx;
 }

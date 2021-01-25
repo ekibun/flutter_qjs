@@ -43,13 +43,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "1.15.0-nullsafety.5"
-  dio:
-    dependency: "direct main"
-    description:
-      name: dio
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "3.0.10"
   fake_async:
     dependency: transitive
     description:
@@ -82,7 +75,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "0.3.0"
+    version: "0.3.1"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -95,13 +88,6 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "0.6.0"
-  http_parser:
-    dependency: transitive
-    description:
-      name: http_parser
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "3.1.4"
   matcher:
     dependency: transitive
     description:
