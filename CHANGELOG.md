@@ -6,6 +6,10 @@
  * @LastEditTime: 2020-12-02 11:36:40
 -->
 
+## 0.3.2
+
+* fix Promise reject cannot get Exception string.
+
 ## 0.3.1
 
 * code clean up.

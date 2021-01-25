@@ -35,7 +35,7 @@ void _runJsIsolate(Map spawnMessage) async {
         'ptr': ptr.address,
       });
       while (ptr.value.address == 0) sleep(Duration.zero);
-      if (ptr.value.address == -1) throw Exception("Module Not found");
+      if (ptr.value.address == -1) throw Exception('Module Not found');
       var ret = Utf8.fromUtf8(ptr.value);
       sendPort.send({
         'type': 'release',
@@ -58,7 +58,7 @@ void _runJsIsolate(Map spawnMessage) async {
           );
           break;
         case 'call':
-          data = JSFunction.fromAddress(
+          data = await JSFunction.fromAddress(
             Pointer.fromAddress(msg['ctx']),
             Pointer.fromAddress(msg['val']),
           ).invoke(
@@ -79,7 +79,7 @@ void _runJsIsolate(Map spawnMessage) async {
     } catch (e, stack) {
       if (msgPort != null)
         msgPort.send({
-          'error': e.toString() + "\n" + stack.toString(),
+          'error': e.toString() + '\n' + stack.toString(),
         });
     }
   });
@@ -135,12 +135,12 @@ class IsolateQjs {
             if (hostPromiseRejectionHandler != null) {
               hostPromiseRejectionHandler(errStr);
             } else {
-              print("unhandled promise rejection: $errStr");
+              print('unhandled promise rejection: $errStr');
             }
           } catch (e, stack) {
-            print("host Promise Rejection Handler error: " +
+            print('host Promise Rejection Handler error: ' +
                 e.toString() +
-                "\n" +
+                '\n' +
                 stack.toString());
           }
           break;

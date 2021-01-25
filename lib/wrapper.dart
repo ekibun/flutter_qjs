@@ -32,6 +32,20 @@ abstract class JSInvokable {
   }
 }
 
+class NativeJSInvokable extends JSInvokable {
+  dynamic Function(Pointer ctx, Pointer thisVal, List<Pointer> args) _func;
+  NativeJSInvokable(this._func);
+
+  @override
+  dynamic invoke(List args, [dynamic thisVal]) {
+    throw UnimplementedError('use invokeNative instead.');
+  }
+
+  invokeNative(Pointer ctx, Pointer thisVal, List<Pointer> args) {
+    _func(ctx, thisVal, args);
+  }
+}
+
 class _DartFunction extends JSInvokable {
   Function _func;
   _DartFunction(this._func);
@@ -40,7 +54,7 @@ class _DartFunction extends JSInvokable {
   invoke(List args, [thisVal]) {
     /// wrap this into function
     final passThis =
-        RegExp("{.*thisVal.*}").hasMatch(_func.runtimeType.toString());
+        RegExp('{.*thisVal.*}').hasMatch(_func.runtimeType.toString());
     return Function.apply(_func, args, passThis ? {#thisVal: thisVal} : null);
   }
 }
@@ -112,7 +126,7 @@ class JSFunction extends JSObject implements JSInvokable {
     bool isException = jsIsException(jsRet) != 0;
     if (isException) {
       jsFreeValue(_ctx, jsRet);
-      throw Exception(parseJSException(_ctx));
+      throw parseJSException(_ctx);
     }
     var ret = jsToDart(_ctx, jsRet);
     jsFreeValue(_ctx, jsRet);
@@ -180,7 +194,7 @@ class IsolateFunction extends JSInvokable implements DartReleasable {
     final JSInvokable invokable = JSInvokable.wrap(func);
     final funcPort = ReceivePort();
     funcPort.listen((msg) async {
-      if (msg == "close") return funcPort.close();
+      if (msg == 'close') return funcPort.close();
       var data;
       SendPort msgPort = msg['port'];
       try {
@@ -194,7 +208,7 @@ class IsolateFunction extends JSInvokable implements DartReleasable {
       } catch (e, stack) {
         if (msgPort != null)
           msgPort.send({
-            'error': e.toString() + "\n" + stack.toString(),
+            'error': e.toString() + '\n' + stack.toString(),
           });
       }
     });
@@ -221,7 +235,7 @@ class IsolateFunction extends JSInvokable implements DartReleasable {
   @override
   void release() {
     if (func == null) return;
-    func.send("close");
+    func.send('close');
     func = null;
   }
 }
@@ -275,7 +289,7 @@ dynamic encodeData(dynamic data, {Map<dynamic, dynamic> cache}) {
       futurePort.first.then((port) {
         futurePort.close();
         (port as SendPort)
-            .send({'error': e.toString() + "\n" + stack.toString()});
+            .send({'error': e.toString() + '\n' + stack.toString()});
       });
     });
     return {
@@ -344,12 +358,12 @@ dynamic decodeData(dynamic data, SendPort port, {Map<dynamic, dynamic> cache}) {
   return data;
 }
 
-String parseJSException(Pointer ctx, {Pointer perr}) {
+String parseJSException(Pointer ctx, [Pointer perr]) {
   final e = perr ?? jsGetException(ctx);
 
   var err = jsToCString(ctx, e);
   if (jsValueGetTag(e) == JSTag.OBJECT) {
-    Pointer stack = jsGetPropertyValue(ctx, e, "stack");
+    Pointer stack = jsGetPropertyValue(ctx, e, 'stack');
     if (jsToBool(ctx, stack) != 0) {
       err += '\n' + jsToCString(ctx, stack);
     }
@@ -409,7 +423,7 @@ Pointer dartToJs(Pointer ctx, dynamic val, {Map<dynamic, dynamic> cache}) {
     val.then((value) {
       res(value);
     }, onError: (e, stack) {
-      rej(e.toString() + "\n" + stack.toString());
+      rej(e.toString() + '\n' + stack.toString());
     });
     return ret;
   }
@@ -498,7 +512,7 @@ dynamic jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
       if (jsIsFunction(ctx, val) != 0) {
         return JSFunction(ctx, val);
       } else if (jsIsPromise(ctx, val) != 0) {
-        Pointer jsPromiseThen = jsGetPropertyValue(ctx, val, "then");
+        Pointer jsPromiseThen = jsGetPropertyValue(ctx, val, 'then');
         JSFunction promiseThen = jsToDart(ctx, jsPromiseThen, cache: cache);
         jsFreeValue(ctx, jsPromiseThen);
         var completer = Completer();
@@ -507,16 +521,18 @@ dynamic jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
           (v) {
             if (!completer.isCompleted) completer.complete(v);
           },
-          (e) {
-            if (!completer.isCompleted) completer.completeError(e);
-          },
+          NativeJSInvokable((ctx, thisVal, args) {
+            if (!completer.isCompleted)
+              completer
+                  .completeError(parseJSException(ctx, args[0]));
+          }),
         ], JSObject.fromAddress(ctx, val));
         bool isException = jsIsException(jsRet) != 0;
         jsFreeValue(ctx, jsRet);
-        if (isException) throw Exception(parseJSException(ctx));
+        if (isException) throw parseJSException(ctx);
         return completer.future;
       } else if (jsIsArray(ctx, val) != 0) {
-        Pointer jslength = jsGetPropertyValue(ctx, val, "length");
+        Pointer jslength = jsGetPropertyValue(ctx, val, 'length');
         int length = jsToInt64(ctx, jslength);
         List<dynamic> ret = [];
         cache[valptr] = ret;

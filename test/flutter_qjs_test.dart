@@ -158,7 +158,7 @@ void main() async {
       qjs.evaluate("a=()=>a();a();", name: "<eval>");
     } catch (e) {
       expect(
-          e.toString(), startsWith('Exception: InternalError: stack overflow'),
+          e.toString(), startsWith('InternalError: stack overflow'),
           reason: "throw stack overflow");
     }
     qjs.close();

@@ -100,16 +100,7 @@ To use async function in module handler, try [Run on isolate thread](#Run-on-iso
 Create a `IsolateQjs` object, pass handlers to resolving modules. Async function such as `rootBundle.loadString` can be used now to get modules:
 
 ```dart
-dynamic methodHandler(String method, List arg) {
-  switch (method) {
-    case "http":
-      return Dio().get(arg[0]).then((response) => response.data);
-    default:
-      throw Exception("No such method");
-  }
-}
 final engine = IsolateQjs(
-  methodHandler: methodHandler,
   moduleHandler: (String module) async {
     return await rootBundle.loadString(
         "js/" + module.replaceFirst(new RegExp(r".js$"), "") + ".js");
@@ -134,9 +125,9 @@ Method `close` can destroy quickjs runtime that can be recreated again if you ca
 Method `bind` can help to pass instance function to isolate:
 
 ```dart
-await setToGlobalObject("func", await engine.bind(({thisVal}) {
+await jsFunc(await engine.bind(({thisVal}) {
   // DO SOMETHING
-}))
+}));
 ```
 
 [This example](example/lib/main.dart) contains a complete demonstration on how to use this plugin.
@@ -148,5 +139,5 @@ Use js function to set dart object globally:
 
 ```dart
 final setToGlobalObject = await engine.evaluate("(key, val) => this[key] = val;");
-setToGlobalObject("channel", methodHandler);
+await setToGlobalObject("channel", methodHandler);
 ```

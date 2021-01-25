@@ -57,14 +57,14 @@ class JSTag {
 
 final DynamicLibrary _qjsLib = Platform.environment['FLUTTER_TEST'] == 'true'
     ? (Platform.isWindows
-        ? DynamicLibrary.open("test/build/Debug/ffiquickjs.dll")
+        ? DynamicLibrary.open('test/build/Debug/ffiquickjs.dll')
         : Platform.isMacOS
-            ? DynamicLibrary.open("test/build/libffiquickjs.dylib")
-            : DynamicLibrary.open("test/build/libffiquickjs.so"))
+            ? DynamicLibrary.open('test/build/libffiquickjs.dylib')
+            : DynamicLibrary.open('test/build/libffiquickjs.so'))
     : (Platform.isWindows
-        ? DynamicLibrary.open("flutter_qjs_plugin.dll")
+        ? DynamicLibrary.open('flutter_qjs_plugin.dll')
         : Platform.isAndroid
-            ? DynamicLibrary.open("libqjs.so")
+            ? DynamicLibrary.open('libqjs.so')
             : DynamicLibrary.process());
 
 /// JSValue *jsThrowInternalError(JSContext *ctx, char *message)
@@ -77,7 +77,7 @@ final Pointer Function(
             Pointer Function(
       Pointer,
       Pointer<Utf8>,
-    )>>("jsThrowInternalError")
+    )>>('jsThrowInternalError')
     .asFunction();
 
 Pointer jsThrowInternalError(Pointer ctx, String message) {
@@ -89,12 +89,12 @@ Pointer jsThrowInternalError(Pointer ctx, String message) {
 
 /// JSValue *jsEXCEPTION()
 final Pointer Function() jsEXCEPTION = _qjsLib
-    .lookup<NativeFunction<Pointer Function()>>("jsEXCEPTION")
+    .lookup<NativeFunction<Pointer Function()>>('jsEXCEPTION')
     .asFunction();
 
 /// JSValue *jsUNDEFINED()
 final Pointer Function() jsUNDEFINED = _qjsLib
-    .lookup<NativeFunction<Pointer Function()>>("jsUNDEFINED")
+    .lookup<NativeFunction<Pointer Function()>>('jsUNDEFINED')
     .asFunction();
 
 typedef JSChannel = Pointer Function(Pointer ctx, int method, Pointer argv);
@@ -109,7 +109,7 @@ final Pointer Function(
         NativeFunction<
             Pointer Function(
       Pointer,
-    )>>("jsNewRuntime")
+    )>>('jsNewRuntime')
     .asFunction();
 
 class RuntimeOpaque {
@@ -147,7 +147,7 @@ final void Function(
             Void Function(
       Pointer,
       IntPtr,
-    )>>("jsSetMaxStackSize")
+    )>>('jsSetMaxStackSize')
     .asFunction();
 
 /// void jsFreeRuntime(JSRuntime *rt)
@@ -158,7 +158,7 @@ final void Function(
         NativeFunction<
             Void Function(
       Pointer,
-    )>>("jsFreeRuntime")
+    )>>('jsFreeRuntime')
     .asFunction();
 
 void jsFreeRuntime(
@@ -181,7 +181,7 @@ final Pointer Function(
             Pointer Function(
       Pointer,
       Pointer,
-    )>>("jsNewCFunction")
+    )>>('jsNewCFunction')
     .asFunction();
 
 /// JSContext *jsNewContext(JSRuntime *rt)
@@ -192,14 +192,14 @@ final Pointer Function(
         NativeFunction<
             Pointer Function(
       Pointer,
-    )>>("jsNewContext")
+    )>>('jsNewContext')
     .asFunction();
 
 Pointer jsNewContext(Pointer rt) {
   var ctx = _jsNewContext(rt);
   final runtimeOpaque = runtimeOpaques[rt];
-  if (runtimeOpaque == null) throw Exception("Runtime has been released!");
-  runtimeOpaque.dartObjectClassId = jsNewClass(ctx, "DartObject");
+  if (runtimeOpaque == null) throw Exception('Runtime has been released!');
+  runtimeOpaque.dartObjectClassId = jsNewClass(ctx, 'DartObject');
   return ctx;
 }
 
@@ -211,7 +211,7 @@ final void Function(
         NativeFunction<
             Void Function(
       Pointer,
-    )>>("jsFreeContext")
+    )>>('jsFreeContext')
     .asFunction();
 
 /// JSRuntime *jsGetRuntime(JSContext *ctx)
@@ -222,7 +222,7 @@ final Pointer Function(
         NativeFunction<
             Pointer Function(
       Pointer,
-    )>>("jsGetRuntime")
+    )>>('jsGetRuntime')
     .asFunction();
 
 /// JSValue *jsEval(JSContext *ctx, const char *input, size_t input_len, const char *filename, int eval_flags)
@@ -241,7 +241,7 @@ final Pointer Function(
       IntPtr,
       Pointer<Utf8>,
       Int32,
-    )>>("jsEval")
+    )>>('jsEval')
     .asFunction();
 
 Pointer jsEval(
@@ -273,7 +273,7 @@ final int Function(
         NativeFunction<
             Int32 Function(
       Pointer,
-    )>>("jsValueGetTag")
+    )>>('jsValueGetTag')
     .asFunction();
 
 /// void *jsValueGetPtr(JSValue *val)
@@ -284,7 +284,7 @@ final Pointer Function(
         NativeFunction<
             Pointer Function(
       Pointer,
-    )>>("jsValueGetPtr")
+    )>>('jsValueGetPtr')
     .asFunction();
 
 /// DLLEXPORT bool jsTagIsFloat64(int32_t tag)
@@ -295,7 +295,7 @@ final int Function(
         NativeFunction<
             Int32 Function(
       Int32,
-    )>>("jsTagIsFloat64")
+    )>>('jsTagIsFloat64')
     .asFunction();
 
 /// JSValue *jsNewBool(JSContext *ctx, int val)
@@ -308,7 +308,7 @@ final Pointer Function(
             Pointer Function(
       Pointer,
       Int32,
-    )>>("jsNewBool")
+    )>>('jsNewBool')
     .asFunction();
 
 /// JSValue *jsNewInt64(JSContext *ctx, int64_t val)
@@ -321,7 +321,7 @@ final Pointer Function(
             Pointer Function(
       Pointer,
       Int64,
-    )>>("jsNewInt64")
+    )>>('jsNewInt64')
     .asFunction();
 
 /// JSValue *jsNewFloat64(JSContext *ctx, double val)
@@ -334,7 +334,7 @@ final Pointer Function(
             Pointer Function(
       Pointer,
       Double,
-    )>>("jsNewFloat64")
+    )>>('jsNewFloat64')
     .asFunction();
 
 /// JSValue *jsNewString(JSContext *ctx, const char *str)
@@ -347,7 +347,7 @@ final Pointer Function(
             Pointer Function(
       Pointer,
       Pointer<Utf8>,
-    )>>("jsNewString")
+    )>>('jsNewString')
     .asFunction();
 
 Pointer jsNewString(
@@ -370,7 +370,7 @@ final Pointer Function(
       Pointer,
       Pointer<Uint8>,
       IntPtr,
-    )>>("jsNewArrayBufferCopy")
+    )>>('jsNewArrayBufferCopy')
     .asFunction();
 
 /// JSValue *jsNewArray(JSContext *ctx)
@@ -381,7 +381,7 @@ final Pointer Function(
         NativeFunction<
             Pointer Function(
       Pointer,
-    )>>("jsNewArray")
+    )>>('jsNewArray')
     .asFunction();
 
 /// JSValue *jsNewObject(JSContext *ctx)
@@ -392,7 +392,7 @@ final Pointer Function(
         NativeFunction<
             Pointer Function(
       Pointer,
-    )>>("jsNewObject")
+    )>>('jsNewObject')
     .asFunction();
 
 /// void jsFreeValue(JSContext *ctx, JSValue *val, int32_t free)
@@ -407,7 +407,7 @@ final void Function(
       Pointer,
       Pointer,
       Int32,
-    )>>("jsFreeValue")
+    )>>('jsFreeValue')
     .asFunction();
 
 void jsFreeValue(
@@ -430,7 +430,7 @@ final void Function(
       Pointer,
       Pointer,
       Int32,
-    )>>("jsFreeValueRT")
+    )>>('jsFreeValueRT')
     .asFunction();
 
 void jsFreeValueRT(
@@ -451,7 +451,7 @@ final Pointer Function(
             Pointer Function(
       Pointer,
       Pointer,
-    )>>("jsDupValue")
+    )>>('jsDupValue')
     .asFunction();
 
 /// JSValue *jsDupValueRT(JSRuntime *rt, JSValue *v)
@@ -464,7 +464,7 @@ final Pointer Function(
             Pointer Function(
       Pointer,
       Pointer,
-    )>>("jsDupValueRT")
+    )>>('jsDupValueRT')
     .asFunction();
 
 /// int32_t jsToBool(JSContext *ctx, JSValueConst *val)
@@ -477,7 +477,7 @@ final int Function(
             Int32 Function(
       Pointer,
       Pointer,
-    )>>("jsToBool")
+    )>>('jsToBool')
     .asFunction();
 
 /// int64_t jsToFloat64(JSContext *ctx, JSValueConst *val)
@@ -490,7 +490,7 @@ final int Function(
             Int64 Function(
       Pointer,
       Pointer,
-    )>>("jsToInt64")
+    )>>('jsToInt64')
     .asFunction();
 
 /// double jsToFloat64(JSContext *ctx, JSValueConst *val)
@@ -503,7 +503,7 @@ final double Function(
             Double Function(
       Pointer,
       Pointer,
-    )>>("jsToFloat64")
+    )>>('jsToFloat64')
     .asFunction();
 
 /// const char *jsToCString(JSContext *ctx, JSValue *val)
@@ -516,7 +516,7 @@ final Pointer<Utf8> Function(
             Pointer<Utf8> Function(
       Pointer,
       Pointer,
-    )>>("jsToCString")
+    )>>('jsToCString')
     .asFunction();
 
 /// void jsFreeCString(JSContext *ctx, const char *ptr)
@@ -529,7 +529,7 @@ final void Function(
             Void Function(
       Pointer,
       Pointer<Utf8>,
-    )>>("jsFreeCString")
+    )>>('jsFreeCString')
     .asFunction();
 
 String jsToCString(
@@ -537,7 +537,7 @@ String jsToCString(
   Pointer val,
 ) {
   var ptr = _jsToCString(ctx, val);
-  if (ptr.address == 0) throw Exception("JSValue cannot convert to string");
+  if (ptr.address == 0) throw Exception('JSValue cannot convert to string');
   var str = Utf8.fromUtf8(ptr);
   jsFreeCString(ctx, ptr);
   return str;
@@ -553,7 +553,7 @@ final int Function(
             Uint32 Function(
       Pointer,
       Pointer<Utf8>,
-    )>>("jsNewClass")
+    )>>('jsNewClass')
     .asFunction();
 
 int jsNewClass(
@@ -581,7 +581,7 @@ final Pointer Function(
       Pointer,
       Uint32,
       IntPtr,
-    )>>("jsNewObjectClass")
+    )>>('jsNewObjectClass')
     .asFunction();
 
 /// DLLEXPORT void *jsGetObjectOpaque(JSValue *obj, uint32_t classid)
@@ -594,7 +594,7 @@ final int Function(
             IntPtr Function(
       Pointer,
       Uint32,
-    )>>("jsGetObjectOpaque")
+    )>>('jsGetObjectOpaque')
     .asFunction();
 
 /// uint8_t *jsGetArrayBuffer(JSContext *ctx, size_t *psize, JSValueConst *obj)
@@ -609,7 +609,7 @@ final Pointer<Uint8> Function(
       Pointer,
       Pointer<IntPtr>,
       Pointer,
-    )>>("jsGetArrayBuffer")
+    )>>('jsGetArrayBuffer')
     .asFunction();
 
 /// int32_t jsIsFunction(JSContext *ctx, JSValueConst *val)
@@ -622,7 +622,7 @@ final int Function(
             Int32 Function(
       Pointer,
       Pointer,
-    )>>("jsIsFunction")
+    )>>('jsIsFunction')
     .asFunction();
 
 /// int32_t jsIsPromise(JSContext *ctx, JSValueConst *val)
@@ -635,7 +635,7 @@ final int Function(
             Int32 Function(
       Pointer,
       Pointer,
-    )>>("jsIsPromise")
+    )>>('jsIsPromise')
     .asFunction();
 
 /// int32_t jsIsArray(JSContext *ctx, JSValueConst *val)
@@ -648,7 +648,7 @@ final int Function(
             Int32 Function(
       Pointer,
       Pointer,
-    )>>("jsIsArray")
+    )>>('jsIsArray')
     .asFunction();
 
 /// JSValue *jsGetProperty(JSContext *ctx, JSValueConst *this_obj,
@@ -664,7 +664,7 @@ final Pointer Function(
       Pointer,
       Pointer,
       Uint32,
-    )>>("jsGetProperty")
+    )>>('jsGetProperty')
     .asFunction();
 
 /// int jsDefinePropertyValue(JSContext *ctx, JSValueConst *this_obj,
@@ -684,7 +684,7 @@ final int Function(
       Uint32,
       Pointer,
       Int32,
-    )>>("jsDefinePropertyValue")
+    )>>('jsDefinePropertyValue')
     .asFunction();
 
 /// void jsFreeAtom(JSContext *ctx, JSAtom v)
@@ -697,7 +697,7 @@ final Pointer Function(
             Pointer Function(
       Pointer,
       Uint32,
-    )>>("jsFreeAtom")
+    )>>('jsFreeAtom')
     .asFunction();
 
 /// JSAtom jsValueToAtom(JSContext *ctx, JSValueConst *val)
@@ -710,7 +710,7 @@ final int Function(
             Uint32 Function(
       Pointer,
       Pointer,
-    )>>("jsValueToAtom")
+    )>>('jsValueToAtom')
     .asFunction();
 
 /// JSValue *jsAtomToValue(JSContext *ctx, JSAtom val)
@@ -723,7 +723,7 @@ final Pointer Function(
             Pointer Function(
       Pointer,
       Uint32,
-    )>>("jsAtomToValue")
+    )>>('jsAtomToValue')
     .asFunction();
 
 /// int jsGetOwnPropertyNames(JSContext *ctx, JSPropertyEnum **ptab,
@@ -743,7 +743,7 @@ final int Function(
       Pointer<Uint32>,
       Pointer,
       Int32,
-    )>>("jsGetOwnPropertyNames")
+    )>>('jsGetOwnPropertyNames')
     .asFunction();
 
 /// JSAtom jsPropertyEnumGetAtom(JSPropertyEnum *ptab, int i)
@@ -756,12 +756,12 @@ final int Function(
             Uint32 Function(
       Pointer,
       Int32,
-    )>>("jsPropertyEnumGetAtom")
+    )>>('jsPropertyEnumGetAtom')
     .asFunction();
 
 /// uint32_t sizeOfJSValue()
 final int Function() _sizeOfJSValue = _qjsLib
-    .lookup<NativeFunction<Uint32 Function()>>("sizeOfJSValue")
+    .lookup<NativeFunction<Uint32 Function()>>('sizeOfJSValue')
     .asFunction();
 
 final sizeOfJSValue = _sizeOfJSValue();
@@ -778,7 +778,7 @@ final void Function(
       Pointer,
       Uint32,
       Pointer,
-    )>>("setJSValueList")
+    )>>('setJSValueList')
     .asFunction();
 
 /// JSValue *jsCall(JSContext *ctx, JSValueConst *func_obj, JSValueConst *this_obj,
@@ -798,7 +798,7 @@ final Pointer Function(
       Pointer,
       Int32,
       Pointer,
-    )>>("jsCall")
+    )>>('jsCall')
     .asFunction();
 
 Pointer jsCall(
@@ -834,7 +834,7 @@ final int Function(
         NativeFunction<
             Int32 Function(
       Pointer,
-    )>>("jsIsException")
+    )>>('jsIsException')
     .asFunction();
 
 /// JSValue *jsGetException(JSContext *ctx)
@@ -845,7 +845,7 @@ final Pointer Function(
         NativeFunction<
             Pointer Function(
       Pointer,
-    )>>("jsGetException")
+    )>>('jsGetException')
     .asFunction();
 
 /// int jsExecutePendingJob(JSRuntime *rt)
@@ -856,7 +856,7 @@ final int Function(
         NativeFunction<
             Int32 Function(
       Pointer,
-    )>>("jsExecutePendingJob")
+    )>>('jsExecutePendingJob')
     .asFunction();
 
 /// JSValue *jsNewPromiseCapability(JSContext *ctx, JSValue *resolving_funcs)
@@ -869,7 +869,7 @@ final Pointer Function(
             Pointer Function(
       Pointer,
       Pointer,
-    )>>("jsNewPromiseCapability")
+    )>>('jsNewPromiseCapability')
     .asFunction();
 
 /// void jsFree(JSContext *ctx, void *ptab)
@@ -882,5 +882,5 @@ final void Function(
             Void Function(
       Pointer,
       Pointer,
-    )>>("jsFree")
+    )>>('jsFree')
     .asFunction();
