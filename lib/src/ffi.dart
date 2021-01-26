@@ -1,5 +1,5 @@
 /*
- * @Description: 
+ * @Description: ffi
  * @Author: ekibun
  * @Date: 2020-09-19 10:29:04
  * @LastEditors: ekibun
@@ -8,10 +8,10 @@
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:isolate';
-
 import 'package:ffi/ffi.dart';
 
 abstract class JSRef {
+  bool leakable = false;
   void release();
 }
 
@@ -90,13 +90,13 @@ final Pointer Function() jsUNDEFINED = _qjsLib
     .lookup<NativeFunction<Pointer Function()>>('jsUNDEFINED')
     .asFunction();
 
-typedef JSChannel = Pointer Function(Pointer ctx, int method, Pointer argv);
-typedef JSChannelNative = Pointer Function(
+typedef _JSChannel = Pointer Function(Pointer ctx, int method, Pointer argv);
+typedef _JSChannelNative = Pointer Function(
     Pointer ctx, IntPtr method, Pointer argv);
 
 /// JSRuntime *jsNewRuntime(JSChannel channel)
 final Pointer Function(
-  Pointer<NativeFunction<JSChannelNative>>,
+  Pointer<NativeFunction<_JSChannelNative>>,
 ) _jsNewRuntime = _qjsLib
     .lookup<
         NativeFunction<
@@ -105,29 +105,37 @@ final Pointer Function(
     )>>('jsNewRuntime')
     .asFunction();
 
-class RuntimeOpaque {
-  JSChannel channel;
-  List<JSRef> ref = [];
-  ReceivePort port;
-  int dartObjectClassId;
-  int jsExceptionClassId;
+class _RuntimeOpaque {
+  _JSChannel _channel;
+  List<JSRef> _ref = [];
+  ReceivePort _port;
+  int _dartObjectClassId;
+  get dartObjectClassId => _dartObjectClassId;
+
+  void addRef(JSRef ref) => _ref.add(ref);
+
+  bool removeRef(JSRef ref) => _ref.remove(ref);
+
+  JSRef getRef(bool Function(JSRef ref) test) {
+    return _ref.firstWhere(test, orElse: () => null);
+  }
 }
 
-final Map<Pointer, RuntimeOpaque> runtimeOpaques = Map();
+final Map<Pointer, _RuntimeOpaque> runtimeOpaques = Map();
 
 Pointer channelDispacher(Pointer ctx, int type, Pointer argv) {
   Pointer rt = type == JSChannelType.FREE_OBJECT ? ctx : jsGetRuntime(ctx);
-  return runtimeOpaques[rt]?.channel(ctx, type, argv);
+  return runtimeOpaques[rt]?._channel(ctx, type, argv);
 }
 
 Pointer jsNewRuntime(
-  JSChannel callback,
+  _JSChannel callback,
   ReceivePort port,
 ) {
-  var rt = _jsNewRuntime(Pointer.fromFunction(channelDispacher));
-  runtimeOpaques[rt] = RuntimeOpaque()
-    ..channel = callback
-    ..port = port;
+  final rt = _jsNewRuntime(Pointer.fromFunction(channelDispacher));
+  runtimeOpaques[rt] = _RuntimeOpaque()
+    .._channel = callback
+    .._port = port;
   return rt;
 }
 
@@ -158,12 +166,28 @@ final void Function(
 void jsFreeRuntime(
   Pointer rt,
 ) {
-  while (0 < runtimeOpaques[rt]?.ref?.length ?? 0) {
-    final ref = runtimeOpaques[rt]?.ref?.first;
+  final referenceleak = <String>[];
+  while (true) {
+    final ref = runtimeOpaques[rt]
+        ?._ref
+        ?.firstWhere((ref) => ref.leakable, orElse: () => null);
+    if (ref == null) break;
     ref.release();
-    runtimeOpaques[rt]?.ref?.remove(ref);
+    runtimeOpaques[rt]?._ref?.remove(ref);
+  }
+  while (0 < runtimeOpaques[rt]?._ref?.length ?? 0) {
+    final ref = runtimeOpaques[rt]?._ref?.first;
+    assert(!ref.leakable);
+    referenceleak.add(
+        "  ${identityHashCode(ref)}\t${ref.runtimeType.toString()}\t${ref.toString().replaceAll('\n', '\\n')}");
+    ref.release();
+    runtimeOpaques[rt]?._ref?.remove(ref);
   }
   _jsFreeRuntime(rt);
+  if (referenceleak.length > 0) {
+    throw ('reference leak:\n    ADDR\t  TYPE  \t  PROP\n' +
+        referenceleak.join('\n'));
+  }
 }
 
 /// JSValue *jsNewCFunction(JSContext *ctx, JSValue *funcData)
@@ -191,11 +215,10 @@ final Pointer Function(
     .asFunction();
 
 Pointer jsNewContext(Pointer rt) {
-  var ctx = _jsNewContext(rt);
+  final ctx = _jsNewContext(rt);
   final runtimeOpaque = runtimeOpaques[rt];
   if (runtimeOpaque == null) throw Exception('Runtime has been released!');
-  runtimeOpaque.dartObjectClassId = jsNewClass(ctx, 'DartObject');
-  runtimeOpaque.jsExceptionClassId = jsNewClass(ctx, 'JSException');
+  runtimeOpaque._dartObjectClassId = jsNewClass(ctx, 'DartObject');
   return ctx;
 }
 
@@ -246,9 +269,9 @@ Pointer jsEval(
   String filename,
   int evalFlags,
 ) {
-  var utf8input = Utf8.toUtf8(input);
-  var utf8filename = Utf8.toUtf8(filename);
-  var val = _jsEval(
+  final utf8input = Utf8.toUtf8(input);
+  final utf8filename = Utf8.toUtf8(filename);
+  final val = _jsEval(
     ctx,
     utf8input,
     Utf8.strlen(utf8input),
@@ -257,7 +280,7 @@ Pointer jsEval(
   );
   free(utf8input);
   free(utf8filename);
-  runtimeOpaques[jsGetRuntime(ctx)].port.sendPort.send('eval');
+  runtimeOpaques[jsGetRuntime(ctx)]._port.sendPort.send(#eval);
   return val;
 }
 
@@ -350,8 +373,10 @@ Pointer jsNewString(
   Pointer ctx,
   String str,
 ) {
-  var utf8str = Utf8.toUtf8(str);
-  return _jsNewString(ctx, utf8str);
+  final utf8str = Utf8.toUtf8(str);
+  final jsStr = _jsNewString(ctx, utf8str);
+  free(utf8str);
+  return jsStr;
 }
 
 /// JSValue *jsNewArrayBufferCopy(JSContext *ctx, const uint8_t *buf, size_t len)
@@ -532,9 +557,9 @@ String jsToCString(
   Pointer ctx,
   Pointer val,
 ) {
-  var ptr = _jsToCString(ctx, val);
+  final ptr = _jsToCString(ctx, val);
   if (ptr.address == 0) throw Exception('JSValue cannot convert to string');
-  var str = Utf8.fromUtf8(ptr);
+  final str = Utf8.fromUtf8(ptr);
   jsFreeCString(ctx, ptr);
   return str;
 }
@@ -556,8 +581,8 @@ int jsNewClass(
   Pointer ctx,
   String name,
 ) {
-  var utf8name = Utf8.toUtf8(name);
-  var val = _jsNewClass(
+  final utf8name = Utf8.toUtf8(name);
+  final val = _jsNewClass(
     ctx,
     utf8name,
   );
@@ -842,7 +867,7 @@ Pointer jsCall(
   }
   jsFreeValue(ctx, func1);
   free(jsArgs);
-  runtimeOpaques[jsGetRuntime(ctx)].port.sendPort.send('call');
+  runtimeOpaques[jsGetRuntime(ctx)]._port.sendPort.send(#call);
   return jsRet;
 }
 

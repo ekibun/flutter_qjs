@@ -8,7 +8,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:flutter/services.dart';
-import 'package:flutter_qjs/isolate.dart';
+import 'package:flutter_qjs/flutter_qjs.dart';
 
 import 'highlight.dart';
 

@@ -35,11 +35,15 @@ try {
 }
 ```
 
-Method `close` can destroy quickjs runtime that can be recreated again if you call `evaluate`. Parameter `port` should be close to stop `dispatch` loop when you do not need it.
+Method `close` can destroy quickjs runtime that can be recreated again if you call `evaluate`. Parameter `port` should be close to stop `dispatch` loop when you do not need it. 
 
 ```dart
-engine.port.close(); // stop dispatch loop
-engine.close();      // close engine
+try {
+  engine.port.close(); // stop dispatch loop
+  engine.close();      // close engine
+} on JSError catch(e) { 
+  print(e);            // catch reference leak exception
+}
 engine = null;
 ```
 
@@ -70,6 +74,13 @@ or use `invoke` method to pass list parameters:
 
 ```dart
 (func as JSInvokable).invoke([arg1, arg2], thisVal);
+```
+
+`JSInvokable` returned by evaluation may increase reference of JS object.
+You should manually call `release` to release JS reference:
+
+```dart
+(func as JSInvokable).release();
 ```
 
 ### Use modules
