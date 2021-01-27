@@ -6,6 +6,12 @@
  * @LastEditTime: 2020-12-02 11:36:40
 -->
 
+## 0.3.3
+
+* remove `JSInvokable.call`.
+* fix crash when throw error.
+* add reference count and leak detection.
+
 ## 0.3.2
 
 * fix Promise reject cannot get Exception string.

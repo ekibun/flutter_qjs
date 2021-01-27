@@ -8,7 +8,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:flutter_qjs/flutter_qjs.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,7 +18,7 @@ dynamic myFunction(String args, {thisVal}) {
 
 Future testEvaluate(qjs) async {
   JSInvokable wrapFunction = await qjs.evaluate(
-    '(a) => a',
+    'async (a) => a',
     name: '<testWrap>',
   );
   dynamic testWrap = await wrapFunction.invoke([wrapFunction]);
@@ -68,11 +67,6 @@ Future testEvaluate(qjs) async {
 }
 
 void main() async {
-  test('send', () async {
-    final rec = ReceivePort();
-    rec.close();
-    rec.sendPort.send("3232");
-  });
   test('make', () async {
     final utf8Encoding = Encoding.getByName('utf-8');
     var cmakePath = 'cmake';
@@ -139,25 +133,22 @@ void main() async {
     await testEvaluate(qjs);
     await qjs.close();
   });
-  test('isolate bind function', () async {
+  test('isolate bind this', () async {
     final qjs = IsolateQjs();
-    final localVars = [];
-    JSInvokable testFunc =
-        await qjs.evaluate('(func)=>func(()=>"ret")', name: '<eval>');
-    final func = IsolateFunction.func((args) {
-      localVars.add(args..dup());
+    JSInvokable localVar;
+    JSInvokable setToGlobal = await qjs
+        .evaluate('(name, func)=>{ this[name] = func }', name: '<eval>');
+    final func = IsolateFunction((args) {
+      localVar = args..dup();
       return args.invoke([]);
     });
-    final testFuncRet = await testFunc.invoke([func..dup()]);
-    final testFuncRet2 = await testFunc.invoke([func..dup()]);
+    await setToGlobal.invoke(["test", func..dup()]);
     func.free();
-    testFunc.free();
-    for (IsolateFunction vars in localVars) {
-      expect(await vars.invoke([]), 'ret', reason: 'bind function');
-      vars.free();
-    }
+    setToGlobal.free();
+    final testFuncRet = await qjs.evaluate('test(()=>"ret")', name: '<eval>');
+    expect(await localVar.invoke([]), 'ret', reason: 'bind function');
+    localVar.free();
     expect(testFuncRet, 'ret', reason: 'bind function args return');
-    expect(testFuncRet2, testFuncRet, reason: 'bind function args return2');
     await qjs.close();
   });
   test('reference leak', () async {

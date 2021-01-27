@@ -22,6 +22,35 @@ abstract class JSRef {
   }
 
   void destroy();
+
+  static void freeRecursive(dynamic obj) {
+    _callRecursive(obj, (ref) => ref.free());
+  }
+
+  static void dupRecursive(dynamic obj) {
+    _callRecursive(obj, (ref) => ref.dup());
+  }
+
+  static void _callRecursive(
+    dynamic obj,
+    void Function(JSRef) cb, [
+    Set cache,
+  ]) {
+    if (obj == null) return;
+    if (cache == null) cache = Set();
+    if (cache.contains(obj)) return;
+    if (obj is List) {
+      cache.add(obj);
+      obj.forEach((e) => _callRecursive(e, cb, cache));
+    }
+    if (obj is Map) {
+      cache.add(obj);
+      obj.values.forEach((e) => _callRecursive(e, cb, cache));
+    }
+    if (obj is JSRef) {
+      cb(obj);
+    }
+  }
 }
 
 abstract class JSRefLeakable {}
@@ -188,8 +217,10 @@ void jsFreeRuntime(
   }
   while (0 < runtimeOpaques[rt]?._ref?.length ?? 0) {
     final ref = runtimeOpaques[rt]?._ref?.first;
+    final objStrs = ref.toString().split('\n');
+    final objStr = objStrs.length > 0 ? objStrs[0] + " ..." : objStrs[0];
     referenceleak.add(
-        "  ${identityHashCode(ref)}\t${ref._refCount + 1}\t${ref.runtimeType.toString()}\t${ref.toString().replaceAll('\n', '\\n')}");
+        "  ${identityHashCode(ref)}\t${ref._refCount + 1}\t${ref.runtimeType.toString()}\t$objStr");
     ref.destroy();
   }
   _jsFreeRuntime(rt);

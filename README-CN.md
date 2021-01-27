@@ -12,13 +12,11 @@
 
 [English](README.md) | [中文](README-CN.md)
 
-This plugin is a simple js engine for flutter using the `quickjs` project with `dart:ffi`. Plugin currently supports all the platforms except web!
+一个为flutter开发的 `quickjs` 引擎。插件基于 `dart:ffi`，支持除Web以外的所有平台！
 
-## Getting Started
+## 基本使用
 
-### Basic usage
-
-Firstly, create a `FlutterQjs` object, then call `dispatch` to establish event loop:
+首先，创建 `FlutterQjs` 对象。调用 `dispatch` 建立事件循环：
 
 ```dart
 final engine = FlutterQjs(
@@ -27,7 +25,7 @@ final engine = FlutterQjs(
 engine.dispatch();
 ```
 
-Use `evaluate` method to run js script, it runs synchronously, you can use await to resolve `Promise`:
+使用 `evaluate` 方法运行js脚本，方法同步执行，使用 `await` 来获得 `Promise` 结果：
 
 ```dart
 try {
@@ -37,7 +35,7 @@ try {
 }
 ```
 
-Method `close` can destroy quickjs runtime that can be recreated again if you call `evaluate`. Parameter `port` should be close to stop `dispatch` loop when you do not need it. **Reference leak exception will be thrown since v0.3.3**
+使用 `close` 方法销毁 quickjs 实例，其在再次调用 `evaluate` 时将会重建。当不再需要 `FlutterQjs` 对象时，关闭 `port` 参数来结束事件循环。**在 v0.3.3 后增加了引用检查，可能会抛出异常**。
 
 ```dart
 try {
@@ -49,7 +47,7 @@ try {
 engine = null;
 ```
 
-Data conversion between dart and js are implemented as follow:
+dart 与 js 间数据以如下规则转换：
 
 | dart                         | js         |
 | ---------------------------- | ---------- |
@@ -65,9 +63,9 @@ Data conversion between dart and js are implemented as follow:
 | JSError                      | Error      |
 | Object                       | DartObject |
 
-## Use Modules
+## 使用模块
 
-ES6 module with `import` function is supported and can be managed in dart with `moduleHandler`:
+插件支持 ES6 模块方法 `import`。使用 `moduleHandler` 来处理模块请求：
 
 ```dart
 final engine = FlutterQjs(
@@ -79,18 +77,19 @@ final engine = FlutterQjs(
 );
 ```
 
-then in JavaScript, `import` function is used to get modules:
+在JavaScript中，`import` 方法用以获取模块：
 
 ```javascript
 import("hello").then(({default: greet}) => greet("world"));
 ```
 
-**notice:** Module handler should be called only once for each module name. To reset the module cache, call `FlutterQjs.close` then `evaluate` again.
+**注：** 模块将只被编译一次. 调用 `FlutterQjs.close` 再 `evaluate` 来重置模块缓存。
 
-To use async function in module handler, try [run on isolate thread](#Run-on-Isolate-Thread)
-## Run on Isolate Thread
+若要使用异步方法来处理模块请求，请参见 [在 isolate 中运行](#在-isolate-中运行)。
 
-Create a `IsolateQjs` object, pass handlers to resolving modules. Async function such as `rootBundle.loadString` can be used now to get modules:
+## 在 isolate 中运行
+
+创建 `IsolateQjs` 对象，设置 `moduleHandler` 来处理模块请求。 现在可以使用异步函数来获得模块字符串，如 `rootBundle.loadString`：
 
 ```dart
 final engine = IsolateQjs(
@@ -102,7 +101,7 @@ final engine = IsolateQjs(
 // not need engine.dispatch();
 ```
 
-Same as run on main thread, use `evaluate` to run js script. In isolate, everything returns asynchronously, use `await` to get the result:
+与在主线程运行一样，使用 `evaluate` 方法运行js脚本。在isolate中，所有结果都将异步返回，使用 `await` 来获取结果：
 
 ```dart
 try {
@@ -112,33 +111,31 @@ try {
 }
 ```
 
-Method `close` can destroy isolate thread that will be recreated again if you call `evaluate`.
+使用 `close` 方法销毁 isolate 线程，其在再次调用 `evaluate` 时将会重建。
 
-## Use Dart Function (Breaking change in v0.3.0)
+## 调用 Dart 函数
 
-Js script returning function will be converted to `JSInvokable`. **It does not extend `Function`, use `invoke` method to invoke it**:
+Js脚本返回函数将被转换为 `JSInvokable`。 **它不能像 `Function` 一样调用，请使用 `invoke` 方法来调用**：
 
 ```dart
 (func as JSInvokable).invoke([arg1, arg2], thisVal);
 ```
 
-**notice:** evaluation returning `JSInvokable` may cause reference leak.
-You should manually call `free` to release JS reference.
+**注：** 返回 `JSInvokable` 可能造成引用泄漏，需要手动调用 `free` 来释放引用：
 
 ```dart
 (obj as JSRef).free();
 // or JSRef.freeRecursive(obj);
 ```
 
-Arguments passed into `JSInvokable` will be freed automatically. Use `dup` to keep the reference.
+传递给 `JSInvokable` 的参数将自动释放. 使用 `dup` 来保持引用：
 
 ```dart
 (obj as JSRef).dup();
 // or JSRef.dupRecursive(obj);
 ```
 
-Since v0.3.0, you can pass a function to `JSInvokable` arguments, and `channel` function is no longer included by default. You can use js function to set dart object globally.
-For example, use `Dio` to implement http in qjs:
+自 v0.3.0 起，dart 函数可以作为参数传递给 `JSInvokable`，且 `channel` 函数不再默认内置。可以使用如下方法将 dart 函数赋值给全局，例如，使用 `Dio` 来为 qjs 提供 http 支持：
 
 ```dart
 final setToGlobalObject = await engine.evaluate("(key, val) => { this[key] = val; }");
@@ -148,7 +145,7 @@ await setToGlobalObject.invoke(["http", (String url) {
 setToGlobalObject.free();
 ```
 
-In isolate, top level function passed in `JSInvokable` will be invoked in isolate thread. Use `IsolateFunction` to pass a instant function:
+在 isolate 模式下，只有顶层和静态函数能作为参数传给 `JSInvokable`，函数将在 isolate 线程中调用。 使用 `IsolateFunction` 来传递局部函数（将在主线程中调用）：
 
 ```dart
 await setToGlobalObject.invoke([

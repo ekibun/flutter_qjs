@@ -15,7 +15,7 @@ extern "C"
 
   DLLEXPORT JSValue *jsThrow(JSContext *ctx, JSValue *obj)
   {
-    return new JSValue(JS_Throw(ctx, *obj));
+    return new JSValue(JS_Throw(ctx, JS_DupValue(ctx, *obj)));
   }
 
   DLLEXPORT JSValue *jsEXCEPTION()

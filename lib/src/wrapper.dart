@@ -55,6 +55,8 @@ Pointer _jsGetPropertyValue(
 
 Pointer _dartToJs(Pointer ctx, dynamic val, {Map<dynamic, dynamic> cache}) {
   if (val == null) return jsUNDEFINED();
+  if (val is Error) return _dartToJs(ctx, JSError(val, val.stackTrace));
+  if (val is Exception) return _dartToJs(ctx, JSError(val));
   if (val is JSError) {
     final ret = jsNewError(ctx);
     _definePropertyValue(ctx, ret, "name", "");
@@ -187,9 +189,11 @@ dynamic _jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
         final jsPromise = _JSObject(ctx, val);
         final jsRet = promiseThen._invoke([
           (v) {
+            JSRef.dupRecursive(v);
             if (!completer.isCompleted) completer.complete(v);
           },
           (e) {
+            JSRef.dupRecursive(e);
             if (!completer.isCompleted) completer.completeError(e);
           },
         ], jsPromise);

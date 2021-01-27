@@ -24,23 +24,6 @@ class _DartFunction extends JSInvokable {
   final Function _func;
   _DartFunction(this._func);
 
-  void _freeRecursive(dynamic obj, [Set cache]) {
-    if (obj == null) return;
-    if (cache == null) cache = Set();
-    if (cache.contains(obj)) return;
-    if (obj is List) {
-      cache.add(obj);
-      obj.forEach((e) => _freeRecursive(e, cache));
-    }
-    if (obj is Map) {
-      cache.add(obj);
-      obj.values.forEach((e) => _freeRecursive(e, cache));
-    }
-    if (obj is JSRef) {
-      obj.free();
-    }
-  }
-
   @override
   invoke(List args, [thisVal]) {
     /// wrap this into function
@@ -48,8 +31,8 @@ class _DartFunction extends JSInvokable {
         RegExp('{.*thisVal.*}').hasMatch(_func.runtimeType.toString());
     final ret =
         Function.apply(_func, args, passThis ? {#thisVal: thisVal} : null);
-    _freeRecursive(args);
-    _freeRecursive(thisVal);
+    JSRef.freeRecursive(args);
+    JSRef.freeRecursive(thisVal);
     return ret;
   }
 
@@ -179,7 +162,7 @@ class _JSFunction extends _JSObject implements JSInvokable, _IsolateEncodable {
   }
 
   Pointer _invoke(List<dynamic> arguments, [dynamic thisVal]) {
-    if (_val == null) return null;
+    if (_val == null) throw JSError("InternalError: JSValue released");
     List<Pointer> args = arguments
         .map(
           (e) => _dartToJs(_ctx, e),
@@ -196,22 +179,26 @@ class _JSFunction extends _JSObject implements JSInvokable, _IsolateEncodable {
 
   @override
   Map _encode() {
-    final func = IsolateFunction._new(this);
-    final ret = func._encode();
-    return ret;
+    return IsolateFunction._new(this)._encode();
   }
 }
 
-abstract class _IsolatePortHandler {
+/// Dart function wrapper for isolate
+class IsolateFunction extends JSInvokable implements _IsolateEncodable {
   int _isolateId;
-  dynamic _handle(dynamic);
-}
+  SendPort _port;
+  JSInvokable _invokable;
+  IsolateFunction._fromId(this._isolateId, this._port);
 
-class _IsolatePort {
+  IsolateFunction._new(this._invokable) {
+    _handlers.add(this);
+  }
+  IsolateFunction(Function func) : this._new(_DartFunction(func));
+
   static ReceivePort _invokeHandler;
-  static Set<_IsolatePortHandler> _handlers = Set();
+  static Set<IsolateFunction> _handlers = Set();
 
-  static get _port {
+  static get _handlePort {
     if (_invokeHandler == null) {
       _invokeHandler = ReceivePort();
       _invokeHandler.listen((msg) async {
@@ -236,11 +223,11 @@ class _IsolatePort {
     return _invokeHandler.sendPort;
   }
 
-  static _send(SendPort isolate, _IsolatePortHandler handler, msg) async {
-    if (isolate == null) return handler._handle(msg);
+  _send(msg) async {
+    if (_port == null) return _handle(msg);
     final evaluatePort = ReceivePort();
-    isolate.send({
-      #handler: handler._isolateId,
+    _port.send({
+      #handler: _isolateId,
       #msg: msg,
       #port: evaluatePort.sendPort,
     });
@@ -250,33 +237,11 @@ class _IsolatePort {
     return _decodeData(result);
   }
 
-  static _add(_IsolatePortHandler sendport) => _handlers.add(sendport);
-  static _remove(_IsolatePortHandler sendport) => _handlers.remove(sendport);
-}
-
-/// Dart function wrapper for isolate
-class IsolateFunction extends JSInvokable
-    implements _IsolateEncodable, _IsolatePortHandler {
-  @override
-  int _isolateId;
-  SendPort _port;
-  JSInvokable _invokable;
-  IsolateFunction._fromId(this._isolateId, this._port);
-
-  IsolateFunction._new(this._invokable) {
-    _IsolatePort._add(this);
-  }
-
-  static IsolateFunction func(Function func) {
-    return IsolateFunction._new(_DartFunction(func));
-  }
-
   _destroy() {
-    _IsolatePort._remove(this);
+    _handlers.remove(this);
     _invokable?.free();
   }
 
-  @override
   _handle(msg) async {
     switch (msg) {
       case #dup:
@@ -284,7 +249,6 @@ class IsolateFunction extends JSInvokable
         return null;
       case #free:
         _refCount--;
-        print("${identityHashCode(this)} ref $_refCount");
         if (_refCount < 0) _destroy();
         return null;
       case #destroy:
@@ -300,8 +264,7 @@ class IsolateFunction extends JSInvokable
   Future invoke(List positionalArguments, [thisVal]) async {
     List dArgs = _encodeData(positionalArguments);
     Map dThisVal = _encodeData(thisVal);
-    return _IsolatePort._send(_port, this, {
-      #type: #invokeIsolate,
+    return _send({
       #args: dArgs,
       #thisVal: dThisVal,
     });
@@ -320,7 +283,7 @@ class IsolateFunction extends JSInvokable
   Map _encode() {
     return {
       #jsFunctionId: _isolateId ?? identityHashCode(this),
-      #jsFunctionPort: _port ?? _IsolatePort._port,
+      #jsFunctionPort: _port ?? IsolateFunction._handlePort,
     };
   }
 
@@ -328,16 +291,16 @@ class IsolateFunction extends JSInvokable
 
   @override
   dup() {
-    _IsolatePort._send(_port, this, #dup);
+    _send(#dup);
   }
 
   @override
   free() {
-    _IsolatePort._send(_port, this, #free);
+    _send(#free);
   }
 
   @override
   void destroy() {
-    _IsolatePort._send(_port, this, #destroy);
+    _send(#destroy);
   }
 }

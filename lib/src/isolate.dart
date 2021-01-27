@@ -17,11 +17,7 @@ abstract class _IsolateEncodable {
   Map _encode();
 }
 
-final List _sendAllowType = [Null, String, int, double, bool, SendPort];
-
 dynamic _encodeData(dynamic data, {Map<dynamic, dynamic> cache}) {
-  if (data is Function) return data;
-  if (_sendAllowType.contains(data.runtimeType)) return data;
   if (cache == null) cache = Map();
   if (cache.containsKey(data)) return cache[data];
   if (data is _IsolateEncodable) return data._encode();
@@ -59,7 +55,7 @@ dynamic _encodeData(dynamic data, {Map<dynamic, dynamic> cache}) {
       #jsFuturePort: futurePort.sendPort,
     };
   }
-  throw JSError('unsupport type: ${data.runtimeType}\n${data.toString()}');
+  return data;
 }
 
 dynamic _decodeData(dynamic data, {Map<dynamic, dynamic> cache}) {
