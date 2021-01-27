@@ -68,18 +68,22 @@ Pointer _dartToJs(Pointer ctx, dynamic val, {Map<dynamic, dynamic> cache}) {
     final resolvingFunc2 =
         Pointer.fromAddress(resolvingFunc.address + sizeOfJSValue);
     final ret = jsNewPromiseCapability(ctx, resolvingFunc);
-    _JSFunction res = _jsToDart(ctx, resolvingFunc)..leakable = true;
-    _JSFunction rej = _jsToDart(ctx, resolvingFunc2)..leakable = true;
+    _JSFunction res = _jsToDart(ctx, resolvingFunc);
+    _JSFunction rej = _jsToDart(ctx, resolvingFunc2);
     jsFreeValue(ctx, resolvingFunc, free: false);
     jsFreeValue(ctx, resolvingFunc2, free: false);
     free(resolvingFunc);
+    _DartObject refRes = _DartObject(ctx, res);
+    _DartObject refRej = _DartObject(ctx, rej);
+    res.free();
+    rej.free();
     val.then((value) {
       res.invoke([value]);
     }, onError: (e) {
       rej.invoke([e]);
     }).whenComplete(() {
-      res.release();
-      rej.release();
+      refRes.free();
+      refRej.free();
     });
     return ret;
   }
@@ -189,8 +193,8 @@ dynamic _jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
             if (!completer.isCompleted) completer.completeError(e);
           },
         ], jsPromise);
-        jsPromise.release();
-        promiseThen.release();
+        jsPromise.free();
+        promiseThen.free();
         bool isException = jsIsException(jsRet) != 0;
         jsFreeValue(ctx, jsRet);
         if (isException) throw _parseJSException(ctx);

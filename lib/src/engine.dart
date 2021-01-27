@@ -80,7 +80,7 @@ class FlutterQjs {
           case JSChannelType.FREE_OBJECT:
             Pointer rt = ctx;
             _DartObject obj = _DartObject.fromAddress(rt, ptr.address);
-            obj?.release();
+            obj?.free();
             return Pointer.fromAddress(0);
         }
         throw JSError('call channel with wrong type');

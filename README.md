@@ -77,10 +77,10 @@ or use `invoke` method to pass list parameters:
 ```
 
 `JSInvokable` returned by evaluation may increase reference of JS object.
-You should manually call `release` to release JS reference:
+You should manually call `free` to release JS reference:
 
 ```dart
-(func as JSInvokable).release();
+(func as JSInvokable).free();
 ```
 
 ### Use modules

@@ -11,9 +11,20 @@ import 'dart:isolate';
 import 'package:ffi/ffi.dart';
 
 abstract class JSRef {
-  bool leakable = false;
-  void release();
+  int _refCount = 0;
+  void dup() {
+    _refCount++;
+  }
+
+  void free() {
+    _refCount--;
+    if (_refCount < 0) destroy();
+  }
+
+  void destroy();
 }
+
+abstract class JSRefLeakable {}
 
 class JSEvalFlag {
   static const GLOBAL = 0 << 0;
@@ -170,22 +181,20 @@ void jsFreeRuntime(
   while (true) {
     final ref = runtimeOpaques[rt]
         ?._ref
-        ?.firstWhere((ref) => ref.leakable, orElse: () => null);
+        ?.firstWhere((ref) => ref is JSRefLeakable, orElse: () => null);
     if (ref == null) break;
-    ref.release();
+    ref.destroy();
     runtimeOpaques[rt]?._ref?.remove(ref);
   }
   while (0 < runtimeOpaques[rt]?._ref?.length ?? 0) {
     final ref = runtimeOpaques[rt]?._ref?.first;
-    assert(!ref.leakable);
     referenceleak.add(
-        "  ${identityHashCode(ref)}\t${ref.runtimeType.toString()}\t${ref.toString().replaceAll('\n', '\\n')}");
-    ref.release();
-    runtimeOpaques[rt]?._ref?.remove(ref);
+        "  ${identityHashCode(ref)}\t${ref._refCount + 1}\t${ref.runtimeType.toString()}\t${ref.toString().replaceAll('\n', '\\n')}");
+    ref.destroy();
   }
   _jsFreeRuntime(rt);
   if (referenceleak.length > 0) {
-    throw ('reference leak:\n    ADDR\t  TYPE  \t  PROP\n' +
+    throw ('reference leak:\n    ADDR\tREF\tTYPE\tPROP\n' +
         referenceleak.join('\n'));
   }
 }

@@ -8,6 +8,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:flutter_qjs/flutter_qjs.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,48 +18,42 @@ dynamic myFunction(String args, {thisVal}) {
 }
 
 Future testEvaluate(qjs) async {
-  final testWrap = await qjs.evaluate(
+  JSInvokable wrapFunction = await qjs.evaluate(
     '(a) => a',
     name: '<testWrap>',
   );
-  final wrapNull = await testWrap(null);
+  dynamic testWrap = await wrapFunction.invoke([wrapFunction]);
+  final wrapNull = await testWrap.invoke([null]);
   expect(wrapNull, null, reason: 'wrap null');
   final primities = [0, 1, 0.1, true, false, 'str'];
-  final wrapPrimities = await testWrap(primities);
+  final wrapPrimities = await testWrap.invoke([primities]);
   for (int i = 0; i < primities.length; i++) {
     expect(wrapPrimities[i], primities[i], reason: 'wrap primities');
   }
   final jsError = JSError('test Error');
-  final wrapJsError = await testWrap(jsError);
+  final wrapJsError = await testWrap.invoke([jsError]);
   expect(jsError.message, (wrapJsError as JSError).message,
       reason: 'wrap JSError');
-  final wrapFunction = await testWrap(testWrap);
-  final testEqual = await qjs.evaluate(
-    '(a, b) => a === b',
-    name: '<testEqual>',
-  );
-  expect(await testEqual(wrapFunction, testWrap), true,
-      reason: 'wrap function');
-  wrapFunction.release();
-  testEqual.release();
 
   expect(wrapNull, null, reason: 'wrap null');
   final a = {};
   a['a'] = a;
-  final wrapA = await testWrap(a);
+  final wrapA = await testWrap.invoke([a]);
   expect(wrapA['a'], wrapA, reason: 'recursive object');
-  final testThis = await qjs.evaluate(
+  JSInvokable testThis = await qjs.evaluate(
     '(function (func, arg) { return func.call(this, arg) })',
     name: '<testThis>',
   );
-  final funcRet = await testThis(myFunction, 'arg', thisVal: {'name': 'this'});
-  testThis.release();
+  final funcRet = await testThis.invoke([myFunction, 'arg'], {'name': 'this'});
+  testThis.free();
   expect(funcRet[0]['name'], 'this', reason: 'js function this');
   expect(funcRet[1], 'arg', reason: 'js function argument');
-  final promises = await testWrap(await qjs.evaluate(
-    '[Promise.reject("reject"), Promise.resolve("resolve"), new Promise(() => {})]',
-    name: '<promises>',
-  ));
+  List promises = await testWrap.invoke([
+    await qjs.evaluate(
+      '[Promise.reject("reject"), Promise.resolve("resolve"), new Promise(() => {})]',
+      name: '<promises>',
+    )
+  ]);
   for (final promise in promises)
     expect(promise, isInstanceOf<Future>(), reason: 'promise object');
   try {
@@ -68,10 +63,16 @@ Future testEvaluate(qjs) async {
     expect(e, 'reject', reason: 'promise object reject');
   }
   expect(await promises[1], 'resolve', reason: 'promise object resolve');
-  testWrap.release();
+  testWrap.free();
+  wrapFunction.free();
 }
 
 void main() async {
+  test('send', () async {
+    final rec = ReceivePort();
+    rec.close();
+    rec.sendPort.send("3232");
+  });
   test('make', () async {
     final utf8Encoding = Encoding.getByName('utf-8');
     var cmakePath = 'cmake';
@@ -140,15 +141,23 @@ void main() async {
   });
   test('isolate bind function', () async {
     final qjs = IsolateQjs();
-    var localVar;
-    final testFunc = await qjs.evaluate('(func)=>func("ret")', name: '<eval>');
-    final testFuncRet = await testFunc(await qjs.bind((args) {
-      localVar = 'test';
-      return args;
-    }));
-    testFunc.release();
-    expect(localVar, 'test', reason: 'bind function');
+    final localVars = [];
+    JSInvokable testFunc =
+        await qjs.evaluate('(func)=>func(()=>"ret")', name: '<eval>');
+    final func = IsolateFunction.func((args) {
+      localVars.add(args..dup());
+      return args.invoke([]);
+    });
+    final testFuncRet = await testFunc.invoke([func..dup()]);
+    final testFuncRet2 = await testFunc.invoke([func..dup()]);
+    func.free();
+    testFunc.free();
+    for (IsolateFunction vars in localVars) {
+      expect(await vars.invoke([]), 'ret', reason: 'bind function');
+      vars.free();
+    }
     expect(testFuncRet, 'ret', reason: 'bind function args return');
+    expect(testFuncRet2, testFuncRet, reason: 'bind function args return2');
     await qjs.close();
   });
   test('reference leak', () async {

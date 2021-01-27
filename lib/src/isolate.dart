@@ -7,22 +7,24 @@
  */
 part of '../flutter_qjs.dart';
 
-typedef dynamic _Decode(Map obj, SendPort port);
+typedef dynamic _Decode(Map obj);
 List<_Decode> _decoders = [
   JSError._decode,
-  _IsolateJSFunction._decode,
-  _IsolateFunction._decode,
-  _JSFunction._decode,
+  IsolateFunction._decode,
 ];
 
 abstract class _IsolateEncodable {
   Map _encode();
 }
 
+final List _sendAllowType = [Null, String, int, double, bool, SendPort];
+
 dynamic _encodeData(dynamic data, {Map<dynamic, dynamic> cache}) {
+  if (data is Function) return data;
+  if (_sendAllowType.contains(data.runtimeType)) return data;
   if (cache == null) cache = Map();
-  if (data is _IsolateEncodable) return data._encode();
   if (cache.containsKey(data)) return cache[data];
+  if (data is _IsolateEncodable) return data._encode();
   if (data is List) {
     final ret = [];
     cache[data] = ret;
@@ -57,24 +59,23 @@ dynamic _encodeData(dynamic data, {Map<dynamic, dynamic> cache}) {
       #jsFuturePort: futurePort.sendPort,
     };
   }
-  return data;
+  throw JSError('unsupport type: ${data.runtimeType}\n${data.toString()}');
 }
 
-dynamic _decodeData(dynamic data, SendPort port,
-    {Map<dynamic, dynamic> cache}) {
+dynamic _decodeData(dynamic data, {Map<dynamic, dynamic> cache}) {
   if (cache == null) cache = Map();
   if (cache.containsKey(data)) return cache[data];
   if (data is List) {
     final ret = [];
     cache[data] = ret;
     for (int i = 0; i < data.length; ++i) {
-      ret.add(_decodeData(data[i], port, cache: cache));
+      ret.add(_decodeData(data[i], cache: cache));
     }
     return ret;
   }
   if (data is Map) {
     for (final decoder in _decoders) {
-      final decodeObj = decoder(data, port);
+      final decodeObj = decoder(data);
       if (decodeObj != null) return decodeObj;
     }
     if (data.containsKey(#jsFuturePort)) {
@@ -86,9 +87,9 @@ dynamic _decodeData(dynamic data, SendPort port,
       futurePort.first.then((value) {
         futurePort.close();
         if (value is Map && value.containsKey(#error)) {
-          futureCompleter.completeError(_decodeData(value[#error], port));
+          futureCompleter.completeError(_decodeData(value[#error]));
         } else {
-          futureCompleter.complete(_decodeData(value, port));
+          futureCompleter.complete(_decodeData(value));
         }
       });
       return futureCompleter.future;
@@ -96,8 +97,8 @@ dynamic _decodeData(dynamic data, SendPort port,
     final ret = {};
     cache[data] = ret;
     for (final entry in data.entries) {
-      ret[_decodeData(entry.key, port, cache: cache)] =
-          _decodeData(entry.value, port, cache: cache);
+      ret[_decodeData(entry.key, cache: cache)] =
+          _decodeData(entry.value, cache: cache);
     }
     return ret;
   }
@@ -146,21 +147,6 @@ void _runJsIsolate(Map spawnMessage) async {
             name: msg[#name],
             evalFlags: msg[#flag],
           );
-          break;
-        case #call:
-          data = await _JSFunction.fromAddress(
-            Pointer.fromAddress(msg[#ctx]),
-            Pointer.fromAddress(msg[#val]),
-          ).invoke(
-            _decodeData(msg[#args], null),
-            _decodeData(msg[#thisVal], null),
-          );
-          break;
-        case #closeFunction:
-          _JSFunction.fromAddress(
-            Pointer.fromAddress(msg[#ctx]),
-            Pointer.fromAddress(msg[#val]),
-          ).release();
           break;
         case #close:
           data = false;
@@ -225,7 +211,7 @@ class IsolateQjs {
       switch (msg[#type]) {
         case #hostPromiseRejection:
           try {
-            final err = _decodeData(msg[#reason], port.sendPort);
+            final err = _decodeData(msg[#reason]);
             if (hostPromiseRejectionHandler != null) {
               hostPromiseRejectionHandler(err);
             } else {
@@ -255,12 +241,6 @@ class IsolateQjs {
     _sendPort = completer.future;
   }
 
-  /// Create isolate function
-  Future<_IsolateFunction> bind(Function func) async {
-    _ensureEngine();
-    return _IsolateFunction._bind(func, await _sendPort);
-  }
-
   /// Free Runtime and close isolate thread that can be recreate when evaluate again.
   close() {
     if (_sendPort == null) return;
@@ -273,8 +253,8 @@ class IsolateQjs {
       final result = await closePort.first;
       closePort.close();
       if (result is Map && result.containsKey(#error))
-        throw _decodeData(result[#error], sendPort);
-      return _decodeData(result, sendPort);
+        throw _decodeData(result[#error]);
+      return _decodeData(result);
     });
     _sendPort = null;
     return ret;
@@ -295,7 +275,7 @@ class IsolateQjs {
     final result = await evaluatePort.first;
     evaluatePort.close();
     if (result is Map && result.containsKey(#error))
-      throw _decodeData(result[#error], sendPort);
-    return _decodeData(result, sendPort);
+      throw _decodeData(result[#error]);
+    return _decodeData(result);
   }
 }
