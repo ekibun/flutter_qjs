@@ -41,11 +41,11 @@ abstract class JSRef {
     if (cache.contains(obj)) return;
     if (obj is List) {
       cache.add(obj);
-      obj.forEach((e) => _callRecursive(e, cb, cache));
+      List.from(obj).forEach((e) => _callRecursive(e, cb, cache));
     }
     if (obj is Map) {
       cache.add(obj);
-      obj.values.forEach((e) => _callRecursive(e, cb, cache));
+      obj.values.toList().forEach((e) => _callRecursive(e, cb, cache));
     }
     if (obj is JSRef) {
       cb(obj);
