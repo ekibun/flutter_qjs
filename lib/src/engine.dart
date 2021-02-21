@@ -62,11 +62,11 @@ class FlutterQjs {
                 ));
           case JSChannelType.MODULE:
             if (moduleHandler == null) throw JSError('No ModuleHandler');
-            final ret = Utf8.toUtf8(moduleHandler(
-              Utf8.fromUtf8(ptr.cast<Utf8>()),
-            ));
+            final ret = moduleHandler(
+              ptr.cast<Utf8>().toDartString(),
+            ).toNativeUtf8();
             Future.microtask(() {
-              free(ret);
+              malloc.free(ret);
             });
             return ret;
           case JSChannelType.PROMISE_TRACK:

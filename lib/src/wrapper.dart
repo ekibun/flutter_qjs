@@ -66,7 +66,7 @@ Pointer _dartToJs(Pointer ctx, dynamic val, {Map<dynamic, dynamic> cache}) {
   }
   if (val is _JSObject) return jsDupValue(ctx, val._val);
   if (val is Future) {
-    final resolvingFunc = allocate<Uint8>(count: sizeOfJSValue * 2);
+    final resolvingFunc = malloc<Uint8>(sizeOfJSValue * 2);
     final resolvingFunc2 =
         Pointer.fromAddress(resolvingFunc.address + sizeOfJSValue);
     final ret = jsNewPromiseCapability(ctx, resolvingFunc);
@@ -74,7 +74,7 @@ Pointer _dartToJs(Pointer ctx, dynamic val, {Map<dynamic, dynamic> cache}) {
     _JSFunction rej = _jsToDart(ctx, resolvingFunc2);
     jsFreeValue(ctx, resolvingFunc, free: false);
     jsFreeValue(ctx, resolvingFunc2, free: false);
-    free(resolvingFunc);
+    malloc.free(resolvingFunc);
     _DartObject refRes = _DartObject(ctx, res);
     _DartObject refRej = _DartObject(ctx, rej);
     res.free();
@@ -95,11 +95,11 @@ Pointer _dartToJs(Pointer ctx, dynamic val, {Map<dynamic, dynamic> cache}) {
   if (val is double) return jsNewFloat64(ctx, val);
   if (val is String) return jsNewString(ctx, val);
   if (val is Uint8List) {
-    final ptr = allocate<Uint8>(count: val.length);
+    final ptr = malloc<Uint8>(val.length);
     final byteList = ptr.asTypedList(val.length);
     byteList.setAll(0, val);
     final ret = jsNewArrayBufferCopy(ctx, ptr, val.length);
-    free(ptr);
+    malloc.free(ptr);
     return ret;
   }
   if (cache.containsKey(val)) {
@@ -160,10 +160,10 @@ dynamic _jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
             rt, jsGetObjectOpaque(val, dartObjectClassId));
         if (dartObject != null) return dartObject._obj;
       }
-      Pointer<IntPtr> psize = allocate<IntPtr>();
+      Pointer<IntPtr> psize = malloc<IntPtr>();
       Pointer<Uint8> buf = jsGetArrayBuffer(ctx, psize, val);
       int size = psize.value;
-      free(psize);
+      malloc.free(psize);
       if (buf.address != 0) {
         return Uint8List.fromList(buf.asTypedList(size));
       }
@@ -215,11 +215,11 @@ dynamic _jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
         }
         return ret;
       } else {
-        Pointer<Pointer> ptab = allocate<Pointer>();
-        Pointer<Uint32> plen = allocate<Uint32>();
+        Pointer<Pointer> ptab = malloc<Pointer>();
+        Pointer<Uint32> plen = malloc<Uint32>();
         if (jsGetOwnPropertyNames(ctx, ptab, plen, val, -1) != 0) return null;
         int len = plen.value;
-        free(plen);
+        malloc.free(plen);
         Map<dynamic, dynamic> ret = Map();
         cache[valptr] = ret;
         for (int i = 0; i < len; ++i) {
@@ -233,7 +233,7 @@ dynamic _jsToDart(Pointer ctx, Pointer val, {Map<int, dynamic> cache}) {
           jsFreeAtom(ctx, jsAtom);
         }
         jsFree(ctx, ptab.value);
-        free(ptab);
+        malloc.free(ptab);
         return ret;
       }
       break;
