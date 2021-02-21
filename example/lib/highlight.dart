@@ -53,7 +53,8 @@ class CodeInputController extends TextEditingController {
   Future<void> spanCall;
 
   @override
-  TextSpan buildTextSpan({TextStyle style, bool withComposing}) {
+  TextSpan buildTextSpan(
+      {@required BuildContext context, TextStyle style, bool withComposing}) {
     String oldText = oldSpan.toPlainText();
     String newText = value.text;
     if (oldText == newText) return oldSpan;
