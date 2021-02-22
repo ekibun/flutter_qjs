@@ -6,6 +6,15 @@
  * @LastEditTime: 2020-12-02 11:36:40
 -->
 
+## 0.3.6
+
+* upgrade ffi to 1.0.0.
+* nullsafety.
+
+## 0.3.5
+
+* downgrade ffi to 0.1.3.
+
 ## 0.3.4
 
 * upgrade ffi to 1.0.0.

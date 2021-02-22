@@ -135,7 +135,7 @@ void main() async {
   });
   test('isolate bind this', () async {
     final qjs = IsolateQjs();
-    JSInvokable localVar;
+    JSInvokable? localVar;
     JSInvokable setToGlobal = await qjs
         .evaluate('(name, func)=>{ this[name] = func }', name: '<eval>');
     final func = IsolateFunction((args) {
@@ -146,8 +146,8 @@ void main() async {
     func.free();
     setToGlobal.free();
     final testFuncRet = await qjs.evaluate('test(()=>"ret")', name: '<eval>');
-    expect(await localVar.invoke([]), 'ret', reason: 'bind function');
-    localVar.free();
+    expect(await localVar?.invoke([]), 'ret', reason: 'bind function');
+    localVar?.free();
     expect(testFuncRet, 'ret', reason: 'bind function args return');
     await qjs.close();
   });

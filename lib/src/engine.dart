@@ -15,20 +15,20 @@ typedef _JsHostPromiseRejectionHandler = void Function(dynamic reason);
 
 /// Quickjs engine for flutter.
 class FlutterQjs {
-  Pointer<JSRuntime> _rt;
-  Pointer<JSContext> _ctx;
+  Pointer<JSRuntime>? _rt;
+  Pointer<JSContext>? _ctx;
 
   /// Max stack size for quickjs.
-  final int stackSize;
+  final int? stackSize;
 
   /// Message Port for event loop. Close it to stop dispatching event loop.
   ReceivePort port = ReceivePort();
 
   /// Handler function to manage js module.
-  _JsModuleHandler moduleHandler;
+  final _JsModuleHandler? moduleHandler;
 
   /// Handler function to manage js module.
-  _JsHostPromiseRejectionHandler hostPromiseRejectionHandler;
+  final _JsHostPromiseRejectionHandler? hostPromiseRejectionHandler;
 
   FlutterQjs({
     this.moduleHandler,
@@ -38,7 +38,7 @@ class FlutterQjs {
 
   _ensureEngine() {
     if (_rt != null) return;
-    _rt = jsNewRuntime((ctx, type, ptr) {
+    final rt = jsNewRuntime((ctx, type, ptr) {
       try {
         switch (type) {
           case JSChannelType.METHON:
@@ -65,7 +65,7 @@ class FlutterQjs {
                 ));
           case JSChannelType.MODULE:
             if (moduleHandler == null) throw JSError('No ModuleHandler');
-            final ret = moduleHandler(
+            final ret = moduleHandler!(
               ptr.cast<Utf8>().toDartString(),
             ).toNativeUtf8();
             Future.microtask(() {
@@ -75,15 +75,14 @@ class FlutterQjs {
           case JSChannelType.PROMISE_TRACK:
             final err = _parseJSException(ctx, ptr);
             if (hostPromiseRejectionHandler != null) {
-              hostPromiseRejectionHandler(err);
+              hostPromiseRejectionHandler!(err);
             } else {
               print('unhandled promise rejection: $err');
             }
             return nullptr;
           case JSChannelType.FREE_OBJECT:
             final rt = ctx.cast<JSRuntime>();
-            _DartObject obj = _DartObject.fromAddress(rt, ptr.address);
-            obj?.free();
+            _DartObject.fromAddress(rt, ptr.address)?.free();
             return nullptr;
         }
         throw JSError('call channel with wrong type');
@@ -106,20 +105,21 @@ class FlutterQjs {
         return err;
       }
     }, port);
-    if (this.stackSize != null && this.stackSize > 0)
-      jsSetMaxStackSize(_rt, this.stackSize);
-    _ctx = jsNewContext(_rt);
+    final stackSize = this.stackSize ?? 0;
+    if (stackSize > 0) jsSetMaxStackSize(rt, stackSize);
+    _rt = rt;
+    _ctx = jsNewContext(rt);
   }
 
   /// Free Runtime and Context which can be recreate when evaluate again.
   close() {
-    if (_rt == null) return;
     final rt = _rt;
     final ctx = _ctx;
-    _executePendingJob();
     _rt = null;
     _ctx = null;
-    jsFreeContext(ctx);
+    if (ctx != null) jsFreeContext(ctx);
+    if (rt == null) return;
+    _executePendingJob();
     try {
       jsFreeRuntime(rt);
     } on String catch (e) {
@@ -128,11 +128,13 @@ class FlutterQjs {
   }
 
   void _executePendingJob() {
-    if (_rt == null) return;
+    final rt = _rt;
+    final ctx = _ctx;
+    if (rt == null || ctx == null) return;
     while (true) {
-      int err = jsExecutePendingJob(_rt);
+      int err = jsExecutePendingJob(rt);
       if (err <= 0) {
-        if (err < 0) print(_parseJSException(_ctx));
+        if (err < 0) print(_parseJSException(ctx));
         break;
       }
     }
@@ -146,20 +148,25 @@ class FlutterQjs {
   }
 
   /// Evaluate js script.
-  dynamic evaluate(String command, {String name, int evalFlags}) {
+  dynamic evaluate(
+    String command, {
+    String? name,
+    int? evalFlags,
+  }) {
     _ensureEngine();
+    final ctx = _ctx!;
     final jsval = jsEval(
-      _ctx,
+      ctx,
       command,
       name ?? '<eval>',
       evalFlags ?? JSEvalFlag.GLOBAL,
     );
     if (jsIsException(jsval) != 0) {
-      jsFreeValue(_ctx, jsval);
-      throw _parseJSException(_ctx);
+      jsFreeValue(ctx, jsval);
+      throw _parseJSException(ctx);
     }
-    final result = _jsToDart(_ctx, jsval);
-    jsFreeValue(_ctx, jsval);
+    final result = _jsToDart(ctx, jsval);
+    jsFreeValue(ctx, jsval);
     return result;
   }
 }

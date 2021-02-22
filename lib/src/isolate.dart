@@ -17,7 +17,7 @@ abstract class _IsolateEncodable {
   Map _encode();
 }
 
-dynamic _encodeData(dynamic data, {Map<dynamic, dynamic> cache}) {
+dynamic _encodeData(dynamic data, {Map<dynamic, dynamic>? cache}) {
   if (cache == null) cache = Map();
   if (cache.containsKey(data)) return cache[data];
   if (data is _IsolateEncodable) return data._encode();
@@ -58,7 +58,7 @@ dynamic _encodeData(dynamic data, {Map<dynamic, dynamic> cache}) {
   return data;
 }
 
-dynamic _decodeData(dynamic data, {Map<dynamic, dynamic> cache}) {
+dynamic _decodeData(dynamic data, {Map<dynamic, dynamic>? cache}) {
   if (cache == null) cache = Map();
   if (cache.containsKey(data)) return cache[data];
   if (data is List) {
@@ -132,7 +132,7 @@ void _runJsIsolate(Map spawnMessage) async {
   );
   port.listen((msg) async {
     var data;
-    SendPort msgPort = msg[#port];
+    SendPort? msgPort = msg[#port];
     try {
       switch (msg[#type]) {
         case #evaluate:
@@ -164,16 +164,16 @@ void _runJsIsolate(Map spawnMessage) async {
 typedef _JsAsyncModuleHandler = Future<String> Function(String name);
 
 class IsolateQjs {
-  Future<SendPort> _sendPort;
+  Future<SendPort>? _sendPort;
 
   /// Max stack size for quickjs.
-  final int stackSize;
+  final int? stackSize;
 
   /// Asynchronously handler to manage js module.
-  _JsAsyncModuleHandler moduleHandler;
+  final _JsAsyncModuleHandler? moduleHandler;
 
   /// Handler function to manage js module.
-  _JsHostPromiseRejectionHandler hostPromiseRejectionHandler;
+  final _JsHostPromiseRejectionHandler? hostPromiseRejectionHandler;
 
   /// Quickjs engine runing on isolate thread.
   ///
@@ -207,7 +207,7 @@ class IsolateQjs {
           try {
             final err = _decodeData(msg[#reason]);
             if (hostPromiseRejectionHandler != null) {
-              hostPromiseRejectionHandler(err);
+              hostPromiseRejectionHandler!(err);
             } else {
               print('unhandled promise rejection: $err');
             }
@@ -218,7 +218,7 @@ class IsolateQjs {
         case #module:
           final ptr = Pointer<Pointer>.fromAddress(msg[#ptr]);
           try {
-            ptr.value = (await moduleHandler(msg[#name])).toNativeUtf8();
+            ptr.value = (await moduleHandler!(msg[#name])).toNativeUtf8();
           } catch (e) {
             ptr.value = Pointer.fromAddress(-1);
           }
@@ -234,8 +234,10 @@ class IsolateQjs {
 
   /// Free Runtime and close isolate thread that can be recreate when evaluate again.
   close() {
-    if (_sendPort == null) return;
-    final ret = _sendPort.then((sendPort) async {
+    final sendPort = _sendPort;
+    _sendPort = null;
+    if (sendPort == null) return;
+    final ret = sendPort.then((sendPort) async {
       final closePort = ReceivePort();
       sendPort.send({
         #type: #close,
@@ -247,15 +249,18 @@ class IsolateQjs {
         throw _decodeData(result[#error]);
       return _decodeData(result);
     });
-    _sendPort = null;
     return ret;
   }
 
   /// Evaluate js script.
-  Future<dynamic> evaluate(String command, {String name, int evalFlags}) async {
+  Future<dynamic> evaluate(
+    String command, {
+    String? name,
+    int? evalFlags,
+  }) async {
     _ensureEngine();
     final evaluatePort = ReceivePort();
-    final sendPort = await _sendPort;
+    final sendPort = await _sendPort!;
     sendPort.send({
       #type: #evaluate,
       #command: command,

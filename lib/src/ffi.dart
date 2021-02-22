@@ -10,6 +10,16 @@ import 'dart:io';
 import 'dart:isolate';
 import 'package:ffi/ffi.dart';
 
+extension ListFirstWhere<T> on Iterable<T> {
+  T? firstWhereOrNull(bool Function(T) test) {
+    try {
+      return firstWhere(test);
+    } on StateError {
+      return null;
+    }
+  }
+}
+
 abstract class JSRef {
   int _refCount = 0;
   void dup() {
@@ -34,7 +44,7 @@ abstract class JSRef {
   static void _callRecursive(
     dynamic obj,
     void Function(JSRef) cb, [
-    Set cache,
+    Set? cache,
   ]) {
     if (obj == null) return;
     if (cache == null) cache = Set();
@@ -155,24 +165,26 @@ final Pointer<JSRuntime> Function(
     .asFunction();
 
 class _RuntimeOpaque {
-  _JSChannel _channel;
+  final _JSChannel _channel;
   List<JSRef> _ref = [];
-  ReceivePort _port;
-  int _dartObjectClassId;
-  get dartObjectClassId => _dartObjectClassId;
+  final ReceivePort _port;
+  int? _dartObjectClassId;
+  _RuntimeOpaque(this._channel, this._port);
+
+  int? get dartObjectClassId => _dartObjectClassId;
 
   void addRef(JSRef ref) => _ref.add(ref);
 
   bool removeRef(JSRef ref) => _ref.remove(ref);
 
-  JSRef getRef(bool Function(JSRef ref) test) {
-    return _ref.firstWhere(test, orElse: () => null);
+  JSRef? getRef(bool Function(JSRef ref) test) {
+    return _ref.firstWhereOrNull(test);
   }
 }
 
 final Map<Pointer<JSRuntime>, _RuntimeOpaque> runtimeOpaques = Map();
 
-Pointer<JSValue> channelDispacher(
+Pointer<JSValue>? channelDispacher(
   Pointer<JSContext> ctx,
   int type,
   Pointer<JSValue> argv,
@@ -188,9 +200,7 @@ Pointer<JSRuntime> jsNewRuntime(
   ReceivePort port,
 ) {
   final rt = _jsNewRuntime(Pointer.fromFunction(channelDispacher));
-  runtimeOpaques[rt] = _RuntimeOpaque()
-    .._channel = callback
-    .._port = port;
+  runtimeOpaques[rt] = _RuntimeOpaque(callback, port);
   return rt;
 }
 
@@ -222,21 +232,22 @@ void jsFreeRuntime(
   Pointer<JSRuntime> rt,
 ) {
   final referenceleak = <String>[];
-  while (true) {
-    final ref = runtimeOpaques[rt]
-        ?._ref
-        ?.firstWhere((ref) => ref is JSRefLeakable, orElse: () => null);
-    if (ref == null) break;
-    ref.destroy();
-    runtimeOpaques[rt]?._ref?.remove(ref);
-  }
-  while (0 < runtimeOpaques[rt]?._ref?.length ?? 0) {
-    final ref = runtimeOpaques[rt]?._ref?.first;
-    final objStrs = ref.toString().split('\n');
-    final objStr = objStrs.length > 0 ? objStrs[0] + " ..." : objStrs[0];
-    referenceleak.add(
-        "  ${identityHashCode(ref)}\t${ref._refCount + 1}\t${ref.runtimeType.toString()}\t$objStr");
-    ref.destroy();
+  final opaque = runtimeOpaques[rt];
+  if (opaque != null) {
+    while (true) {
+      final ref = opaque._ref.firstWhereOrNull((ref) => ref is JSRefLeakable);
+      if (ref == null) break;
+      ref.destroy();
+      runtimeOpaques[rt]?._ref.remove(ref);
+    }
+    while (opaque._ref.isNotEmpty) {
+      final ref = opaque._ref.first;
+      final objStrs = ref.toString().split('\n');
+      final objStr = objStrs.length > 0 ? objStrs[0] + " ..." : objStrs[0];
+      referenceleak.add(
+          "  ${identityHashCode(ref)}\t${ref._refCount + 1}\t${ref.runtimeType.toString()}\t$objStr");
+      ref.destroy();
+    }
   }
   _jsFreeRuntime(rt);
   if (referenceleak.length > 0) {
@@ -335,7 +346,7 @@ Pointer<JSValue> jsEval(
   );
   malloc.free(utf8input);
   malloc.free(utf8filename);
-  runtimeOpaques[jsGetRuntime(ctx)]._port.sendPort.send(#eval);
+  runtimeOpaques[jsGetRuntime(ctx)]?._port.sendPort.send(#eval);
   return val;
 }
 
@@ -915,14 +926,11 @@ Pointer<JSValue> jsCall(
     setJSValueList(jsArgs, i, jsArg);
   }
   final func1 = jsDupValue(ctx, funcObj);
-  final _thisObj = thisObj ?? jsUNDEFINED();
+  final _thisObj = thisObj;
   final jsRet = _jsCall(ctx, funcObj, _thisObj, argv.length, jsArgs);
-  if (thisObj == null) {
-    jsFreeValue(ctx, _thisObj);
-  }
   jsFreeValue(ctx, func1);
   malloc.free(jsArgs);
-  runtimeOpaques[jsGetRuntime(ctx)]._port.sendPort.send(#call);
+  runtimeOpaques[jsGetRuntime(ctx)]?._port.sendPort.send(#call);
   return jsRet;
 }
 
