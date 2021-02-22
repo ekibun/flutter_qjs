@@ -49,7 +49,7 @@ class _DartFunction extends JSInvokable {
 
 class _DartObject extends JSRef implements JSRefLeakable {
   Object _obj;
-  Pointer _ctx;
+  Pointer<JSContext> _ctx;
   _DartObject(this._ctx, this._obj) {
     if (_obj is JSRef) {
       (_obj as JSRef).dup();
@@ -57,7 +57,7 @@ class _DartObject extends JSRef implements JSRefLeakable {
     runtimeOpaques[jsGetRuntime(_ctx)]?.addRef(this);
   }
 
-  static _DartObject fromAddress(Pointer rt, int val) {
+  static _DartObject fromAddress(Pointer<JSRuntime> rt, int val) {
     return runtimeOpaques[rt]?.getRef((e) => identityHashCode(e) == val);
   }
 
@@ -116,12 +116,12 @@ class JSError extends _IsolateEncodable {
 /// JS Object reference
 /// call [release] to release js object.
 class _JSObject extends JSRef {
-  Pointer _val;
-  Pointer _ctx;
+  Pointer<JSValue> _val;
+  Pointer<JSContext> _ctx;
 
   /// Create
-  _JSObject(this._ctx, Pointer _val) {
-    Pointer rt = jsGetRuntime(_ctx);
+  _JSObject(this._ctx, Pointer<JSValue> _val) {
+    final rt = jsGetRuntime(_ctx);
     this._val = jsDupValue(_ctx, _val);
     runtimeOpaques[rt]?.addRef(this);
   }
@@ -129,7 +129,7 @@ class _JSObject extends JSRef {
   @override
   void destroy() {
     if (_val == null) return;
-    Pointer rt = jsGetRuntime(_ctx);
+    final rt = jsGetRuntime(_ctx);
     runtimeOpaques[rt]?.removeRef(this);
     jsFreeValue(_ctx, _val);
     _val = null;
@@ -145,11 +145,11 @@ class _JSObject extends JSRef {
 
 /// JS function wrapper
 class _JSFunction extends _JSObject implements JSInvokable, _IsolateEncodable {
-  _JSFunction(Pointer ctx, Pointer val) : super(ctx, val);
+  _JSFunction(Pointer<JSContext> ctx, Pointer<JSValue> val) : super(ctx, val);
 
   @override
   invoke(List<dynamic> arguments, [dynamic thisVal]) {
-    Pointer jsRet = _invoke(arguments, thisVal);
+    final jsRet = _invoke(arguments, thisVal);
     if (jsRet == null) return;
     bool isException = jsIsException(jsRet) != 0;
     if (isException) {
@@ -161,17 +161,17 @@ class _JSFunction extends _JSObject implements JSInvokable, _IsolateEncodable {
     return ret;
   }
 
-  Pointer _invoke(List<dynamic> arguments, [dynamic thisVal]) {
+  Pointer<JSValue> _invoke(List<dynamic> arguments, [dynamic thisVal]) {
     if (_val == null) throw JSError("InternalError: JSValue released");
-    List<Pointer> args = arguments
+    final args = arguments
         .map(
           (e) => _dartToJs(_ctx, e),
         )
         .toList();
-    Pointer jsThis = _dartToJs(_ctx, thisVal);
-    Pointer jsRet = jsCall(_ctx, _val, jsThis, args);
+    final jsThis = _dartToJs(_ctx, thisVal);
+    final jsRet = jsCall(_ctx, _val, jsThis, args);
     jsFreeValue(_ctx, jsThis);
-    for (Pointer jsArg in args) {
+    for (final jsArg in args) {
       jsFreeValue(_ctx, jsArg);
     }
     return jsRet;
@@ -255,15 +255,15 @@ class IsolateFunction extends JSInvokable implements _IsolateEncodable {
         _destroy();
         return null;
     }
-    List args = _decodeData(msg[#args]);
-    Map thisVal = _decodeData(msg[#thisVal]);
+    final List args = _decodeData(msg[#args]);
+    final thisVal = _decodeData(msg[#thisVal]);
     return _invokable.invoke(args, thisVal);
   }
 
   @override
   Future invoke(List positionalArguments, [thisVal]) async {
-    List dArgs = _encodeData(positionalArguments);
-    Map dThisVal = _encodeData(thisVal);
+    final List dArgs = _encodeData(positionalArguments);
+    final dThisVal = _encodeData(thisVal);
     return _send({
       #args: dArgs,
       #thisVal: dThisVal,

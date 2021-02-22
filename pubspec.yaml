@@ -1,6 +1,6 @@
 name: flutter_qjs
 description: This plugin is a simple js engine for flutter using the `quickjs` project. Plugin currently supports all the platforms except web!
-version: 0.3.3
+version: 0.3.4
 homepage: https://github.com/ekibun/flutter_qjs
 
 environment:
@@ -26,6 +26,7 @@ flutter:
   # be modified. They are used by the tooling to maintain consistency when
   # adding or updating assets for this project.
   plugin:
+    implements: flutter_qjs
     platforms:
     # This plugin project was generated without specifying any
     # platforms with the `--platform` argument. If you see the `fake_platform` map below, remove it and

@@ -115,21 +115,19 @@ void _runJsIsolate(Map spawnMessage) async {
     },
     moduleHandler: (name) {
       final ptr = calloc<Pointer<Utf8>>();
-      ptr.value = Pointer.fromAddress(0);
+      ptr.value = Pointer.fromAddress(ptr.address);
       sendPort.send({
         #type: #module,
         #name: name,
         #ptr: ptr.address,
       });
-      while (ptr.value.address == 0) sleep(Duration.zero);
-      if (ptr.value.address == -1) throw JSError('Module Not found');
-      final ret = ptr.value.toDartString();
-      sendPort.send({
-        #type: #release,
-        #ptr: ptr.value.address,
-      });
+      while (ptr.value.address == ptr.address) sleep(Duration(microseconds: 1));
+      final ret = ptr.value;
       malloc.free(ptr);
-      return ret;
+      if (ret.address == -1) throw JSError('Module Not found');
+      final retString = ret.toDartString();
+      malloc.free(ret);
+      return retString;
     },
   );
   port.listen((msg) async {
@@ -224,9 +222,6 @@ class IsolateQjs {
           } catch (e) {
             ptr.value = Pointer.fromAddress(-1);
           }
-          break;
-        case #release:
-          malloc.free(Pointer.fromAddress(msg[#ptr]));
           break;
       }
     }, onDone: () {

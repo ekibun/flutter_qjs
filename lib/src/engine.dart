@@ -15,8 +15,8 @@ typedef _JsHostPromiseRejectionHandler = void Function(dynamic reason);
 
 /// Quickjs engine for flutter.
 class FlutterQjs {
-  Pointer _rt;
-  Pointer _ctx;
+  Pointer<JSRuntime> _rt;
+  Pointer<JSContext> _ctx;
 
   /// Max stack size for quickjs.
   final int stackSize;
@@ -42,10 +42,10 @@ class FlutterQjs {
       try {
         switch (type) {
           case JSChannelType.METHON:
-            final pdata = ptr.cast<Pointer>();
+            final pdata = ptr.cast<Pointer<JSValue>>();
             final argc = pdata.elementAt(1).value.cast<Int32>().value;
-            List pargs = [];
-            for (int i = 0; i < argc; ++i) {
+            final pargs = [];
+            for (var i = 0; i < argc; ++i) {
               pargs.add(_jsToDart(
                 ctx,
                 Pointer.fromAddress(
@@ -53,7 +53,10 @@ class FlutterQjs {
                 ),
               ));
             }
-            JSInvokable func = _jsToDart(ctx, pdata.elementAt(3).value);
+            final JSInvokable func = _jsToDart(
+              ctx,
+              pdata.elementAt(3).value,
+            );
             return _dartToJs(
                 ctx,
                 func.invoke(
@@ -68,7 +71,7 @@ class FlutterQjs {
             Future.microtask(() {
               malloc.free(ret);
             });
-            return ret;
+            return ret.cast();
           case JSChannelType.PROMISE_TRACK:
             final err = _parseJSException(ctx, ptr);
             if (hostPromiseRejectionHandler != null) {
@@ -76,29 +79,29 @@ class FlutterQjs {
             } else {
               print('unhandled promise rejection: $err');
             }
-            return Pointer.fromAddress(0);
+            return nullptr;
           case JSChannelType.FREE_OBJECT:
-            Pointer rt = ctx;
+            final rt = ctx.cast<JSRuntime>();
             _DartObject obj = _DartObject.fromAddress(rt, ptr.address);
             obj?.free();
-            return Pointer.fromAddress(0);
+            return nullptr;
         }
         throw JSError('call channel with wrong type');
       } catch (e) {
         if (type == JSChannelType.FREE_OBJECT) {
           print('DartObject release error: $e');
-          return Pointer.fromAddress(0);
+          return nullptr;
         }
         if (type == JSChannelType.MODULE) {
           print('host Promise Rejection Handler error: $e');
-          return Pointer.fromAddress(0);
+          return nullptr;
         }
         final throwObj = _dartToJs(ctx, e);
         final err = jsThrow(ctx, throwObj);
         jsFreeValue(ctx, throwObj);
         if (type == JSChannelType.MODULE) {
           jsFreeValue(ctx, err);
-          return Pointer.fromAddress(0);
+          return nullptr;
         }
         return err;
       }

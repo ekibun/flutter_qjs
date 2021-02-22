@@ -6,6 +6,10 @@
  * @LastEditTime: 2020-12-02 11:36:40
 -->
 
+## 0.3.4
+
+* upgrade ffi to 1.0.0.
+
 ## 0.3.3
 
 * remove `JSInvokable.call`.

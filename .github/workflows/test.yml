@@ -20,7 +20,6 @@ jobs:
       - name: Flutter action
         uses: subosito/flutter-action@v1
         with:
-          channel: "stable"
-          flutter-version: "1.22.4"
+          channel: beta
       - run: flutter pub get
       - run: flutter test test/flutter_qjs_test.dart

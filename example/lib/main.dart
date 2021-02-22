@@ -53,7 +53,6 @@ class _TestPageState extends State<TestPage> {
     if (engine != null) return;
     engine = IsolateQjs(
       moduleHandler: (String module) async {
-        if (module == "test") return "export default '${new DateTime.now()}'";
         return await rootBundle.loadString(
             "js/" + module.replaceFirst(new RegExp(r".js$"), "") + ".js");
       },

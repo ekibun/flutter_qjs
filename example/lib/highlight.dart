@@ -58,7 +58,7 @@ class CodeInputController extends TextEditingController {
     String oldText = oldSpan.toPlainText();
     String newText = value.text;
     if (oldText == newText) return oldSpan;
-    (spanCall?.timeout(Duration.zero) ?? Future.delayed(Duration.zero))
+    (spanCall?.timeout(Duration.zero) ?? Future.value())
         .then((_) => spanCall = compute(_convert, value.text).then((lsSpan) {
               TextSpan newSpan = TextSpan(style: style, children: lsSpan);
               if (newSpan.toPlainText() == value.text) oldSpan = newSpan;
