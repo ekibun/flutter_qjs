@@ -309,17 +309,17 @@ Pointer jsEval(
   String filename,
   int evalFlags,
 ) {
-  final utf8input = Utf8.toUtf8(input);
-  final utf8filename = Utf8.toUtf8(filename);
+  final utf8input = input.toNativeUtf8();
+  final utf8filename = filename.toNativeUtf8();
   final val = _jsEval(
     ctx,
     utf8input,
-    Utf8.strlen(utf8input),
+    utf8input.length,
     utf8filename,
     evalFlags,
   );
-  free(utf8input);
-  free(utf8filename);
+  malloc.free(utf8input);
+  malloc.free(utf8filename);
   runtimeOpaques[jsGetRuntime(ctx)]._port.sendPort.send(#eval);
   return val;
 }
@@ -413,9 +413,9 @@ Pointer jsNewString(
   Pointer ctx,
   String str,
 ) {
-  final utf8str = Utf8.toUtf8(str);
+  final utf8str = str.toNativeUtf8();
   final jsStr = _jsNewString(ctx, utf8str);
-  free(utf8str);
+  malloc.free(utf8str);
   return jsStr;
 }
 
@@ -599,7 +599,7 @@ String jsToCString(
 ) {
   final ptr = _jsToCString(ctx, val);
   if (ptr.address == 0) throw Exception('JSValue cannot convert to string');
-  final str = Utf8.fromUtf8(ptr);
+  final str = ptr.toDartString();
   jsFreeCString(ctx, ptr);
   return str;
 }
@@ -621,12 +621,12 @@ int jsNewClass(
   Pointer ctx,
   String name,
 ) {
-  final utf8name = Utf8.toUtf8(name);
+  final utf8name = name.toNativeUtf8();
   final val = _jsNewClass(
     ctx,
     utf8name,
   );
-  free(utf8name);
+  malloc.free(utf8name);
   return val;
 }
 
@@ -892,8 +892,8 @@ Pointer jsCall(
   Pointer thisObj,
   List<Pointer> argv,
 ) {
-  Pointer jsArgs = allocate<Uint8>(
-    count: argv.length > 0 ? sizeOfJSValue * argv.length : 1,
+  Pointer jsArgs = calloc<Uint8>(
+    argv.length > 0 ? sizeOfJSValue * argv.length : 1,
   );
   for (int i = 0; i < argv.length; ++i) {
     Pointer jsArg = argv[i];
@@ -906,7 +906,7 @@ Pointer jsCall(
     jsFreeValue(ctx, _thisObj);
   }
   jsFreeValue(ctx, func1);
-  free(jsArgs);
+  malloc.free(jsArgs);
   runtimeOpaques[jsGetRuntime(ctx)]._port.sendPort.send(#call);
   return jsRet;
 }

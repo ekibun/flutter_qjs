@@ -114,7 +114,7 @@ void _runJsIsolate(Map spawnMessage) async {
       });
     },
     moduleHandler: (name) {
-      final ptr = allocate<Pointer<Utf8>>();
+      final ptr = calloc<Pointer<Utf8>>();
       ptr.value = Pointer.fromAddress(0);
       sendPort.send({
         #type: #module,
@@ -123,12 +123,12 @@ void _runJsIsolate(Map spawnMessage) async {
       });
       while (ptr.value.address == 0) sleep(Duration.zero);
       if (ptr.value.address == -1) throw JSError('Module Not found');
-      final ret = Utf8.fromUtf8(ptr.value);
+      final ret = ptr.value.toDartString();
       sendPort.send({
         #type: #release,
         #ptr: ptr.value.address,
       });
-      free(ptr);
+      malloc.free(ptr);
       return ret;
     },
   );
@@ -220,13 +220,13 @@ class IsolateQjs {
         case #module:
           final ptr = Pointer<Pointer>.fromAddress(msg[#ptr]);
           try {
-            ptr.value = Utf8.toUtf8(await moduleHandler(msg[#name]));
+            ptr.value = (await moduleHandler(msg[#name])).toNativeUtf8();
           } catch (e) {
             ptr.value = Pointer.fromAddress(-1);
           }
           break;
         case #release:
-          free(Pointer.fromAddress(msg[#ptr]));
+          malloc.free(Pointer.fromAddress(msg[#ptr]));
           break;
       }
     }, onDone: () {

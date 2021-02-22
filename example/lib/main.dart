@@ -75,7 +75,7 @@ class _TestPageState extends State<TestPage> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  FlatButton(
+                  TextButton(
                       child: Text("evaluate"),
                       onPressed: () async {
                         await _ensureEngine();
@@ -88,7 +88,7 @@ class _TestPageState extends State<TestPage> {
                         }
                         setState(() {});
                       }),
-                  FlatButton(
+                  TextButton(
                       child: Text("reset engine"),
                       onPressed: () async {
                         if (engine == null) return;
