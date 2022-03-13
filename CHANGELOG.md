@@ -6,6 +6,11 @@
  * @LastEditTime: 2020-12-02 11:36:40
 -->
 
+## 0.3.7
+
+* fixed crash when encoding Error object
+* updated to latest quickjs
+
 ## 0.3.6
 
 * upgrade ffi to 1.0.0.

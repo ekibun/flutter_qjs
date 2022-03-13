@@ -11,17 +11,25 @@ import 'dart:io';
 
 import 'package:flutter_qjs/flutter_qjs.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_tools/src/base/io.dart';
+import 'package:flutter_tools/src/base/logger.dart';
+import 'package:flutter_tools/src/base/terminal.dart';
+import 'package:flutter_tools/src/base/platform.dart';
+import 'package:flutter_tools/src/windows/visual_studio.dart';
+import 'package:file/local.dart';
+import 'package:process/process.dart';
 
 dynamic myFunction(String args, {thisVal}) {
   return [thisVal, args];
 }
 
 Future testEvaluate(qjs) async {
-  JSInvokable wrapFunction = await qjs.evaluate(
+  dynamic wrapFunction = await qjs.evaluate(
     'async (a) => a',
     name: '<testWrap>',
   );
   dynamic testWrap = await wrapFunction.invoke([wrapFunction]);
+  await wrapFunction.free();
   final wrapNull = await testWrap.invoke([null]);
   expect(wrapNull, null, reason: 'wrap null');
   final primities = [0, 1, 0.1, true, false, 'str'];
@@ -39,7 +47,7 @@ Future testEvaluate(qjs) async {
   a['a'] = a;
   final wrapA = await testWrap.invoke([a]);
   expect(wrapA['a'], wrapA, reason: 'recursive object');
-  JSInvokable testThis = await qjs.evaluate(
+  dynamic testThis = await qjs.evaluate(
     '(function (func, arg) { return func.call(this, arg) })',
     name: '<testThis>',
   );
@@ -53,6 +61,7 @@ Future testEvaluate(qjs) async {
       name: '<promises>',
     )
   ]);
+  await testWrap.free();
   for (final promise in promises)
     expect(promise, isInstanceOf<Future>(), reason: 'promise object');
   try {
@@ -62,21 +71,32 @@ Future testEvaluate(qjs) async {
     expect(e, 'reject', reason: 'promise object reject');
   }
   expect(await promises[1], 'resolve', reason: 'promise object resolve');
-  testWrap.free();
-  wrapFunction.free();
 }
 
 void main() async {
   test('make', () async {
+    const platform = LocalPlatform();
     final utf8Encoding = Encoding.getByName('utf-8');
-    var cmakePath = 'cmake';
-    if (Platform.isWindows) {
-      var vsDir = Directory('C:/Program Files (x86)/Microsoft Visual Studio/');
-      vsDir = (vsDir.listSync().firstWhere((e) => e is Directory) as Directory)
-          .listSync()
-          .last as Directory;
-      cmakePath = vsDir.path +
-          '/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe';
+    String cmakePath = 'cmake';
+    if (platform.isWindows) {
+      final stdio = Stdio();
+      final vs = VisualStudio(
+          fileSystem: const LocalFileSystem(),
+          processManager: const LocalProcessManager(),
+          platform: platform,
+          logger: StdoutLogger(
+            terminal: AnsiTerminal(
+              stdio: stdio,
+              platform: platform,
+            ),
+            stdio: stdio,
+            outputPreferences: OutputPreferences(
+              wrapText: stdio.hasTerminal,
+              showColor: platform.stdoutSupportsAnsi,
+              stdio: stdio,
+            ),
+          ));
+      cmakePath = vs.cmakePath!;
     }
     final buildDir = './build';
     var result = Process.runSync(
@@ -102,13 +122,12 @@ void main() async {
     expect(result.exitCode, 0);
   });
   test('module', () async {
-    final qjs = FlutterQjs(
-      moduleHandler: (name) {
+    final qjs = IsolateQjs(
+      moduleHandler: (name) async {
         return 'export default "test module"';
       },
     );
-    qjs.dispatch();
-    qjs.evaluate('''
+    await qjs.evaluate('''
       import handlerData from 'test';
       export default {
         data: handlerData
@@ -116,7 +135,7 @@ void main() async {
       ''', name: 'evalModule', evalFlags: JSEvalFlag.MODULE);
     var result = await qjs.evaluate('import("evalModule")');
     expect(result['default']['data'], 'test module', reason: 'eval module');
-    qjs.close();
+    await qjs.close();
   });
   test('data conversion', () async {
     final qjs = FlutterQjs(
@@ -124,7 +143,7 @@ void main() async {
     );
     qjs.dispatch();
     await testEvaluate(qjs);
-    qjs.close();
+    await qjs.close();
   });
   test('isolate conversion', () async {
     final qjs = IsolateQjs(
