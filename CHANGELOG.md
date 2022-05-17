@@ -8,6 +8,7 @@
 
 ## 0.3.7
 
+* fixed compiler error in windows release
 * fixed crash when encoding Error object
 * updated to latest quickjs
 

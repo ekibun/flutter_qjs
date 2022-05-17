@@ -15,3 +15,7 @@ project(quickjs LANGUAGES C)
 target_compile_options(quickjs PRIVATE "-DCONFIG_VERSION=\"${QUICKJS_VERSION}\"")
 target_compile_options(quickjs PRIVATE "-DDUMP_LEAKS")
 
+if(MSVC)
+    # https://github.com/ekibun/flutter_qjs/issues/7
+    target_compile_options(quickjs PRIVATE "/Oi-")
+endif()
