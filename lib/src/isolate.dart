@@ -109,6 +109,8 @@ void _runJsIsolate(Map spawnMessage) async {
   sendPort.send(port.sendPort);
   final qjs = FlutterQjs(
     stackSize: spawnMessage[#stackSize],
+    timeout: spawnMessage[#timeout],
+    memoryLimit: spawnMessage[#memoryLimit],
     hostPromiseRejectionHandler: (reason) {
       sendPort.send({
         #type: #hostPromiseRejection,
@@ -171,6 +173,12 @@ class IsolateQjs {
   /// Max stack size for quickjs.
   final int? stackSize;
 
+  /// Max stack size for quickjs.
+  final int? timeout;
+
+  /// Max memory for quickjs.
+  final int? memoryLimit;
+
   /// Asynchronously handler to manage js module.
   final _JsAsyncModuleHandler? moduleHandler;
 
@@ -184,6 +192,8 @@ class IsolateQjs {
   IsolateQjs({
     this.moduleHandler,
     this.stackSize,
+    this.timeout,
+    this.memoryLimit,
     this.hostPromiseRejectionHandler,
   });
 
@@ -195,6 +205,8 @@ class IsolateQjs {
       {
         #port: port.sendPort,
         #stackSize: stackSize,
+        #timeout: timeout,
+        #memoryLimit: memoryLimit,
       },
       errorsAreFatal: true,
     );

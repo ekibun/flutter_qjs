@@ -21,6 +21,12 @@ class FlutterQjs {
   /// Max stack size for quickjs.
   final int? stackSize;
 
+  /// Max stack size for quickjs.
+  final int? timeout;
+
+  /// Max memory for quickjs.
+  final int? memoryLimit;
+
   /// Message Port for event loop. Close it to stop dispatching event loop.
   ReceivePort port = ReceivePort();
 
@@ -33,6 +39,8 @@ class FlutterQjs {
   FlutterQjs({
     this.moduleHandler,
     this.stackSize,
+    this.timeout,
+    this.memoryLimit,
     this.hostPromiseRejectionHandler,
   });
 
@@ -104,9 +112,11 @@ class FlutterQjs {
         }
         return err;
       }
-    }, port);
+    }, timeout ?? 0, port);
     final stackSize = this.stackSize ?? 0;
     if (stackSize > 0) jsSetMaxStackSize(rt, stackSize);
+    final memoryLimit = this.memoryLimit ?? 0;
+    if (memoryLimit > 0) jsSetMemoryLimit(rt, memoryLimit);
     _rt = rt;
     _ctx = jsNewContext(rt);
   }

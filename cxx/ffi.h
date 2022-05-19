@@ -25,7 +25,7 @@ extern "C"
 
   DLLEXPORT JSValue *jsNULL();
 
-  DLLEXPORT JSRuntime *jsNewRuntime(JSChannel channel);
+  DLLEXPORT JSRuntime *jsNewRuntime(JSChannel channel, int64_t timeout);
 
   DLLEXPORT uint32_t jsNewClass(JSContext *ctx, const char *name);
 
@@ -34,6 +34,8 @@ extern "C"
   DLLEXPORT JSValue *jsNewObjectClass(JSContext *ctx, uint32_t QJSClassId, void *opaque);
 
   DLLEXPORT void jsSetMaxStackSize(JSRuntime *rt, size_t stack_size);
+
+  DLLEXPORT void jsSetMemoryLimit(JSRuntime *rt, size_t limit);
 
   DLLEXPORT void jsFreeRuntime(JSRuntime *rt);
 

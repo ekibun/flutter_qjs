@@ -8,6 +8,7 @@
 
 ## 0.3.7
 
+* add timeout and memory limit
 * fixed compiler error in windows release
 * fixed crash when encoding Error object
 * updated to latest quickjs

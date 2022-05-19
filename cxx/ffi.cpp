@@ -1,5 +1,5 @@
 /*
- * @Description: 
+ * @Description:
  * @Author: ekibun
  * @Date: 2020-09-06 18:32:45
  * @LastEditors: ekibun
@@ -33,13 +33,17 @@ extern "C"
     return new JSValue(JS_NULL);
   }
 
+  struct RuntimeOpaque {
+      JSChannel * channel;
+      int64_t timeout;
+      int64_t start;
+  };
+
   JSModuleDef *js_module_loader(
       JSContext *ctx,
       const char *module_name, void *opaque)
   {
-    JSRuntime *rt = JS_GetRuntime(ctx);
-    JSChannel *channel = (JSChannel *)JS_GetRuntimeOpaque(rt);
-    const char *str = (char *)channel(ctx, JSChannelType_MODULE, (void *)module_name);
+    const char *str = (char *)((RuntimeOpaque *)opaque)->channel(ctx, JSChannelType_MODULE, (void *)module_name);
     if (str == 0)
       return NULL;
     JSValue func_val = JS_Eval(ctx, str, strlen(str), module_name, JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
@@ -54,13 +58,13 @@ extern "C"
   JSValue js_channel(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, int magic, JSValue *func_data)
   {
     JSRuntime *rt = JS_GetRuntime(ctx);
-    JSChannel *channel = (JSChannel *)JS_GetRuntimeOpaque(rt);
+    RuntimeOpaque *opaque = (RuntimeOpaque *)JS_GetRuntimeOpaque(rt);
     void *data[4];
     data[0] = &this_val;
     data[1] = &argc;
     data[2] = argv;
     data[3] = func_data;
-    return *(JSValue *)channel(ctx, JSChannelType_METHON, data);
+    return *(JSValue *)opaque->channel(ctx, JSChannelType_METHON, data);
   }
 
   void js_promise_rejection_tracker(JSContext *ctx, JSValueConst promise,
@@ -69,17 +73,26 @@ extern "C"
   {
     if (is_handled)
       return;
-    JSRuntime *rt = JS_GetRuntime(ctx);
-    JSChannel *channel = (JSChannel *)JS_GetRuntimeOpaque(rt);
-    channel(ctx, JSChannelType_PROMISE_TRACK, &reason);
+    ((RuntimeOpaque *)opaque)->channel(ctx, JSChannelType_PROMISE_TRACK, &reason);
   }
 
-  DLLEXPORT JSRuntime *jsNewRuntime(JSChannel channel)
+  int js_interrupt_handler(JSRuntime * rt, void * opaque) {
+    RuntimeOpaque *op = (RuntimeOpaque *)opaque;
+    if(op->timeout && op->start && (clock() - op->start) > op->timeout * CLOCKS_PER_SEC / 1000) {
+      op->start = 0;
+      return 1;
+    }
+    return 0;
+  }
+
+  DLLEXPORT JSRuntime *jsNewRuntime(JSChannel channel, int64_t timeout)
   {
     JSRuntime *rt = JS_NewRuntime();
-    JS_SetRuntimeOpaque(rt, (void *)channel);
-    JS_SetHostPromiseRejectionTracker(rt, js_promise_rejection_tracker, nullptr);
-    JS_SetModuleLoaderFunc(rt, nullptr, js_module_loader, nullptr);
+    RuntimeOpaque *opaque = new RuntimeOpaque({channel, timeout, 0});
+    JS_SetRuntimeOpaque(rt, opaque);
+    JS_SetHostPromiseRejectionTracker(rt, js_promise_rejection_tracker, opaque);
+    JS_SetModuleLoaderFunc(rt, nullptr, js_module_loader, opaque);
+    JS_SetInterruptHandler(rt, js_interrupt_handler, opaque);
     return rt;
   }
 
@@ -93,13 +106,14 @@ extern "C"
       JSClassDef def{
           name,
           // destructor
-          [](JSRuntime *rt, JSValue obj) noexcept {
+          [](JSRuntime *rt, JSValue obj) noexcept
+          {
             JSClassID classid = JS_GetClassID(obj);
             void *opaque = JS_GetOpaque(obj, classid);
-            JSChannel *channel = (JSChannel *)JS_GetRuntimeOpaque(rt);
-            if (channel == nullptr)
+            RuntimeOpaque *runtimeOpaque = (RuntimeOpaque *)JS_GetRuntimeOpaque(rt);
+            if (runtimeOpaque == nullptr)
               return;
-            channel((JSContext *)rt, JSChannelType_FREE_OBJECT, opaque);
+            runtimeOpaque->channel((JSContext *)rt, JSChannelType_FREE_OBJECT, opaque);
           }};
       int e = JS_NewClass(rt, QJSClassId, &def);
       if (e < 0)
@@ -130,8 +144,16 @@ extern "C"
     JS_SetMaxStackSize(rt, stack_size);
   }
 
+  DLLEXPORT void jsSetMemoryLimit(JSRuntime *rt, size_t limit)
+  {
+    JS_SetMemoryLimit(rt, limit);
+  }
+
   DLLEXPORT void jsFreeRuntime(JSRuntime *rt)
   {
+    RuntimeOpaque *opauqe = (RuntimeOpaque *)JS_GetRuntimeOpaque(rt);
+    if (opauqe)
+      delete opauqe;
     JS_SetRuntimeOpaque(rt, nullptr);
     JS_FreeRuntime(rt);
   }
@@ -143,6 +165,7 @@ extern "C"
 
   DLLEXPORT JSContext *jsNewContext(JSRuntime *rt)
   {
+    JS_UpdateStackTop(rt);
     JSContext *ctx = JS_NewContext(rt);
     return ctx;
   }
@@ -157,10 +180,16 @@ extern "C"
     return JS_GetRuntime(ctx);
   }
 
+  void js_begin_call(JSRuntime *rt) {
+    JS_UpdateStackTop(rt);
+    RuntimeOpaque * opaque = (RuntimeOpaque *)JS_GetRuntimeOpaque(rt);
+    if(opaque) opaque->start = clock();
+  }
+
   DLLEXPORT JSValue *jsEval(JSContext *ctx, const char *input, size_t input_len, const char *filename, int32_t eval_flags)
   {
     JSRuntime *rt = JS_GetRuntime(ctx);
-    JS_UpdateStackTop(rt);
+    js_begin_call(rt);
     JSValue *ret = new JSValue(JS_Eval(ctx, input, input_len, filename, eval_flags));
     return ret;
   }
@@ -261,7 +290,7 @@ extern "C"
   DLLEXPORT const char *jsToCString(JSContext *ctx, JSValueConst *val)
   {
     JSRuntime *rt = JS_GetRuntime(ctx);
-    JS_UpdateStackTop(rt);
+    js_begin_call(rt);
     const char *ret = JS_ToCString(ctx, *val);
     return ret;
   }
@@ -353,7 +382,7 @@ extern "C"
                             int32_t argc, JSValueConst *argv)
   {
     JSRuntime *rt = JS_GetRuntime(ctx);
-    JS_UpdateStackTop(rt);
+    js_begin_call(rt);
     JSValue *ret = new JSValue(JS_Call(ctx, *func_obj, *this_obj, argc, argv));
     return ret;
   }
@@ -370,7 +399,7 @@ extern "C"
 
   DLLEXPORT int32_t jsExecutePendingJob(JSRuntime *rt)
   {
-    JS_UpdateStackTop(rt);
+    js_begin_call(rt);
     JSContext *ctx;
     int ret = JS_ExecutePendingJob(rt, &ctx);
     return ret;

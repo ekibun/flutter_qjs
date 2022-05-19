@@ -121,6 +121,36 @@ void main() async {
     stderr.write(result.stderr);
     expect(result.exitCode, 0);
   });
+  test('infinite loop', () async {
+    final qjs = FlutterQjs(
+      timeout: 1000,
+    );
+    qjs.dispatch();
+    var result = await qjs.evaluate('1');
+    expect(result, 1, reason: 'eval module');
+    try {
+      await qjs.evaluate('while(true) {}');
+      throw 'Error not throw';
+    } on JSError catch (e) {
+      expect(e.message, startsWith('InternalError: interrupted'),
+          reason: 'throw interrupted');
+    }
+    await qjs.close();
+  });
+  test('memory leak', () async {
+    final qjs = FlutterQjs(
+      memoryLimit: 1000000,
+    );
+    qjs.dispatch();
+    try {
+      await qjs.evaluate('new Array(1000000).fill(0)');
+      throw 'Error not throw';
+    } on JSError catch (e) {
+      expect(e.message, startsWith('InternalError: out of memory'),
+          reason: 'throw interrupted');
+    }
+    await qjs.close();
+  });
   test('module', () async {
     final qjs = IsolateQjs(
       moduleHandler: (name) async {
