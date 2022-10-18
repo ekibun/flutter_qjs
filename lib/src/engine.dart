@@ -150,6 +150,9 @@ class FlutterQjs {
     }
   }
 
+  /// Executes the pending jobs.
+  void executePendingJobs() => _executePendingJob();
+
   /// Dispatch JavaScript Event loop.
   Future<void> dispatch() async {
     await for (final _ in port) {
