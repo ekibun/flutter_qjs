@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_tools/src/base/io.dart';
 import 'package:flutter_tools/src/base/logger.dart';
 import 'package:flutter_tools/src/base/terminal.dart';
+import 'package:flutter_tools/src/base/os.dart';
 import 'package:flutter_tools/src/base/platform.dart';
 import 'package:flutter_tools/src/windows/visual_studio.dart';
 import 'package:file/local.dart';
@@ -80,22 +81,33 @@ void main() async {
     String cmakePath = 'cmake';
     if (platform.isWindows) {
       final stdio = Stdio();
-      final vs = VisualStudio(
-          fileSystem: const LocalFileSystem(),
-          processManager: const LocalProcessManager(),
+      const filesystem = LocalFileSystem();
+      const processManager = LocalProcessManager();
+      final logger = StdoutLogger(
+        terminal: AnsiTerminal(
+          stdio: stdio,
           platform: platform,
-          logger: StdoutLogger(
-            terminal: AnsiTerminal(
-              stdio: stdio,
-              platform: platform,
-            ),
-            stdio: stdio,
-            outputPreferences: OutputPreferences(
-              wrapText: stdio.hasTerminal,
-              showColor: platform.stdoutSupportsAnsi,
-              stdio: stdio,
-            ),
-          ));
+        ),
+        stdio: stdio,
+        outputPreferences: OutputPreferences(
+          wrapText: stdio.hasTerminal,
+          showColor: platform.stdoutSupportsAnsi,
+          stdio: stdio,
+        ),
+      );
+
+      final vs = VisualStudio(
+        osUtils: OperatingSystemUtils(
+          fileSystem: filesystem,
+          logger: logger,
+          platform: platform,
+          processManager: processManager,
+        ),
+        fileSystem: filesystem,
+        processManager: processManager,
+        platform: platform,
+        logger: logger,
+      );
       cmakePath = vs.cmakePath!;
     }
     final buildDir = './build';

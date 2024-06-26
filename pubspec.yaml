@@ -4,13 +4,13 @@ version: 0.3.7
 homepage: https://github.com/ekibun/flutter_qjs
 
 environment:
-  sdk: ">=2.12.0-0 <3.0.0"
+  sdk: ">=2.17.0 <4.0.0"
   flutter: ">=1.20.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  ffi: ^1.0.0
+  ffi: ^2.1.2
 
 dev_dependencies:
   flutter_test:

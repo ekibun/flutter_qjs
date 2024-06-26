@@ -6,7 +6,7 @@ description: Demonstrates how to use the flutter_qjs plugin.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
 environment:
-  sdk: ">=2.7.0 <3.0.0"
+  sdk: ">=2.17.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -20,8 +20,8 @@ dependencies:
     # the parent directory to use the current plugin's version.
     path: ../
 
-  highlight: 0.6.0
-  flutter_highlight: 0.6.0
+  highlight: 0.7.0
+  flutter_highlight: 0.7.0
 
 dev_dependencies:
   flutter_test:

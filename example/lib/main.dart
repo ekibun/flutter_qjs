@@ -17,18 +17,14 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'flutter_qjs',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        appBarTheme: AppBarTheme(brightness: Brightness.dark, elevation: 0),
-        backgroundColor: Colors.grey[300],
-        primaryColorBrightness: Brightness.dark,
-      ),
+      theme: ThemeData.dark(),
       routes: {
         'home': (BuildContext context) => TestPage(),
       },
@@ -43,18 +39,26 @@ class TestPage extends StatefulWidget {
 }
 
 class _TestPageState extends State<TestPage> {
-  String resp;
-  IsolateQjs engine;
+  String resp = '';
+  late IsolateQjs engine;
 
   CodeInputController _controller = CodeInputController(
-      text: 'import("hello").then(({default: greet}) => greet("world"));');
+    text: 'import("hello").then(({default: greet}) => greet("world"));',
+  );
 
-  _ensureEngine() async {
-    if (engine != null) return;
-    engine = IsolateQjs(
+  @override
+  void initState() {
+    super.initState();
+
+    engine = _createEngine();
+  }
+
+  IsolateQjs _createEngine() {
+    return IsolateQjs(
       moduleHandler: (String module) async {
         return await rootBundle.loadString(
-            "js/" + module.replaceFirst(new RegExp(r".js$"), "") + ".js");
+          "js/" + module.replaceFirst(new RegExp(r".js$"), "") + ".js",
+        );
       },
     );
   }
@@ -77,23 +81,26 @@ class _TestPageState extends State<TestPage> {
                   TextButton(
                       child: Text("evaluate"),
                       onPressed: () async {
-                        await _ensureEngine();
                         try {
-                          resp = (await engine.evaluate(_controller.text ?? '',
-                                  name: "<eval>"))
+                          resp = (await engine.evaluate(
+                            _controller.text,
+                            name: "<eval>",
+                          ))
                               .toString();
+                          setState(() {});
                         } catch (e) {
                           resp = e.toString();
+                          setState(() {});
                         }
-                        setState(() {});
                       }),
                   TextButton(
-                      child: Text("reset engine"),
-                      onPressed: () async {
-                        if (engine == null) return;
-                        await engine.close();
-                        engine = null;
-                      }),
+                    child: Text("reset engine"),
+                    onPressed: () async {
+                      final engineToClose = engine;
+                      engine = _createEngine();
+                      await engineToClose.close();
+                    },
+                  ),
                 ],
               ),
             ),
@@ -116,7 +123,7 @@ class _TestPageState extends State<TestPage> {
               padding: const EdgeInsets.all(12),
               color: Colors.green.withOpacity(0.05),
               constraints: BoxConstraints(minHeight: 100),
-              child: Text(resp ?? ''),
+              child: Text(resp),
             ),
           ],
         ),
