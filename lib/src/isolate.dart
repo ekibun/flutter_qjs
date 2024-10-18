@@ -7,7 +7,7 @@
  */
 part of '../flutter_qjs.dart';
 
-typedef dynamic _Decode(Map obj);
+typedef _Decode = dynamic Function(Map obj);
 List<_Decode> _decoders = [
   JSError._decode,
   IsolateFunction._decode,

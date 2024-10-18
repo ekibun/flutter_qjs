@@ -54,7 +54,7 @@ class _TestPageState extends State<TestPage> {
     engine = IsolateQjs(
       moduleHandler: (String module) async {
         return await rootBundle.loadString(
-            "js/" + module.replaceFirst(new RegExp(r".js$"), "") + ".js");
+            "js/" + module.replaceFirst(RegExp(r".js$"), "") + ".js");
       },
     );
   }

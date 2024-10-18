@@ -181,7 +181,33 @@ dynamic _jsToDart(Pointer<JSContext> ctx, Pointer<JSValue> val,
         final stack =
             jsToBool(ctx, pstack) != 0 ? jsToCString(ctx, pstack) : null;
         jsFreeValue(ctx, pstack);
-        return JSError(err, stack);
+
+        final ptab = malloc<Pointer<JSPropertyEnum>>();
+        final plen = malloc<Uint32>();
+        if (jsGetOwnPropertyNames(ctx, ptab, plen, val, -1) != 0) {
+          malloc.free(plen);
+          malloc.free(ptab);
+          return JSError(err, stack);
+        }
+
+        final len = plen.value;
+        malloc.free(plen);
+        final ret = Map();
+        cache[valptr] = ret;
+        for (var i = 0; i < len; ++i) {
+          final jsAtom = jsPropertyEnumGetAtom(ptab.value, i);
+          final jsAtomValue = jsAtomToValue(ctx, jsAtom);
+          final jsProp = jsGetProperty(ctx, val, jsAtom);
+          ret[_jsToDart(ctx, jsAtomValue, cache: cache)] =
+              _jsToDart(ctx, jsProp, cache: cache);
+          jsFreeValue(ctx, jsAtomValue);
+          jsFreeValue(ctx, jsProp);
+          jsFreeAtom(ctx, jsAtom);
+        }
+        jsFree(ctx, ptab.value);
+
+        malloc.free(ptab);
+        return JSError(err, stack, ret);
       } else if (jsIsPromise(ctx, val) != 0) {
         final jsPromiseThen = _jsGetPropertyValue(ctx, val, 'then');
         final _JSFunction promiseThen =
