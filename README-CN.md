@@ -16,13 +16,12 @@
 
 ## 基本使用
 
-首先，创建 `FlutterQjs` 对象。调用 `dispatch` 建立事件循环：
+首先，创建 `FlutterQjs` 对象：
 
 ```dart
 final engine = FlutterQjs(
   stackSize: 1024 * 1024, // change stack size here.
 );
-engine.dispatch();
 ```
 
 使用 `evaluate` 方法运行js脚本，方法同步执行，使用 `await` 来获得 `Promise` 结果：
@@ -35,11 +34,10 @@ try {
 }
 ```
 
-使用 `close` 方法销毁 quickjs 实例，其在再次调用 `evaluate` 时将会重建。当不再需要 `FlutterQjs` 对象时，关闭 `port` 参数来结束事件循环。**在 v0.3.3 后增加了引用检查，可能会抛出异常**。
+使用 `close` 方法销毁 quickjs 实例，其在再次调用 `evaluate` 时将会重建。**在 v0.3.3 后增加了引用检查，可能会抛出异常**。
 
 ```dart
 try {
-  engine.port.close(); // stop dispatch loop
   engine.close();      // close engine
 } on JSError catch(e) { 
   print(e);            // catch reference leak exception
@@ -98,7 +96,6 @@ final engine = IsolateQjs(
         "js/" + module.replaceFirst(new RegExp(r".js$"), "") + ".js");
   },
 );
-// not need engine.dispatch();
 ```
 
 与在主线程运行一样，使用 `evaluate` 方法运行js脚本。在isolate中，所有结果都将异步返回，使用 `await` 来获取结果：

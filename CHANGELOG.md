@@ -1,14 +1,10 @@
-<!--
- * @Description: 
- * @Author: ekibun
- * @Date: 2020-08-08 08:16:50
- * @LastEditors: ekibun
- * @LastEditTime: 2020-12-02 11:36:40
--->
-
 ## 0.4.0
 
-* migrate to Dart native assets
+* migrate to Dart native assets (build hooks)
+* switch to latest quickjs_ng
+* *breaking:* `dispatch()` is now removed and managed automatically
+* use `logging` for warnings (replaces `print`)
+* glue fixes: free runtime before opaque, clear stray TypeError in jsGetArrayBuffer, raise ReferenceError on module load failure, steady_clock for interrupt timeout
 
 ## 0.3.7
 

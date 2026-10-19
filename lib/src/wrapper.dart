@@ -1,15 +1,8 @@
-/*
- * @Description: wrapper
- * @Author: ekibun
- * @Date: 2020-09-19 22:07:47
- * @LastEditors: ekibun
- * @LastEditTime: 2020-12-02 11:14:03
- */
 part of '../flutter_qjs.dart';
 
 dynamic _parseJSException(Pointer<JSContext> ctx, [Pointer<JSValue>? perr]) {
   final e = perr ?? jsGetException(ctx);
-  var err;
+  dynamic err;
   try {
     err = _jsToDart(ctx, e);
   } catch (exception) {
@@ -90,7 +83,7 @@ Pointer<JSValue> _dartToJs(Pointer<JSContext> ctx, dynamic val,
     });
     return ret;
   }
-  if (cache == null) cache = Map();
+  cache ??= {};
   if (val is bool) return jsNewBool(ctx, val ? 1 : 0);
   if (val is int) return jsNewInt64(ctx, val);
   if (val is double) return jsNewFloat64(ctx, val);
@@ -142,7 +135,7 @@ Pointer<JSValue> _dartToJs(Pointer<JSContext> ctx, dynamic val,
 
 dynamic _jsToDart(Pointer<JSContext> ctx, Pointer<JSValue> val,
     {Map<int, dynamic>? cache}) {
-  if (cache == null) cache = Map();
+  cache ??= {};
   final tag = jsValueGetTag(val);
   if (jsTagIsFloat64(tag) != 0) {
     return jsToFloat64(ctx, val);
@@ -227,7 +220,7 @@ dynamic _jsToDart(Pointer<JSContext> ctx, Pointer<JSValue> val,
         }
         final len = plen.value;
         malloc.free(plen);
-        final ret = Map();
+        final ret = {};
         cache[valptr] = ret;
         for (var i = 0; i < len; ++i) {
           final jsAtom = jsPropertyEnumGetAtom(ptab.value, i);

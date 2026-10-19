@@ -1,10 +1,3 @@
-/*
- * @Description: unit test
- * @Author: ekibun
- * @Date: 2020-09-06 13:02:46
- * @LastEditors: ekibun
- * @LastEditTime: 2020-10-07 00:11:27
- */
 import 'dart:async';
 
 import 'package:flutter_qjs/flutter_qjs.dart';

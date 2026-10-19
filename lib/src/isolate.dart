@@ -1,13 +1,6 @@
-/*
- * @Description: isolate
- * @Author: ekibun
- * @Date: 2020-10-02 13:49:03
- * @LastEditors: ekibun
- * @LastEditTime: 2020-10-03 22:21:31
- */
 part of '../flutter_qjs.dart';
 
-typedef dynamic _Decode(Map obj);
+typedef _Decode = dynamic Function(Map obj);
 List<_Decode> _decoders = [
   JSError._decode,
   IsolateFunction._decode,
@@ -18,10 +11,11 @@ abstract class _IsolateEncodable {
 }
 
 dynamic _encodeData(dynamic data, {Map<dynamic, dynamic>? cache}) {
-  if (cache == null) cache = Map();
+  cache ??= {};
   if (cache.containsKey(data)) return cache[data];
-  if (data is Error || data is Exception)
+  if (data is Error || data is Exception) {
     return _encodeData(JSError(data), cache: cache);
+  }
   if (data is _IsolateEncodable) return data._encode();
   if (data is List) {
     final ret = [];
@@ -61,7 +55,7 @@ dynamic _encodeData(dynamic data, {Map<dynamic, dynamic>? cache}) {
 }
 
 dynamic _decodeData(dynamic data, {Map<dynamic, dynamic>? cache}) {
-  if (cache == null) cache = Map();
+  cache ??= {};
   if (cache.containsKey(data)) return cache[data];
   if (data is List) {
     final ret = [];
@@ -125,7 +119,9 @@ void _runJsIsolate(Map spawnMessage) async {
         #name: name,
         #ptr: ptr.address,
       });
-      while (ptr.value.address == ptr.address) sleep(Duration(microseconds: 1));
+      while (ptr.value.address == ptr.address) {
+        sleep(Duration(microseconds: 1));
+      }
       final ret = ptr.value;
       malloc.free(ptr);
       if (ret.address == -1) throw JSError('Module Not found');
@@ -136,7 +132,7 @@ void _runJsIsolate(Map spawnMessage) async {
   );
   // Await the port itself: it keeps the isolate alive and ends when the port closes.
   await for (final msg in port) {
-    var data;
+    dynamic data;
     SendPort? msgPort = msg[#port];
     try {
       switch (msg[#type]) {
@@ -156,15 +152,16 @@ void _runJsIsolate(Map spawnMessage) async {
       }
       if (msgPort != null) msgPort.send(_encodeData(data));
     } catch (e) {
-      if (msgPort != null)
+      if (msgPort != null) {
         msgPort.send({
           #error: _encodeData(e),
         });
+      }
     }
   }
 }
 
-typedef _JsAsyncModuleHandler = Future<String> Function(String name);
+typedef JsAsyncModuleHandler = Future<String> Function(String name);
 
 class IsolateQjs {
   Future<SendPort>? _sendPort;
@@ -179,10 +176,10 @@ class IsolateQjs {
   final int? memoryLimit;
 
   /// Asynchronously handler to manage js module.
-  final _JsAsyncModuleHandler? moduleHandler;
+  final JsAsyncModuleHandler? moduleHandler;
 
   /// Handler function to manage js module.
-  final _JsHostPromiseRejectionHandler? hostPromiseRejectionHandler;
+  final JsHostPromiseRejectionHandler? hostPromiseRejectionHandler;
 
   /// Quickjs engine runing on isolate thread.
   ///
@@ -196,7 +193,7 @@ class IsolateQjs {
     this.hostPromiseRejectionHandler,
   });
 
-  _ensureEngine() {
+  void _ensureEngine() async {
     if (_sendPort != null) return;
     ReceivePort port = ReceivePort();
     Isolate.spawn(
@@ -222,10 +219,10 @@ class IsolateQjs {
             if (hostPromiseRejectionHandler != null) {
               hostPromiseRejectionHandler!(err);
             } else {
-              print('unhandled promise rejection: $err');
+              log.warning('unhandled promise rejection: $err');
             }
           } catch (e) {
-            print('host Promise Rejection Handler error: $e');
+            log.warning('host Promise Rejection Handler error: $e');
           }
           break;
         case #module:
@@ -239,14 +236,15 @@ class IsolateQjs {
       }
     }, onDone: () {
       close();
-      if (!completer.isCompleted)
+      if (!completer.isCompleted) {
         completer.completeError(JSError('isolate close'));
+      }
     });
     _sendPort = completer.future;
   }
 
   /// Free Runtime and close isolate thread that can be recreate when evaluate again.
-  close() {
+  dynamic close() {
     final sendPort = _sendPort;
     _sendPort = null;
     if (sendPort == null) return;
@@ -258,8 +256,9 @@ class IsolateQjs {
       });
       final result = await closePort.first;
       closePort.close();
-      if (result is Map && result.containsKey(#error))
+      if (result is Map && result.containsKey(#error)) {
         throw _decodeData(result[#error]);
+      }
       return _decodeData(result);
     });
     return ret;
@@ -283,8 +282,9 @@ class IsolateQjs {
     });
     final result = await evaluatePort.first;
     evaluatePort.close();
-    if (result is Map && result.containsKey(#error))
+    if (result is Map && result.containsKey(#error)) {
       throw _decodeData(result[#error]);
+    }
     return _decodeData(result);
   }
 }

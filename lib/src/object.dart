@@ -1,10 +1,3 @@
-/*
- * @Description: wrap object
- * @Author: ekibun
- * @Date: 2020-10-02 13:49:03
- * @LastEditors: ekibun
- * @LastEditTime: 2020-10-03 22:21:31
- */
 part of '../flutter_qjs.dart';
 
 /// js invokable
@@ -84,7 +77,7 @@ class _DartObject extends JSRef implements JSRefLeakable {
 class JSError extends _IsolateEncodable {
   late String message;
   late String stack;
-  JSError(message, [stack]) {
+  JSError(dynamic message, [stack]) {
     if (message is JSError) {
       this.message = message.message;
       this.stack = message.stack;
@@ -100,8 +93,9 @@ class JSError extends _IsolateEncodable {
   }
 
   static JSError? _decode(Map obj) {
-    if (obj.containsKey(#jsError))
+    if (obj.containsKey(#jsError)) {
       return JSError(obj[#jsError], obj[#jsErrorStack]);
+    }
     return null;
   }
 
@@ -122,9 +116,9 @@ class _JSObject extends JSRef {
 
   /// Create
   _JSObject(Pointer<JSContext> ctx, Pointer<JSValue> val) {
-    this._ctx = ctx;
+    _ctx = ctx;
     final rt = jsGetRuntime(ctx);
-    this._val = jsDupValue(ctx, val);
+    _val = jsDupValue(ctx, val);
     runtimeOpaques[rt]?.addRef(this);
   }
 
@@ -149,7 +143,7 @@ class _JSObject extends JSRef {
 
 /// JS function wrapper
 class _JSFunction extends _JSObject implements JSInvokable, _IsolateEncodable {
-  _JSFunction(Pointer<JSContext> ctx, Pointer<JSValue> val) : super(ctx, val);
+  _JSFunction(super.ctx, super.val);
 
   @override
   invoke(List<dynamic> arguments, [dynamic thisVal]) {
@@ -168,8 +162,9 @@ class _JSFunction extends _JSObject implements JSInvokable, _IsolateEncodable {
   Pointer<JSValue> _invoke(List<dynamic> arguments, [dynamic thisVal]) {
     final ctx = _ctx;
     final val = _val;
-    if (ctx == null || val == null)
+    if (ctx == null || val == null) {
       throw JSError("InternalError: JSValue released");
+    }
     final args = arguments
         .map(
           (e) => _dartToJs(ctx, e),
@@ -203,9 +198,9 @@ class IsolateFunction extends JSInvokable implements _IsolateEncodable {
   IsolateFunction(Function func) : this._new(_DartFunction(func));
 
   static ReceivePort? _invokeHandler;
-  static Set<IsolateFunction> _handlers = Set();
+  static final Set<IsolateFunction> _handlers = {};
 
-  static get _handlePort {
+  static SendPort get _handlePort {
     if (_invokeHandler == null) {
       _invokeHandler = ReceivePort();
       _invokeHandler!.listen((msg) async {
@@ -219,17 +214,18 @@ class IsolateFunction extends JSInvokable implements _IsolateEncodable {
           if (msgPort != null) msgPort.send(ret);
         } catch (e) {
           final err = _encodeData(e);
-          if (msgPort != null)
+          if (msgPort != null) {
             msgPort.send({
               #error: err,
             });
+          }
         }
       });
     }
     return _invokeHandler!.sendPort;
   }
 
-  _send(msg) async {
+  Future<dynamic> _send(dynamic msg) async {
     final port = _port;
     if (port == null) return _handle(msg);
     final evaluatePort = ReceivePort();
@@ -239,18 +235,19 @@ class IsolateFunction extends JSInvokable implements _IsolateEncodable {
       #port: evaluatePort.sendPort,
     });
     final result = await evaluatePort.first;
-    if (result is Map && result.containsKey(#error))
+    if (result is Map && result.containsKey(#error)) {
       throw _decodeData(result[#error]);
+    }
     return _decodeData(result);
   }
 
-  _destroy() {
+  void _destroy() {
     _handlers.remove(this);
     _invokable?.free();
     _invokable = null;
   }
 
-  _handle(msg) async {
+  Future<dynamic> _handle(dynamic msg) async {
     switch (msg) {
       case #dup:
         _refCount++;
@@ -279,11 +276,12 @@ class IsolateFunction extends JSInvokable implements _IsolateEncodable {
   }
 
   static IsolateFunction? _decode(Map obj) {
-    if (obj.containsKey(#jsFunctionPort))
+    if (obj.containsKey(#jsFunctionPort)) {
       return IsolateFunction._fromId(
         obj[#jsFunctionId],
         obj[#jsFunctionPort],
       );
+    }
     return null;
   }
 

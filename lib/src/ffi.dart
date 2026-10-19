@@ -1,10 +1,5 @@
-/*
- * @Description: ffi
- * @Author: ekibun
- * @Date: 2020-09-19 10:29:04
- * @LastEditors: ekibun
- * @LastEditTime: 2020-12-02 11:14:35
- */
+// ignore_for_file: constant_identifier_names
+
 /// Native asset id emitted by `hook/build.dart`; keep both in sync.
 @DefaultAsset('package:flutter_qjs/src/ffi.dart')
 library;
@@ -51,11 +46,13 @@ abstract class JSRef {
     Set? cache,
   ]) {
     if (obj == null) return;
-    if (cache == null) cache = Set();
+    cache ??= <dynamic>{};
     if (cache.contains(obj)) return;
     if (obj is List) {
       cache.add(obj);
-      List.from(obj).forEach((e) => _callRecursive(e, cb, cache));
+      for (var e in List.from(obj)) {
+        _callRecursive(e, cb, cache);
+      }
     }
     if (obj is Map) {
       cache.add(obj);
@@ -128,7 +125,7 @@ external Pointer<JSValue> jsEXCEPTION();
 /// JSValue *jsUNDEFINED()
 @Native<Pointer<JSValue> Function()>()
 external Pointer<JSValue> jsUNDEFINED();
-typedef _JSChannel = Pointer<JSValue> Function(
+typedef JSChannel = Pointer<JSValue> Function(
   Pointer<JSContext> ctx,
   int method,
   Pointer<JSValue> argv,
@@ -148,12 +145,12 @@ external Pointer<JSRuntime> _jsNewRuntime(
   int timeout,
 );
 
-class _RuntimeOpaque {
-  final _JSChannel _channel;
-  List<JSRef> _ref = [];
+class RuntimeOpaque {
+  final JSChannel _channel;
+  final List<JSRef> _ref = [];
   final ReceivePort _port;
   int? _dartObjectClassId;
-  _RuntimeOpaque(this._channel, this._port);
+  RuntimeOpaque(this._channel, this._port);
 
   int? get dartObjectClassId => _dartObjectClassId;
 
@@ -166,7 +163,7 @@ class _RuntimeOpaque {
   }
 }
 
-final Map<Pointer<JSRuntime>, _RuntimeOpaque> runtimeOpaques = Map();
+final Map<Pointer<JSRuntime>, RuntimeOpaque> runtimeOpaques = {};
 
 Pointer<Void> channelDispacher(
   Pointer<JSContext> ctx,
@@ -181,18 +178,18 @@ Pointer<Void> channelDispacher(
 }
 
 Pointer<JSRuntime> jsNewRuntime(
-  _JSChannel callback,
+  JSChannel callback,
   int timeout,
   ReceivePort port,
 ) {
   final rt = _jsNewRuntime(Pointer.fromFunction(channelDispacher), timeout);
-  runtimeOpaques[rt] = _RuntimeOpaque(callback, port);
+  runtimeOpaques[rt] = RuntimeOpaque(callback, port);
   return rt;
 }
 
 /// DLLEXPORT void jsSetMaxStackSize(JSRuntime *rt, size_t stack_size)
 @Native<Void Function(Pointer<JSRuntime>, Size)>()
-external void jsSetMaxStackSize(Pointer<JSRuntime> rt, int stack_size);
+external void jsSetMaxStackSize(Pointer<JSRuntime> rt, int stackSize);
 
 /// DLLEXPORT void jsSetMemoryLimit(JSRuntime *rt, size_t limit);
 @Native<Void Function(Pointer<JSRuntime>, Size)>()
@@ -214,7 +211,7 @@ void jsFreeRuntime(Pointer<JSRuntime> rt) {
     while (opaque._ref.isNotEmpty) {
       final ref = opaque._ref.first;
       final objStrs = ref.toString().split('\n');
-      final objStr = objStrs.length > 0 ? objStrs[0] + " ..." : objStrs[0];
+      final objStr = objStrs.isNotEmpty ? "${objStrs[0]} ..." : objStrs[0];
       referenceleak.add(
         "  ${identityHashCode(ref)}\t${ref._refCount + 1}\t${ref.runtimeType.toString()}\t$objStr",
       );
@@ -222,9 +219,8 @@ void jsFreeRuntime(Pointer<JSRuntime> rt) {
     }
   }
   _jsFreeRuntime(rt);
-  if (referenceleak.length > 0) {
-    throw ('reference leak:\n    ADDR\tREF\tTYPE\tPROP\n' +
-        referenceleak.join('\n'));
+  if (referenceleak.isNotEmpty) {
+    throw ('reference leak:\n    ADDR\tREF\tTYPE\tPROP\n${referenceleak.join('\n')}');
   }
 }
 
@@ -268,9 +264,9 @@ external Pointer<JSRuntime> jsGetRuntime(Pointer<JSContext> ctx);
 external Pointer<JSValue> _jsEval(
   Pointer<JSContext> ctx,
   Pointer<Utf8> input,
-  int input_len,
+  int inputLen,
   Pointer<Utf8> filename,
-  int eval_flags,
+  int evalFlags,
 );
 
 Pointer<JSValue> jsEval(
@@ -448,7 +444,7 @@ int jsNewClass(Pointer<JSContext> ctx, String name) {
 @Native<Pointer<JSValue> Function(Pointer<JSContext>, Uint32, Pointer<Void>)>()
 external Pointer<JSValue> jsNewObjectClass(
   Pointer<JSContext> ctx,
-  int QJSClassId,
+  int classId,
   Pointer<Void> opaque,
 );
 
@@ -493,7 +489,7 @@ external Pointer<JSValue> jsNewError(Pointer<JSContext> ctx);
 >()
 external Pointer<JSValue> jsGetProperty(
   Pointer<JSContext> ctx,
-  Pointer<JSValue> this_obj,
+  Pointer<JSValue> thisObj,
   int prop,
 );
 
@@ -510,7 +506,7 @@ external Pointer<JSValue> jsGetProperty(
 >()
 external int jsDefinePropertyValue(
   Pointer<JSContext> ctx,
-  Pointer<JSValue> this_obj,
+  Pointer<JSValue> thisObj,
   int prop,
   Pointer<JSValue> val,
   int flags,
@@ -577,8 +573,8 @@ external void setJSValueList(
 >(symbol: 'jsCall')
 external Pointer<JSValue> _jsCall(
   Pointer<JSContext> ctx,
-  Pointer<JSValue> func_obj,
-  Pointer<JSValue> this_obj,
+  Pointer<JSValue> funcObj,
+  Pointer<JSValue> thisObj,
   int argc,
   Pointer<JSValue> argv,
 );
@@ -590,15 +586,15 @@ Pointer<JSValue> jsCall(
   List<Pointer<JSValue>> argv,
 ) {
   final jsArgs = calloc<Uint8>(
-    argv.length > 0 ? sizeOfJSValue * argv.length : 1,
+    argv.isNotEmpty ? sizeOfJSValue * argv.length : 1,
   ).cast<JSValue>();
   for (int i = 0; i < argv.length; ++i) {
     Pointer<JSValue> jsArg = argv[i];
     setJSValueList(jsArgs, i, jsArg);
   }
   final func1 = jsDupValue(ctx, funcObj);
-  final _thisObj = thisObj;
-  final jsRet = _jsCall(ctx, funcObj, _thisObj, argv.length, jsArgs);
+  final thisObj_ = thisObj;
+  final jsRet = _jsCall(ctx, funcObj, thisObj_, argv.length, jsArgs);
   jsFreeValue(ctx, func1);
   malloc.free(jsArgs);
   runtimeOpaques[jsGetRuntime(ctx)]?._port.sendPort.send(#call);
@@ -621,7 +617,7 @@ external int jsExecutePendingJob(Pointer<JSRuntime> rt);
 @Native<Pointer<JSValue> Function(Pointer<JSContext>, Pointer<JSValue>)>()
 external Pointer<JSValue> jsNewPromiseCapability(
   Pointer<JSContext> ctx,
-  Pointer<JSValue> resolving_funcs,
+  Pointer<JSValue> resolvingFuncs,
 );
 
 /// void jsFree(JSContext *ctx, void *ptab)

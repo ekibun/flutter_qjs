@@ -1,17 +1,12 @@
-/*
- * @Description: quickjs engine
- * @Author: ekibun
- * @Date: 2020-08-08 08:29:09
- * @LastEditors: ekibun
- * @LastEditTime: 2020-10-06 23:47:13
- */
 part of '../flutter_qjs.dart';
 
+final log = Logger('flutter_qjs');
+
 /// Handler function to manage js module.
-typedef _JsModuleHandler = String Function(String name);
+typedef JsModuleHandler = String Function(String name);
 
 /// Handler to manage unhandled promise rejection.
-typedef _JsHostPromiseRejectionHandler = void Function(dynamic reason);
+typedef JsHostPromiseRejectionHandler = void Function(dynamic reason);
 
 /// Quickjs engine for flutter.
 class FlutterQjs {
@@ -31,10 +26,10 @@ class FlutterQjs {
   ReceivePort? _port;
 
   /// Handler function to manage js module.
-  final _JsModuleHandler? moduleHandler;
+  final JsModuleHandler? moduleHandler;
 
   /// Handler function to manage js module.
-  final _JsHostPromiseRejectionHandler? hostPromiseRejectionHandler;
+  final JsHostPromiseRejectionHandler? hostPromiseRejectionHandler;
 
   FlutterQjs({
     this.moduleHandler,
@@ -44,7 +39,7 @@ class FlutterQjs {
     this.hostPromiseRejectionHandler,
   });
 
-  _ensureEngine() {
+  void _ensureEngine() async {
     if (_rt != null) return;
     final port = _port ??= ReceivePort();
     final rt = jsNewRuntime((ctx, type, ptr) {
@@ -52,25 +47,25 @@ class FlutterQjs {
         switch (type) {
           case JSChannelType.METHON:
             final pdata = ptr.cast<Pointer<JSValue>>();
-            final argc = pdata.elementAt(1).value.cast<Int32>().value;
+            final argc = (pdata+1).value.cast<Int32>().value;
             final pargs = [];
             for (var i = 0; i < argc; ++i) {
               pargs.add(_jsToDart(
                 ctx,
                 Pointer.fromAddress(
-                  pdata.elementAt(2).value.address + sizeOfJSValue * i,
+                  (pdata+2).value.address + sizeOfJSValue * i,
                 ),
               ));
             }
             final JSInvokable func = _jsToDart(
               ctx,
-              pdata.elementAt(3).value,
+              (pdata+3).value,
             );
             return _dartToJs(
                 ctx,
                 func.invoke(
                   pargs,
-                  _jsToDart(ctx, pdata.elementAt(0).value),
+                  _jsToDart(ctx, pdata.value),
                 ));
           case JSChannelType.MODULE:
             if (moduleHandler == null) throw JSError('No ModuleHandler');
@@ -86,7 +81,7 @@ class FlutterQjs {
             if (hostPromiseRejectionHandler != null) {
               hostPromiseRejectionHandler!(err);
             } else {
-              print('unhandled promise rejection: $err');
+              log.warning('unhandled promise rejection: $err');
             }
             return nullptr;
           case JSChannelType.FREE_OBJECT:
@@ -97,7 +92,7 @@ class FlutterQjs {
         throw JSError('call channel with wrong type');
       } catch (e) {
         if (type == JSChannelType.FREE_OBJECT) {
-          print('DartObject release error: $e');
+          log.warning('DartObject release error: $e');
           return nullptr;
         }
         // Throw onto ctx so JS sees the handler's original error (jsThrow takes the ref).
@@ -127,7 +122,7 @@ class FlutterQjs {
   }
 
   /// Free Runtime and Context which can be recreate when evaluate again.
-  close() {
+  dynamic close() {
     // Close the port so the event loop ends; null marks the engine as closed.
     _port?.close();
     _port = null;
@@ -152,7 +147,7 @@ class FlutterQjs {
     while (true) {
       int err = jsExecutePendingJob(rt);
       if (err <= 0) {
-        if (err < 0) print(_parseJSException(ctx));
+        if (err < 0) log.warning(_parseJSException(ctx));
         break;
       }
     }

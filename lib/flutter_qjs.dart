@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
+import 'package:logging/logging.dart';
 import 'src/ffi.dart';
 export 'src/ffi.dart' show JSEvalFlag, JSRef;
 

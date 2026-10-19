@@ -18,13 +18,12 @@ This plugin is a simple js engine for flutter using the `quickjs` project with `
 
 ### Basic usage
 
-Firstly, create a `FlutterQjs` object, then call `dispatch` to establish event loop:
+Firstly, create a `FlutterQjs` object:
 
 ```dart
 final engine = FlutterQjs(
   stackSize: 1024 * 1024, // change stack size here.
 );
-engine.dispatch();
 ```
 
 Use `evaluate` method to run js script, it runs synchronously, you can use await to resolve `Promise`:
@@ -37,11 +36,10 @@ try {
 }
 ```
 
-Method `close` can destroy quickjs runtime that can be recreated again if you call `evaluate`. Parameter `port` should be close to stop `dispatch` loop when you do not need it. **Reference leak exception will be thrown since v0.3.3**
+Method `close` can destroy quickjs runtime that can be recreated again if you call `evaluate`. **Reference leak exception will be thrown since v0.3.3**
 
 ```dart
 try {
-  engine.port.close(); // stop dispatch loop
   engine.close();      // close engine
 } on JSError catch(e) { 
   print(e);            // catch reference leak exception
@@ -99,7 +97,7 @@ final engine = IsolateQjs(
         "js/" + module.replaceFirst(new RegExp(r".js$"), "") + ".js");
   },
 );
-// not need engine.dispatch();
+// not need engine.dispatch(); // no manual event loop
 ```
 
 Same as run on main thread, use `evaluate` to run js script. In isolate, everything returns asynchronously, use `await` to get the result:
