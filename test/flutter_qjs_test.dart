@@ -6,18 +6,9 @@
  * @LastEditTime: 2020-10-07 00:11:27
  */
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter_qjs/flutter_qjs.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_tools/src/base/io.dart';
-import 'package:flutter_tools/src/base/logger.dart';
-import 'package:flutter_tools/src/base/terminal.dart';
-import 'package:flutter_tools/src/base/platform.dart';
-import 'package:flutter_tools/src/windows/visual_studio.dart';
-import 'package:file/local.dart';
-import 'package:process/process.dart';
+import 'package:test/test.dart';
 
 dynamic myFunction(String args, {thisVal}) {
   return [thisVal, args];
@@ -74,53 +65,6 @@ Future testEvaluate(qjs) async {
 }
 
 void main() async {
-  test('make', () async {
-    const platform = LocalPlatform();
-    final utf8Encoding = Encoding.getByName('utf-8');
-    String cmakePath = 'cmake';
-    if (platform.isWindows) {
-      final stdio = Stdio();
-      final vs = VisualStudio(
-          fileSystem: const LocalFileSystem(),
-          processManager: const LocalProcessManager(),
-          platform: platform,
-          logger: StdoutLogger(
-            terminal: AnsiTerminal(
-              stdio: stdio,
-              platform: platform,
-            ),
-            stdio: stdio,
-            outputPreferences: OutputPreferences(
-              wrapText: stdio.hasTerminal,
-              showColor: platform.stdoutSupportsAnsi,
-              stdio: stdio,
-            ),
-          ));
-      cmakePath = vs.cmakePath!;
-    }
-    final buildDir = './build';
-    var result = Process.runSync(
-      cmakePath,
-      ['-S', './', '-B', buildDir],
-      workingDirectory: 'test',
-      stdoutEncoding: utf8Encoding,
-      stderrEncoding: utf8Encoding,
-    );
-    stdout.write(result.stdout);
-    stderr.write(result.stderr);
-    expect(result.exitCode, 0);
-
-    result = Process.runSync(
-      cmakePath,
-      ['--build', buildDir, '--verbose'],
-      workingDirectory: 'test',
-      stdoutEncoding: utf8Encoding,
-      stderrEncoding: utf8Encoding,
-    );
-    stdout.write(result.stdout);
-    stderr.write(result.stderr);
-    expect(result.exitCode, 0);
-  });
   test('infinite loop', () async {
     final qjs = FlutterQjs(
       timeout: 1000,
@@ -217,7 +161,7 @@ void main() async {
       qjs.evaluate('a=()=>a();a();', name: '<eval>');
       throw 'Error not throw';
     } on JSError catch (e) {
-      expect(e.message, 'InternalError: stack overflow',
+      expect(e.message, 'RangeError: Maximum call stack size exceeded',
           reason: 'throw stack overflow');
     }
     qjs.close();

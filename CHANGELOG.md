@@ -6,6 +6,10 @@
  * @LastEditTime: 2020-12-02 11:36:40
 -->
 
+## 0.4.0
+
+* migrate to Dart native assets
+
 ## 0.3.7
 
 * add timeout and memory limit

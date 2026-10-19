@@ -1,112 +1,131 @@
-/*
- * @Description: Code highlight controller
- * @Author: ekibun
- * @Date: 2020-08-01 17:42:06
- * @LastEditors: ekibun
- * @LastEditTime: 2020-08-02 12:39:26
- */
 import 'dart:math';
-import 'dart:ui';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_highlight/themes/a11y-light.dart';
 import 'package:highlight/highlight.dart';
 
-Map<String, TextStyle> _theme = a11yLightTheme;
-List<TextSpan> _convert(String code) {
-  var nodes = highlight.parse(code, language: 'javascript').nodes;
-  List<TextSpan> spans = [];
-  var currentSpans = spans;
-  List<List<TextSpan>> stack = [];
+const Map<String, TextStyle> _theme = a11yLightTheme;
 
-  _traverse(Node node) {
-    if (node.value != null) {
-      currentSpans.add(node.className == null
-          ? TextSpan(text: node.value)
-          : TextSpan(text: node.value, style: _theme[node.className]));
-    } else if (node.children != null) {
-      List<TextSpan> tmp = [];
-      currentSpans.add(TextSpan(children: tmp, style: _theme[node.className]));
+/// Splits [code] into styled spans. Top level so that it can run in an isolate
+/// through `compute`.
+List<TextSpan> _convert(String code) {
+  final nodes = highlight.parse(code, language: 'javascript').nodes;
+  final spans = <TextSpan>[];
+  var currentSpans = spans;
+  final stack = <List<TextSpan>>[];
+
+  void traverse(Node node) {
+    final value = node.value;
+    final className = node.className;
+    final children = node.children;
+    if (value != null) {
+      currentSpans.add(
+        TextSpan(
+          text: value,
+          style: className == null ? null : _theme[className],
+        ),
+      );
+    } else if (children != null) {
+      final tmp = <TextSpan>[];
+      currentSpans.add(
+        TextSpan(
+          children: tmp,
+          style: className == null ? null : _theme[className],
+        ),
+      );
       stack.add(currentSpans);
       currentSpans = tmp;
 
-      node.children.forEach((n) {
-        _traverse(n);
-        if (n == node.children.last) {
+      for (var i = 0; i < children.length; i++) {
+        traverse(children[i]);
+        if (i == children.length - 1) {
           currentSpans = stack.isEmpty ? spans : stack.removeLast();
         }
-      });
+      }
     }
   }
 
-  for (var node in nodes) {
-    _traverse(node);
+  for (final node in nodes ?? const <Node>[]) {
+    traverse(node);
   }
 
   return spans;
 }
 
+/// A [TextEditingController] that renders javascript with syntax highlighting
+/// while keeping the caret position intact.
 class CodeInputController extends TextEditingController {
-  CodeInputController({String text}) : super(text: text);
+  CodeInputController({super.text});
 
-  TextSpan oldSpan = TextSpan();
-  Future<void> spanCall;
+  TextSpan _oldSpan = const TextSpan();
+  Future<void>? _spanCall;
 
   @override
-  TextSpan buildTextSpan(
-      {@required BuildContext context, TextStyle style, bool withComposing}) {
-    String oldText = oldSpan.toPlainText();
-    String newText = value.text;
-    if (oldText == newText) return oldSpan;
-    (spanCall?.timeout(Duration.zero) ?? Future.value())
-        .then((_) => spanCall = compute(_convert, value.text).then((lsSpan) {
-              TextSpan newSpan = TextSpan(style: style, children: lsSpan);
-              if (newSpan.toPlainText() == value.text) oldSpan = newSpan;
-              notifyListeners();
-            }))
-        .catchError((_) => {});
+  TextSpan buildTextSpan({
+    required BuildContext context,
+    TextStyle? style,
+    required bool withComposing,
+  }) {
+    final oldText = _oldSpan.toPlainText();
+    final newText = value.text;
+    if (oldText == newText) return _oldSpan;
 
-    List<TextSpan> beforeSpans = [];
-    int splitAt = value.selection.start;
+    (_spanCall?.timeout(Duration.zero) ?? Future<void>.value())
+        .then((_) {
+          _spanCall = compute(_convert, newText).then((spans) {
+            final newSpan = TextSpan(style: style, children: spans);
+            if (newSpan.toPlainText() == value.text) _oldSpan = newSpan;
+            notifyListeners();
+          });
+        })
+        .catchError((Object _) {});
+
+    final oldChildren = _oldSpan.children ?? const <InlineSpan>[];
+    final beforeSpans = <TextSpan>[];
+    var splitAt = value.selection.start;
     if (splitAt < 0) splitAt = newText.length ~/ 2;
-    int start = 0;
-    InlineSpan leftSpan;
-    oldSpan.children?.indexWhere((element) {
-      String elementText = element.toPlainText();
+    var start = 0;
+    InlineSpan? leftSpan;
+    for (final element in oldChildren) {
+      final elementText = element.toPlainText();
       if (start + elementText.length > splitAt ||
           !newText.startsWith(elementText, start)) {
         leftSpan = element;
-        return true;
+        break;
       }
-      beforeSpans.add(element);
+      beforeSpans.add(element as TextSpan);
       start += elementText.length;
-      return false;
-    });
-    List<TextSpan> endSpans = [];
-    int end = 0;
-    InlineSpan rightSpan;
-    oldSpan.children?.sublist(beforeSpans.length)?.lastIndexWhere((element) {
-      String elementText = element.toPlainText();
+    }
+
+    final endSpans = <TextSpan>[];
+    var end = 0;
+    InlineSpan? rightSpan;
+    for (final element in oldChildren.reversed) {
+      final elementText = element.toPlainText();
       if (splitAt + end + elementText.length >= newText.length ||
           !newText
-              .substring(start, newText.length - end)
+              .substring(start, max(start, newText.length - end))
               .endsWith(elementText)) {
         rightSpan = element;
-        return true;
+        break;
       }
-      endSpans.add(element);
+      endSpans.add(element as TextSpan);
       end += elementText.length;
-      return false;
-    });
+    }
 
-    return TextSpan(style: style, children: [
-      ...beforeSpans,
-      TextSpan(
+    return TextSpan(
+      style: style,
+      children: [
+        ...beforeSpans,
+        TextSpan(
           style: leftSpan != null && leftSpan == rightSpan
               ? leftSpan.style
               : style,
-          text: newText.substring(start, max(start, newText.length - end))),
-      ...endSpans.reversed
-    ]);
+          text: newText.substring(start, max(start, newText.length - end)),
+        ),
+        ...endSpans.reversed,
+      ],
+    );
   }
 }

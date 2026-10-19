@@ -130,7 +130,7 @@ Pointer<JSValue> _dartToJs(Pointer<JSContext> ctx, dynamic val,
   final dartObject = jsNewObjectClass(
     ctx,
     dartObjectClassId,
-    identityHashCode(_DartObject(ctx, valWrap)),
+    Pointer<Void>.fromAddress(identityHashCode(_DartObject(ctx, valWrap))),
   );
   if (valWrap is JSInvokable) {
     final ret = jsNewCFunction(ctx, dartObject);
@@ -159,17 +159,17 @@ dynamic _jsToDart(Pointer<JSContext> ctx, Pointer<JSValue> val,
       final dartObjectClassId = runtimeOpaques[rt]?.dartObjectClassId;
       if (dartObjectClassId != null) {
         final dartObject = _DartObject.fromAddress(
-            rt, jsGetObjectOpaque(val, dartObjectClassId));
+            rt, jsGetObjectOpaque(val, dartObjectClassId).address);
         if (dartObject != null) return dartObject._obj;
       }
-      final psize = malloc<IntPtr>();
+      final psize = malloc<Size>();
       final buf = jsGetArrayBuffer(ctx, psize, val);
       final size = psize.value;
       malloc.free(psize);
       if (buf.address != 0) {
         return Uint8List.fromList(buf.asTypedList(size));
       }
-      final valptr = jsValueGetPtr(val);
+      final valptr = jsValueGetPtr(val).address;
       if (cache.containsKey(valptr)) {
         return cache[valptr];
       }
@@ -239,7 +239,7 @@ dynamic _jsToDart(Pointer<JSContext> ctx, Pointer<JSValue> val,
           jsFreeValue(ctx, jsProp);
           jsFreeAtom(ctx, jsAtom);
         }
-        jsFree(ctx, ptab.value);
+        jsFree(ctx, ptab.value.cast());
         malloc.free(ptab);
         return ret;
       }

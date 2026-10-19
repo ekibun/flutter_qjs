@@ -69,14 +69,14 @@ extern "C"
 
   void js_promise_rejection_tracker(JSContext *ctx, JSValueConst promise,
                                     JSValueConst reason,
-                                    JS_BOOL is_handled, void *opaque)
+                                    bool is_handled, void *opaque)
   {
     if (is_handled)
       return;
     ((RuntimeOpaque *)opaque)->channel(ctx, JSChannelType_PROMISE_TRACK, &reason);
   }
 
-  int js_interrupt_handler(JSRuntime * rt, void * opaque) {
+  int js_interrupt_handler(JSContext *ctx, void * opaque) {
     RuntimeOpaque *op = (RuntimeOpaque *)opaque;
     if(op->timeout && op->start && (clock() - op->start) > op->timeout * CLOCKS_PER_SEC / 1000) {
       op->start = 0;
@@ -99,8 +99,8 @@ extern "C"
   DLLEXPORT uint32_t jsNewClass(JSContext *ctx, const char *name)
   {
     JSClassID QJSClassId = 0;
-    JS_NewClassID(&QJSClassId);
     JSRuntime *rt = JS_GetRuntime(ctx);
+    JS_NewClassID(rt, &QJSClassId);
     if (!JS_IsRegisteredClass(rt, QJSClassId))
     {
       JSClassDef def{
@@ -312,17 +312,17 @@ extern "C"
 
   DLLEXPORT int32_t jsIsPromise(JSContext *ctx, JSValueConst *val)
   {
-    return JS_IsPromise(ctx, *val);
+    return JS_IsPromise(*val);
   }
 
   DLLEXPORT int32_t jsIsArray(JSContext *ctx, JSValueConst *val)
   {
-    return JS_IsArray(ctx, *val);
+    return JS_IsArray(*val);
   }
 
   DLLEXPORT int32_t jsIsError(JSContext *ctx, JSValueConst *val)
   {
-    return JS_IsError(ctx, *val);
+    return JS_IsError(*val);
   }
 
   DLLEXPORT JSValue *jsNewError(JSContext *ctx)
