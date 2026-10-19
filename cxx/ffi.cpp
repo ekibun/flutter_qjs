@@ -6,6 +6,7 @@
  * @LastEditTime: 2020-12-02 11:11:42
  */
 #include "ffi.h"
+#include <chrono>
 #include <functional>
 #include <future>
 #include <string.h>
@@ -36,7 +37,8 @@ extern "C"
   struct RuntimeOpaque {
       JSChannel * channel;
       int64_t timeout;
-      int64_t start;
+      // Monotonic clock start; epoch means no timing window is active.
+      std::chrono::steady_clock::time_point start;
   };
 
   JSModuleDef *js_module_loader(
@@ -45,7 +47,12 @@ extern "C"
   {
     const char *str = (char *)((RuntimeOpaque *)opaque)->channel(ctx, JSChannelType_MODULE, (void *)module_name);
     if (str == 0)
+    {
+      // A NULL loader result must carry a pending exception; keep a specific one.
+      if (!JS_HasException(ctx))
+        JS_ThrowReferenceError(ctx, "could not load module '%s'", module_name);
       return NULL;
+    }
     JSValue func_val = JS_Eval(ctx, str, strlen(str), module_name, JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
     if (JS_IsException(func_val))
       return NULL;
@@ -78,9 +85,15 @@ extern "C"
 
   int js_interrupt_handler(JSContext *ctx, void * opaque) {
     RuntimeOpaque *op = (RuntimeOpaque *)opaque;
-    if(op->timeout && op->start && (clock() - op->start) > op->timeout * CLOCKS_PER_SEC / 1000) {
-      op->start = 0;
-      return 1;
+    // Use steady_clock: clock() reports CPU time, which stalls during IO waits.
+    if (op->timeout > 0 && op->start != std::chrono::steady_clock::time_point{}) {
+      const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                               std::chrono::steady_clock::now() - op->start)
+                               .count();
+      if (elapsed > op->timeout) {
+        op->start = std::chrono::steady_clock::time_point{};
+        return 1;
+      }
     }
     return 0;
   }
@@ -88,7 +101,7 @@ extern "C"
   DLLEXPORT JSRuntime *jsNewRuntime(JSChannel channel, int64_t timeout)
   {
     JSRuntime *rt = JS_NewRuntime();
-    RuntimeOpaque *opaque = new RuntimeOpaque({channel, timeout, 0});
+    RuntimeOpaque *opaque = new RuntimeOpaque({channel, timeout, std::chrono::steady_clock::time_point{}});
     JS_SetRuntimeOpaque(rt, opaque);
     JS_SetHostPromiseRejectionTracker(rt, js_promise_rejection_tracker, opaque);
     JS_SetModuleLoaderFunc(rt, nullptr, js_module_loader, opaque);
@@ -151,11 +164,11 @@ extern "C"
 
   DLLEXPORT void jsFreeRuntime(JSRuntime *rt)
   {
-    RuntimeOpaque *opauqe = (RuntimeOpaque *)JS_GetRuntimeOpaque(rt);
-    if (opauqe)
-      delete opauqe;
-    JS_SetRuntimeOpaque(rt, nullptr);
+    RuntimeOpaque *opaque = (RuntimeOpaque *)JS_GetRuntimeOpaque(rt);
+    // Free the runtime before deleting the opaque so class destructors can still reach it.
     JS_FreeRuntime(rt);
+    if (opaque)
+      delete opaque;
   }
 
   DLLEXPORT JSValue *jsNewCFunction(JSContext *ctx, JSValue *funcData)
@@ -183,7 +196,8 @@ extern "C"
   void js_begin_call(JSRuntime *rt) {
     JS_UpdateStackTop(rt);
     RuntimeOpaque * opaque = (RuntimeOpaque *)JS_GetRuntimeOpaque(rt);
-    if(opaque) opaque->start = clock();
+    // Restart the timeout window for every eval, call and pending-job run.
+    if(opaque) opaque->start = std::chrono::steady_clock::now();
   }
 
   DLLEXPORT JSValue *jsEval(JSContext *ctx, const char *input, size_t input_len, const char *filename, int32_t eval_flags)
@@ -302,7 +316,11 @@ extern "C"
 
   DLLEXPORT uint8_t *jsGetArrayBuffer(JSContext *ctx, size_t *psize, JSValueConst *obj)
   {
-    return JS_GetArrayBuffer(ctx, psize, *obj);
+    // Drop the TypeError raised for non-ArrayBuffers so it cannot leak into later calls.
+    uint8_t *buf = JS_GetArrayBuffer(ctx, psize, *obj);
+    if (buf == nullptr && JS_IsException(JS_GetException(ctx)))
+      JS_FreeValue(ctx, JS_GetException(ctx));
+    return buf;
   }
 
   DLLEXPORT int32_t jsIsFunction(JSContext *ctx, JSValueConst *val)

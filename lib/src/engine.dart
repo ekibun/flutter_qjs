@@ -27,8 +27,8 @@ class FlutterQjs {
   /// Max memory for quickjs.
   final int? memoryLimit;
 
-  /// Message Port for event loop. Close it to stop dispatching event loop.
-  ReceivePort port = ReceivePort();
+  /// Message Port for event loop; null while the engine is closed.
+  ReceivePort? _port;
 
   /// Handler function to manage js module.
   final _JsModuleHandler? moduleHandler;
@@ -46,6 +46,7 @@ class FlutterQjs {
 
   _ensureEngine() {
     if (_rt != null) return;
+    final port = _port ??= ReceivePort();
     final rt = jsNewRuntime((ctx, type, ptr) {
       try {
         switch (type) {
@@ -99,14 +100,12 @@ class FlutterQjs {
           print('DartObject release error: $e');
           return nullptr;
         }
-        if (type == JSChannelType.MODULE) {
-          print('host Promise Rejection Handler error: $e');
-          return nullptr;
-        }
+        // Throw onto ctx so JS sees the handler's original error (jsThrow takes the ref).
         final throwObj = _dartToJs(ctx, e);
         final err = jsThrow(ctx, throwObj);
         jsFreeValue(ctx, throwObj);
         if (type == JSChannelType.MODULE) {
+          // The handle is one-shot; the pending exception stays on ctx.
           jsFreeValue(ctx, err);
           return nullptr;
         }
@@ -119,10 +118,19 @@ class FlutterQjs {
     if (memoryLimit > 0) jsSetMemoryLimit(rt, memoryLimit);
     _rt = rt;
     _ctx = jsNewContext(rt);
+    // Start the event loop with the engine; it ends when close() closes the port.
+    unawaited(() async {
+      await for (final _ in port) {
+        _executePendingJob();
+      }
+    }());
   }
 
   /// Free Runtime and Context which can be recreate when evaluate again.
   close() {
+    // Close the port so the event loop ends; null marks the engine as closed.
+    _port?.close();
+    _port = null;
     final rt = _rt;
     final ctx = _ctx;
     _rt = null;
@@ -147,13 +155,6 @@ class FlutterQjs {
         if (err < 0) print(_parseJSException(ctx));
         break;
       }
-    }
-  }
-
-  /// Dispatch JavaScript Event loop.
-  Future<void> dispatch() async {
-    await for (final _ in port) {
-      _executePendingJob();
     }
   }
 

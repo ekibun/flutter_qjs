@@ -69,7 +69,6 @@ void main() async {
     final qjs = FlutterQjs(
       timeout: 1000,
     );
-    qjs.dispatch();
     var result = await qjs.evaluate('1');
     expect(result, 1, reason: 'eval module');
     try {
@@ -85,7 +84,6 @@ void main() async {
     final qjs = FlutterQjs(
       memoryLimit: 1000000,
     );
-    qjs.dispatch();
     try {
       await qjs.evaluate('new Array(1000000).fill(0)');
       throw 'Error not throw';
@@ -111,11 +109,24 @@ void main() async {
     expect(result['default']['data'], 'test module', reason: 'eval module');
     await qjs.close();
   });
+  test('module load failure rejects import', () async {
+    final qjs = FlutterQjs(
+      moduleHandler: (name) {
+        throw JSError('module "$name" is not available');
+      },
+    );
+    final err = await qjs
+        .evaluate('import("missing")')
+        .then<Object?>((v) => null, onError: (e) => e);
+    expect(err, isNotNull, reason: 'import must reject');
+    expect(err.toString(), contains('is not available'),
+        reason: 'reject reason should be the handler error');
+    qjs.close();
+  });
   test('data conversion', () async {
     final qjs = FlutterQjs(
       hostPromiseRejectionHandler: (_) {},
     );
-    qjs.dispatch();
     await testEvaluate(qjs);
     await qjs.close();
   });
@@ -156,7 +167,8 @@ void main() async {
     }
   });
   test('stack overflow', () async {
-    final qjs = FlutterQjs();
+    // 64KB explicit: with the default stackSize 0, deep recursion overflows the host stack first.
+    final qjs = FlutterQjs(stackSize: 64 * 1024);
     try {
       qjs.evaluate('a=()=>a();a();', name: '<eval>');
       throw 'Error not throw';
@@ -173,7 +185,6 @@ void main() async {
         completer.complete(reason);
       },
     );
-    qjs.dispatch();
     qjs.evaluate(
         '(() => { Promise.resolve().then(() => { throw "unhandle" }) })()',
         name: '<eval>');

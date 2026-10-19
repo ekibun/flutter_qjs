@@ -134,7 +134,8 @@ void _runJsIsolate(Map spawnMessage) async {
       return retString;
     },
   );
-  port.listen((msg) async {
+  // Await the port itself: it keeps the isolate alive and ends when the port closes.
+  await for (final msg in port) {
     var data;
     SendPort? msgPort = msg[#port];
     try {
@@ -148,7 +149,6 @@ void _runJsIsolate(Map spawnMessage) async {
           break;
         case #close:
           data = false;
-          qjs.port.close();
           qjs.close();
           port.close();
           data = true;
@@ -161,8 +161,7 @@ void _runJsIsolate(Map spawnMessage) async {
           #error: _encodeData(e),
         });
     }
-  });
-  await qjs.dispatch();
+  }
 }
 
 typedef _JsAsyncModuleHandler = Future<String> Function(String name);
